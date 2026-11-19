@@ -520,5 +520,137 @@
     "answer": "출처를 표시하면 정보의 근거를 확인할 수 있고 다른 사람의 작업을 존중할 수 있습니다.",
     "source": "curated-v2",
     "approved": true
+  },
+  {
+    "question": "AI는 무엇인가요?",
+    "answer": "AI는 데이터를 바탕으로 패턴을 배우고 예측이나 문장 생성 같은 작업을 수행하는 컴퓨터 기술입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "질문에 답할 때 중요한 점은?",
+    "answer": "질문의 핵심을 먼저 파악하고 확인된 사실을 근거로 짧고 정확하게 설명하는 것이 중요합니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "모르는 질문을 받으면 어떻게 해야 하나요?",
+    "answer": "확인할 수 없는 내용은 추측하지 말고 모른다고 말한 뒤 필요한 정보를 더 물어보는 것이 좋습니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "프로그래밍은 무엇인가요?",
+    "answer": "프로그래밍은 컴퓨터가 할 일을 정해진 문법으로 작성하는 과정입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "서버는 무슨 일을 하나요?",
+    "answer": "서버는 요청을 받아 데이터를 처리하고 필요한 결과를 사용자에게 돌려주는 컴퓨터 프로그램입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "데이터베이스는 무엇인가요?",
+    "answer": "데이터베이스는 정보를 정리해 저장하고 필요할 때 검색하거나 수정할 수 있게 하는 시스템입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "알고리즘은 무엇인가요?",
+    "answer": "알고리즘은 문제를 해결하기 위해 순서대로 수행하는 명확한 절차입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "변수와 상수의 차이는?",
+    "answer": "변수는 실행 중 값이 바뀔 수 있고 상수는 정한 값을 다시 바꾸지 않도록 만든 이름입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "반복문을 쓰는 이유는?",
+    "answer": "반복문은 같은 작업을 여러 번 작성하지 않고 조건에 따라 다시 실행하도록 해줍니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "조건문은 언제 사용하나요?",
+    "answer": "조건문은 어떤 조건이 참인지에 따라 실행할 코드를 다르게 정할 때 사용합니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "브라우저란 무엇인가요?",
+    "answer": "브라우저는 웹 서버에서 받은 페이지를 해석해 화면에 보여주는 프로그램입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "운영체제의 역할은?",
+    "answer": "운영체제는 프로그램 실행과 파일 저장 장치 관리 메모리 관리를 맡습니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "인공지능과 일반 프로그램의 차이는?",
+    "answer": "일반 프로그램은 사람이 정한 규칙을 실행하고 인공지능은 데이터에서 학습한 패턴을 이용해 결과를 예측하거나 생성합니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "머신러닝은 무엇인가요?",
+    "answer": "머신러닝은 데이터를 이용해 모델이 규칙과 패턴을 학습하도록 하는 인공지능의 한 분야입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "모델의 가중치는 무엇인가요?",
+    "answer": "가중치는 학습 과정에서 조정되는 숫자이며 입력 정보가 결과에 미치는 영향을 나타냅니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "검증 손실은 무엇인가요?",
+    "answer": "검증 손실은 학습에 사용하지 않은 데이터에서 모델의 예측 오차를 측정한 값입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "토큰화란 무엇인가요?",
+    "answer": "토큰화는 문장을 모델이 처리할 수 있는 단어나 문자 같은 작은 단위로 나누는 과정입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "문맥이란 무엇인가요?",
+    "answer": "문맥은 문장 주변의 정보와 대화의 흐름이며 같은 단어의 의미를 파악하는 데 도움을 줍니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "수학에서 방정식은 무엇인가요?",
+    "answer": "방정식은 미지수를 포함하고 등호로 두 식이 같음을 나타내는 식입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "속력과 속도의 차이는?",
+    "answer": "속력은 이동 거리와 시간의 비율이고 속도는 방향까지 포함해 이동의 변화를 나타냅니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "생태계에서 생산자는 누구인가요?",
+    "answer": "생산자는 햇빛이나 화학 에너지를 이용해 스스로 양분을 만드는 생물이며 식물이 대표적입니다.",
+    "source": "curated-v3",
+    "approved": true
+  },
+  {
+    "question": "경제에서 시장이란?",
+    "answer": "시장은 상품이나 서비스를 사고파는 사람과 기업이 만나 거래하는 체계입니다.",
+    "source": "curated-v3",
+    "approved": true
   }
 ]
