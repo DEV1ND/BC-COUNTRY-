@@ -173,6 +173,54 @@ async def _persist_model(raw: bytes, step: int):
         r.raise_for_status()
         return True
 
+async def _persist_training_checkpoint(candidate: JuckexModel, step: int, max_steps: int, dataset_pairs: int, validation_loss_before):
+    if not WORKER_URL:
+        return False
+    import base64
+    raw = _to_npz_bytes(candidate, step)
+    payload = {
+        "checkpoint": base64.b64encode(raw).decode("ascii"),
+        "step": int(step),
+        "max_steps": int(max_steps),
+        "dataset_pairs": int(dataset_pairs),
+        "validation_loss_before": validation_loss_before,
+    }
+    headers = await _worker_headers()
+    async with httpx.AsyncClient(timeout=90) as client:
+        r = await client.put(WORKER_URL + "/api/internal/checkpoint", json=payload, headers=headers)
+        r.raise_for_status()
+        return True
+
+async def _restore_training_checkpoint():
+    if not WORKER_URL or not SYNC_TOKEN:
+        return None
+    headers = await _worker_headers()
+    async with httpx.AsyncClient(timeout=90) as client:
+        r = await client.get(WORKER_URL + "/api/internal/checkpoint", headers=headers)
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        body = r.json()
+    import base64
+    raw = base64.b64decode(body.get("checkpoint", ""), validate=True)
+    if not raw:
+        return None
+    return {
+        "raw": raw,
+        "step": max(0, int(body.get("step", 0))),
+        "max_steps": max(1, int(body.get("max_steps", 1))),
+        "dataset_pairs": max(0, int(body.get("dataset_pairs", 0))),
+        "validation_loss_before": body.get("validation_loss_before"),
+    }
+
+async def _delete_training_checkpoint():
+    if not WORKER_URL or not SYNC_TOKEN:
+        return False
+    headers = await _worker_headers()
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.delete(WORKER_URL + "/api/internal/checkpoint", headers=headers)
+        r.raise_for_status()
+        return True
 async def _restore_remote_model(model: JuckexModel):
     if not WORKER_URL or not SYNC_TOKEN:
         return False
@@ -221,19 +269,30 @@ def encode_text(text: str):
 
 
 def make_sequences(pairs):
-    seqs, skipped = [], 0
+    seqs, skipped, seen = [], 0, set()
     for row in pairs:
-        q = str(row.get("question", "")).strip()[:500]
-        a = str(row.get("answer", "")).strip()[:2000]
-        if not q or not a:
+        q = str(row.get("question", "")).replace("\x00", " ").strip()[:500]
+        a = str(row.get("answer", "")).replace("\x00", "").strip()[:2000]
+        if len(q) < 2 or len(a) < 4 or q.casefold() == a.casefold():
             skipped += 1
             continue
+        if len(a) > 40 and len(set(a)) <= 2:
+            skipped += 1
+            continue
+        if a.casefold() in {"답변 없음", "정답 없음", "테스트 데이터", "내용 없음"}:
+            skipped += 1
+            continue
+        pair_key = hashlib.sha256((q.casefold() + "\0" + a.casefold()).encode("utf-8")).hexdigest()
+        if pair_key in seen:
+            skipped += 1
+            continue
+        seen.add(pair_key)
         text = "질문:" + q + "\n답변:" + a + "\n\n"
         ids, coverage = encode_text(text)
         if coverage < 0.82 or len(ids) < 12:
             skipped += 1
             continue
-        # Python int 리스트보다 훨씬 적은 메모리를 쓰도록 토큰을 uint16 배열로 보관합니다.
+        # 중복과 저품질 항목을 제외한 뒤 uint16 토큰 배열로 저장합니다.
         seqs.append(np.asarray(ids, dtype=np.uint16))
     return seqs, skipped
 
@@ -249,7 +308,7 @@ async def fetch_training_pairs():
         while pages < max_pages:
             r = await client.get(
                 WORKER_URL + "/api/internal/training-data",
-                params={"after": cursor, "limit": page_size},
+                params={"after": cursor, "limit": page_size, "mode": "recent"},
                 headers=headers,
             )
             r.raise_for_status()
@@ -347,17 +406,29 @@ async def _train_background(max_steps: int = 80):
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
-        with model_lock:
-            before = evaluate(model, val_seqs)
+        steps = max(1, min(int(max_steps), 200))
+        checkpoint = await _restore_training_checkpoint()
+        resume_step = 0
+        resumed = False
+        if checkpoint and checkpoint["dataset_pairs"] == fetched_count and checkpoint["max_steps"] == steps and checkpoint["step"] <= steps:
             candidate = JuckexModel().to(DEVICE)
-            candidate.load_state_dict(model.state_dict())
+            _load_npz(candidate, checkpoint["raw"])
+            before = checkpoint.get("validation_loss_before")
+            resume_step = checkpoint["step"]
+            resumed = resume_step > 0
+        else:
+            if checkpoint:
+                await _delete_training_checkpoint()
+            with model_lock:
+                before = evaluate(model, val_seqs)
+                candidate = JuckexModel().to(DEVICE)
+                candidate.load_state_dict(model.state_dict())
         candidate.train()
         optimizer = torch.optim.AdamW(candidate.parameters(), lr=2e-5, weight_decay=0.01)
-        steps = max(1, min(int(max_steps), 200))
         last_loss = None
-        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": 0, "validation_loss_before": before})
+        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 8, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
         save_training_state()
-        for i in range(steps):
+        for i in range(resume_step, steps):
             xb, yb = sample_batch(train_seqs, batch_size=8)
             _, loss = candidate(xb, yb)
             if not torch.isfinite(loss):
@@ -367,16 +438,21 @@ async def _train_background(max_steps: int = 80):
             torch.nn.utils.clip_grad_norm_(candidate.parameters(), 1.0)
             optimizer.step()
             last_loss = float(loss.item())
-            # 한 step에서 batch_size=8개 시퀀스를 학습 데이터로 샘플링합니다.
             training_state["examples_seen"] = int(training_state.get("examples_seen", 0)) + int(xb.size(0))
             training_state["progress"] = int((i + 1) / steps * 100)
+            if (i + 1) % 20 == 0 or i + 1 == steps:
+                if not await _persist_training_checkpoint(candidate, i + 1, steps, fetched_count, before):
+                    raise RuntimeError("Cloudflare에 학습 체크포인트를 저장하지 못했습니다. 새 모델 적용을 중단했습니다.")
+                training_state["checkpoint_step"] = i + 1
+                save_training_state()
             if i % 10 == 0:
                 save_training_state()
                 await asyncio.sleep(0)
         after = evaluate(candidate, val_seqs)
-        # Reject catastrophic regressions; a small noisy change is not enough to reject.
-        if before is not None and after is not None and after > before * 1.15:
-            training_state.update({"status": "rejected", "last_error": "검증 손실이 15% 이상 악화되어 이전 모델을 유지했습니다.", "validation_loss_after": after, "validation_loss": before, "progress": 100})
+        # Only promote a candidate when the same held-out validation set shows a measurable improvement.
+        if before is None or after is None or after >= before * 0.995:
+            training_state.update({"status": "rejected", "last_error": "검증 손실의 유의미한 개선이 확인되지 않아 기존 모델을 유지했습니다.", "validation_loss_after": after, "validation_loss": before, "progress": 100})
+            await _delete_training_checkpoint()
             save_training_state()
             return
         next_step = int(training_state.get("step", 2000)) + steps
@@ -387,7 +463,8 @@ async def _train_background(max_steps: int = 80):
         with model_lock:
             _save_local(candidate, next_step)
             model.load_state_dict(candidate.state_dict())
-        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None})
+        await _delete_training_checkpoint()
+        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
         save_training_state()
     except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
