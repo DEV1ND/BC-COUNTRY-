@@ -607,6 +607,61 @@ def _curated_exact_answer(question_text: str) -> str:
     return ""
 
 
+
+def _curated_similar_answer(question_text: str) -> str:
+    """검수 문답에서 핵심 단어가 충분히 겹치는 항목만 검색합니다."""
+    path = ROOT / "training_extra.json"
+    if not path.exists() or not question_text:
+        return ""
+    stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명",
+            "알려주세요", "알려줘", "해주세요", "해줘", "오늘", "어때", "질문",
+            "답변", "그리고", "대한", "뭐야", "뭐예요", "뭔가요", "뭔데", "뜻",
+            "방법", "차이", "어떻게", "인가"}
+    suffixes = ("으로", "에서", "에게", "까지", "부터", "처럼", "보다",
+                "이라", "이란", "란", "은", "는", "이", "가", "을", "를",
+                "의", "와", "과", "도", "로", "에")
+    def terms(value):
+        found = set()
+        for raw in re.findall(r"[가-힣]{2,}|[a-zA-Z0-9]{2,}", str(value).casefold()):
+            term = raw
+            for suffix in suffixes:
+                if term.endswith(suffix) and len(term) - len(suffix) >= 2:
+                    term = term[:-len(suffix)]
+                    break
+            if len(term) >= 2 and term not in stop:
+                found.add(term)
+        return found
+    query_terms = terms(question_text)
+    if not query_terms:
+        return ""
+    aliases = {"인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"}}
+    expanded = set(query_terms)
+    for term in query_terms:
+        expanded.update(aliases.get(term, set()))
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(rows, list):
+            return ""
+        best_score, best_answer = 0.0, ""
+        for row in rows:
+            if not isinstance(row, dict) or not row.get("approved", True):
+                continue
+            answer = str(row.get("answer", "")).strip()
+            if len(answer) < 8:
+                continue
+            candidate_terms = terms(row.get("question", ""))
+            overlap = expanded & candidate_terms
+            score = len(overlap) / max(1, len(expanded))
+            if len(expanded) == 1:
+                score = 1.0 if overlap else 0.0
+            if score > best_score:
+                best_score, best_answer = score, answer
+        if best_score >= 0.5 and _answer_quality_ok(question_text, best_answer, question_text):
+            return best_answer
+    except Exception as e:
+        print(f"curated similarity search unavailable: {str(e)[:160]}")
+    return ""
+
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
     # 샘플링을 제거해 동일한 입력에는 동일한 출력이 나오도록 합니다.
     input_ids, _ = encode_text(prompt)
@@ -645,7 +700,14 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
         if not current_question:
             current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\n답변:", 1)[0].strip()
             current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
-        return _curated_exact_answer(current_question)
+        exact_answer = _curated_exact_answer(current_question)
+        if exact_answer:
+            return exact_answer
+        similar_answer = _curated_similar_answer(current_question)
+        if similar_answer:
+            return similar_answer
+        # 추론 서버가 빈 문자열을 반환해 Worker가 장애로 오인하지 않도록 정상 안내를 반환합니다.
+        return "아직 이 질문에 대한 학습 자료가 충분하지 않아요. 다른 표현으로 질문하거나 주제를 더 구체적으로 알려 주세요."
     return answer
 
 @app.get("/")
