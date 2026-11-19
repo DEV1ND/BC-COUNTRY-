@@ -859,6 +859,70 @@ async def learn(req: FeedbackRequest, x_juckex_token: Optional[str] = Header(def
     # Durable source of truth is Worker D1. This endpoint confirms receipt; scheduled training pulls approved rows.
     return {"ok": True, "queued": True, "message": "승인된 데이터는 Cloudflare D1에 저장하고 학습 시 동기화합니다."}
 
+@app.post("/model/guard")
+async def model_guard(x_juckex_token: Optional[str] = Header(default=None)):
+    """Compare the live model with its previous version on the same held-out set; restore only on clear regression."""
+    auth(x_juckex_token)
+    with train_start_lock:
+        if training_state.get("status") in ("queued", "fetching", "training"):
+            return {"ok": True, "skipped": True, "reason": "training_in_progress"}
+    updated_at = int(training_state.get("updated_at") or 0)
+    if not updated_at:
+        return {"ok": True, "skipped": True, "reason": "no_promoted_model_timestamp"}
+    if int(training_state.get("last_guarded_updated_at") or 0) >= updated_at:
+        return {"ok": True, "skipped": True, "reason": "already_checked", "updated_at": updated_at}
+    if not WORKER_URL:
+        raise HTTPException(status_code=503, detail="원격 모델 저장소가 설정되지 않았습니다.")
+    try:
+        pairs = await fetch_training_pairs()
+        seqs, skipped = make_sequences(pairs)
+        if len(seqs) < 5:
+            raise RuntimeError(f"검증 데이터가 부족합니다: {len(seqs)}개")
+        _, val_seqs = split_sequences(seqs)
+        if len(val_seqs) < 1:
+            raise RuntimeError("분리된 검증 데이터가 없습니다.")
+        headers = await _worker_headers()
+        async with httpx.AsyncClient(timeout=90) as client:
+            response = await client.get(WORKER_URL + "/api/internal/model?previous=1", headers=headers)
+            if response.status_code == 404:
+                training_state.update({"last_guarded_updated_at": updated_at, "last_guard_at": int(time.time()), "last_guard_result": "no_previous_model"})
+                save_training_state()
+                return {"ok": True, "skipped": True, "reason": "no_previous_model"}
+            response.raise_for_status()
+            body = response.json()
+        import base64
+        previous_raw = base64.b64decode(body["model"], validate=True)
+        previous_model = JuckexModel().to(DEVICE)
+        _load_npz(previous_model, previous_raw)
+        with model_lock:
+            live_loss = evaluate(model, val_seqs, max_batches=12)
+        previous_loss = evaluate(previous_model, val_seqs, max_batches=12)
+        if live_loss is None or previous_loss is None or not math.isfinite(live_loss) or not math.isfinite(previous_loss):
+            raise RuntimeError("모델 비교 점수가 유효하지 않습니다.")
+        regressed = live_loss > previous_loss * 1.05
+        if regressed:
+            rollback_step = max(0, int(body.get("step", 0)))
+            payload = {"model": base64.b64encode(previous_raw).decode("ascii"), "step": rollback_step, "version": int(time.time()), "keepPrevious": True}
+            async with httpx.AsyncClient(timeout=90) as client:
+                saved = await client.put(WORKER_URL + "/api/internal/model", json=payload, headers=headers)
+                saved.raise_for_status()
+            with model_lock:
+                model.load_state_dict(previous_model.state_dict())
+                LOCAL_MODEL.write_bytes(previous_raw)
+            training_state.update({"step": rollback_step, "model_version": int(time.time()), "updated_at": int(time.time()), "automatic_rollback_at": int(time.time()), "automatic_rollback_reason": "동일 검증 데이터에서 이전 모델보다 손실이 5% 넘게 높았습니다.", "automatic_rollback_live_loss": live_loss, "automatic_rollback_previous_loss": previous_loss})
+            training_state["last_guarded_updated_at"] = int(training_state["updated_at"])
+            training_state["last_guard_result"] = "rolled_back"
+        else:
+            training_state.update({"last_guarded_updated_at": updated_at, "last_guard_at": int(time.time()), "last_guard_result": "passed", "last_guard_live_loss": live_loss, "last_guard_previous_loss": previous_loss, "last_guard_validation_pairs": len(val_seqs), "last_guard_skipped_pairs": skipped})
+        save_training_state()
+        return {"ok": True, "rolled_back": regressed, "live_loss": live_loss, "previous_loss": previous_loss, "validation_pairs": len(val_seqs)}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        training_state.update({"last_guard_at": int(time.time()), "last_guard_error": str(exc)[:400], "last_guard_result": "error"})
+        save_training_state()
+        raise HTTPException(status_code=503, detail="자동 모델 점검 실패: " + str(exc)[:240]) from exc
+
 @app.post("/model/rollback")
 async def rollback(x_juckex_token: Optional[str] = Header(default=None)):
     auth(x_juckex_token)
