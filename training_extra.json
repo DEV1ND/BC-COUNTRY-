@@ -1,0 +1,302 @@
+[
+  {
+    "question": "인공지능이란 무엇인가요?",
+    "answer": "인공지능은 컴퓨터가 데이터에서 패턴을 학습하고 여러 작업을 수행하도록 만드는 기술입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "머신러닝이란 무엇인가요?",
+    "answer": "머신러닝은 데이터를 이용해 규칙과 패턴을 학습하는 인공지능의 한 분야입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "딥러닝이란 무엇인가요?",
+    "answer": "딥러닝은 여러 층의 신경망으로 데이터의 복잡한 특징을 학습하는 머신러닝의 한 분야입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "신경망은 무엇인가요?",
+    "answer": "신경망은 여러 계산 단위가 연결되어 입력 데이터의 패턴을 학습하는 모델입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "데이터란 무엇인가요?",
+    "answer": "데이터는 분석이나 학습에 사용할 수 있도록 모은 사실과 관찰 기록입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "알고리즘이란 무엇인가요?",
+    "answer": "알고리즘은 문제를 해결하기 위해 정해 둔 단계별 절차입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "프로그래밍이란 무엇인가요?",
+    "answer": "프로그래밍은 컴퓨터가 수행할 작업을 코드로 작성하는 과정입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "HTML은 무엇인가요?",
+    "answer": "HTML은 웹 페이지의 제목과 문단, 링크 같은 구조를 정의하는 마크업 언어입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "CSS는 무엇인가요?",
+    "answer": "CSS는 웹 페이지의 색상과 크기, 배치와 같은 디자인을 지정하는 언어입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "자바스크립트는 무엇인가요?",
+    "answer": "자바스크립트는 웹 페이지에 동작과 상호작용을 추가하는 프로그래밍 언어입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "파이썬은 무엇인가요?",
+    "answer": "파이썬은 문법이 비교적 간결하고 자동화와 데이터 분석 등에 널리 쓰이는 프로그래밍 언어입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "서버란 무엇인가요?",
+    "answer": "서버는 다른 컴퓨터나 프로그램의 요청을 받아 데이터나 기능을 제공하는 시스템입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "데이터베이스란 무엇인가요?",
+    "answer": "데이터베이스는 정보를 체계적으로 저장하고 검색하거나 수정할 수 있게 관리하는 공간입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "API란 무엇인가요?",
+    "answer": "API는 서로 다른 프로그램이 정해진 규칙에 따라 기능이나 데이터를 주고받는 연결 방식입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "클라우드 컴퓨팅이란 무엇인가요?",
+    "answer": "클라우드 컴퓨팅은 인터넷을 통해 서버와 저장 공간 같은 컴퓨터 자원을 사용하는 방식입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "인터넷은 어떻게 작동하나요?",
+    "answer": "인터넷은 여러 네트워크가 연결된 구조이며 장치는 주소와 통신 규칙을 이용해 데이터를 주고받습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "IP 주소란 무엇인가요?",
+    "answer": "IP 주소는 네트워크에서 장치나 연결 지점을 구분하는 숫자 기반 주소입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "암호화란 무엇인가요?",
+    "answer": "암호화는 정해진 키를 이용해 데이터를 읽기 어려운 형태로 바꾸어 정보를 보호하는 기술입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "비밀번호를 안전하게 관리하는 방법은?",
+    "answer": "사이트마다 다른 긴 비밀번호를 사용하고 비밀번호 관리 도구와 다중 인증을 활용하는 것이 좋습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "이중 인증이란 무엇인가요?",
+    "answer": "이중 인증은 비밀번호 외에 추가 확인 단계를 요구해 계정 접근을 보호하는 방법입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "태양계란 무엇인가요?",
+    "answer": "태양계는 태양과 태양의 중력에 묶여 공전하는 행성, 위성, 소행성 등으로 이루어져 있습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "지구가 자전하면 어떤 일이 생기나요?",
+    "answer": "지구가 자전하기 때문에 지구의 각 지역은 차례로 태양을 향하고 등지며 낮과 밤이 생깁니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "계절은 왜 바뀌나요?",
+    "answer": "지구 자전축이 기울어진 채 태양 주위를 공전하기 때문에 계절에 따라 햇빛의 각도와 낮의 길이가 달라집니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "물의 화학식은 무엇인가요?",
+    "answer": "물의 화학식은 H₂O이며 수소 원자 두 개와 산소 원자 한 개로 이루어져 있습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "광합성이란 무엇인가요?",
+    "answer": "광합성은 식물이 빛 에너지를 이용해 물과 이산화탄소로 양분을 만들고 산소를 방출하는 과정입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "중력은 무엇인가요?",
+    "answer": "중력은 질량을 가진 물체 사이에 작용하는 서로 끌어당기는 힘입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "전류란 무엇인가요?",
+    "answer": "전류는 전하가 이동하는 현상이며 회로에서는 전하의 흐름으로 설명합니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "산과 염기의 차이는 무엇인가요?",
+    "answer": "산은 수용액에서 수소 이온을 내놓는 성질이 있고 염기는 수소 이온을 받아들이거나 수산화 이온을 내놓는 성질이 있습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "민주주의란 무엇인가요?",
+    "answer": "민주주의는 국가의 주권이 국민에게 있고 국민의 참여와 합의로 정치가 이루어지는 원리입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "헌법이란 무엇인가요?",
+    "answer": "헌법은 국가의 기본 질서와 국민의 기본권, 국가 기관의 구성과 권한을 정하는 최고 법입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "경제란 무엇인가요?",
+    "answer": "경제는 사람과 사회가 제한된 자원을 이용해 생산하고 분배하며 소비하는 활동입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "수요와 공급이란 무엇인가요?",
+    "answer": "수요는 소비자가 구매하려는 양이고 공급은 생산자가 판매하려는 양입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "인플레이션이란 무엇인가요?",
+    "answer": "인플레이션은 여러 상품과 서비스의 전반적인 가격 수준이 지속해서 오르는 현상입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "기회비용이란 무엇인가요?",
+    "answer": "기회비용은 어떤 선택을 했을 때 포기한 대안 가운데 가장 가치가 큰 것입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "확률이란 무엇인가요?",
+    "answer": "확률은 어떤 사건이 일어날 가능성을 0과 1 사이의 수로 나타낸 값입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "평균을 구하는 방법은?",
+    "answer": "평균은 자료의 모든 값을 더한 뒤 자료의 개수로 나누어 구합니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "삼각형의 넓이는 어떻게 구하나요?",
+    "answer": "삼각형의 넓이는 밑변의 길이에 높이를 곱한 뒤 2로 나누어 구합니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "피타고라스 정리는 무엇인가요?",
+    "answer": "직각삼각형에서 빗변의 제곱은 나머지 두 변의 제곱의 합과 같습니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "소수란 무엇인가요?",
+    "answer": "소수는 1보다 큰 자연수 중에서 1과 자기 자신만을 약수로 가지는 수입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "문단의 중심 문장이란 무엇인가요?",
+    "answer": "중심 문장은 문단에서 가장 중요한 생각이나 주제를 직접 나타내는 문장입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "은유법이란 무엇인가요?",
+    "answer": "은유법은 어떤 대상을 다른 대상에 빗대어 표현해 의미나 느낌을 전달하는 표현 방법입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "비유와 은유의 차이는 무엇인가요?",
+    "answer": "비유는 대상을 다른 것에 빗대는 표현 전체를 말하고 은유는 두 대상을 직접 동일시하는 비유입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "역사에서 사료란 무엇인가요?",
+    "answer": "사료는 과거의 사실을 연구하고 이해하는 데 근거로 사용하는 문서와 유물, 기록입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "기후와 날씨의 차이는 무엇인가요?",
+    "answer": "날씨는 짧은 기간의 대기 상태이고 기후는 긴 기간에 걸쳐 나타나는 날씨의 평균적인 특성입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "생태계란 무엇인가요?",
+    "answer": "생태계는 일정한 공간의 생물과 주변 환경이 서로 영향을 주고받는 체계입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "백신은 어떤 역할을 하나요?",
+    "answer": "백신은 면역계가 특정 병원체를 인식하고 대응하도록 훈련해 감염이나 중증 위험을 낮춥니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "재생 에너지란 무엇인가요?",
+    "answer": "재생 에너지는 태양광과 풍력처럼 자연에서 지속적으로 보충되는 자원을 이용한 에너지입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "온실 효과란 무엇인가요?",
+    "answer": "온실 효과는 대기 중 일부 기체가 지표에서 나오는 열을 흡수하고 다시 방출해 지구를 따뜻하게 하는 현상입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "기후 변화의 주요 원인은 무엇인가요?",
+    "answer": "최근 기후 변화의 주요 원인은 화석 연료 사용과 산림 훼손 등으로 증가한 온실가스입니다.",
+    "source": "curated-v1",
+    "approved": true
+  },
+  {
+    "question": "우주란 무엇인가요?",
+    "answer": "우주는 시간과 공간, 별과 행성, 은하와 물질 및 에너지를 모두 포함하는 광대한 영역입니다.",
+    "source": "curated-v1",
+    "approved": true
+  }
+]
