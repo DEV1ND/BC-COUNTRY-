@@ -21,7 +21,7 @@ EMBD = int(CFG["N_EMBD"])
 HEADS = int(CFG["N_HEAD"])
 LAYERS = int(CFG["N_LAYER"])
 VOCAB = len(CHARS)
-ARCH_ID = f"juckex-transformer-v2-b{BLOCK}-e{EMBD}-h{HEADS}-l{LAYERS}-v{VOCAB}"
+ARCH_ID = f"juckex-transformer-v3-b{BLOCK}-e{EMBD}-h{HEADS}-l{LAYERS}-v{VOCAB}"
 DEVICE = torch.device("cpu")
 torch.set_num_threads(1)
 BASE_WEIGHTS = ROOT / "juckex_weights.npz"
@@ -98,14 +98,14 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False,
 
 model_lock = threading.RLock()
 train_start_lock = threading.Lock()
-training_state = {"status": "idle", "step": 0, "trained_pairs": 0, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 2, "progress": 0, "architecture": ARCH_ID}
+training_state = {"status": "idle", "step": 0, "trained_pairs": 0, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 3, "progress": 0, "architecture": ARCH_ID}
 if STATE_PATH.exists():
     try:
         saved_state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
         if isinstance(saved_state, dict):
             training_state.update(saved_state)
         if training_state.get("architecture") != ARCH_ID:
-            training_state.update({"status": "idle", "step": 0, "trained_pairs": 0, "model_version": 2, "progress": 0, "architecture": ARCH_ID})
+            training_state.update({"status": "idle", "step": 0, "trained_pairs": 0, "model_version": 3, "progress": 0, "architecture": ARCH_ID})
             training_state.pop("bootstrap_train_done", None)
         if training_state.get("status") in ("queued", "fetching", "training"):
             training_state.update({"status": "idle", "last_error": "서버 재시작으로 진행 중이던 학습을 중단했습니다. 다음 자동 실행에서 다시 시도합니다."})
@@ -280,7 +280,7 @@ async def startup_restore():
             training_state["bootstrap_train_done"] = True
             training_state.update({"status": "queued", "progress": 0, "last_error": None, "bootstrap_train_started_at": int(time.time())})
             save_training_state()
-            asyncio.create_task(_train_background(400))
+            asyncio.create_task(_train_background(250))
     except Exception as e:
         training_state["remote_storage_error"] = str(e)[:300]
 
@@ -326,10 +326,11 @@ async def fetch_training_pairs():
         raise RuntimeError("JUCKEX_WORKER_URL 환경 변수가 설정되지 않았습니다.")
     headers = await _worker_headers()
     rows, cursor, pages = [], 0, 0
-    page_size = 1000
-    max_pages = 1000  # 최대 1,000,000행까지 안전하게 처리
+    page_size = 500
+    max_rows = 5000  # 메모리 한도 내에서 최근 5,000개까지만 학습에 사용
+    max_pages = 10
     async with httpx.AsyncClient(timeout=90) as client:
-        while pages < max_pages:
+        while pages < max_pages and len(rows) < max_rows:
             r = await client.get(
                 WORKER_URL + "/api/internal/training-data",
                 params={"after": cursor, "limit": page_size, "mode": "recent"},
@@ -345,13 +346,14 @@ async def fetch_training_pairs():
                     break
                 raise RuntimeError("학습 데이터 페이지가 비어 있는데 서버가 완료를 알리지 않았습니다.")
 
-            rows.extend(batch)
+            remaining = max_rows - len(rows)
+            rows.extend(batch[:remaining])
             pages += 1
             next_cursor = int(body.get("next", cursor))
             if next_cursor <= cursor:
                 raise RuntimeError("학습 데이터 페이지 커서가 진행되지 않아 중복 수집을 중단했습니다.")
             cursor = next_cursor
-            training_state.update({"fetched_pairs": len(rows), "fetch_pages": pages, "fetch_cursor": cursor, "status": "fetching"})
+            training_state.update({"fetched_pairs": len(rows), "fetch_pages": pages, "fetch_cursor": cursor, "fetch_truncated": len(rows) >= max_rows and body.get("done") is not True, "status": "fetching"})
             if pages % 5 == 0:
                 save_training_state()
 
@@ -361,7 +363,7 @@ async def fetch_training_pairs():
                 # done 필드가 없는 구버전 응답에서만 짧은 페이지를 마지막으로 간주
                 break
         else:
-            raise RuntimeError(f"학습 데이터가 {max_pages * page_size:,}행 한도를 넘어 수집을 중단했습니다.")
+            raise RuntimeError(f"학습 데이터가 {max_rows:,}행 한도에 도달했습니다.")
 
     # Git에 보관한 검수 문답을 기존 D1 데이터에 추가합니다. 원본 D1은 수정하지 않습니다.
     extra_path = ROOT / "training_extra.json"
@@ -381,7 +383,7 @@ async def fetch_training_pairs():
                         extra_count += 1
         except Exception as e:
             raise RuntimeError(f"추가 검수 문답 파일을 읽지 못했습니다: {e}") from e
-    training_state.update({"fetched_pairs": len(rows), "d1_pairs": len(rows) - extra_count, "curated_pairs": extra_count, "fetch_pages": pages, "fetch_cursor": cursor})
+    training_state.update({"fetched_pairs": len(rows), "d1_pairs": len(rows) - extra_count, "curated_pairs": extra_count, "fetch_pages": pages, "fetch_cursor": cursor, "fetch_truncated": len(rows) >= max_rows})
     return rows
 
 
@@ -437,7 +439,7 @@ def evaluate(m, seqs, max_batches=12):
     losses = []
     try:
         for _ in range(min(max_batches, max(1, len(seqs)))):
-            x, y = sample_batch(seqs, batch_size=4)
+            x, y = sample_batch(seqs, batch_size=2)
             _, loss = m(x, y)
             if loss is not None and torch.isfinite(loss):
                 losses.append(float(loss.item()))
@@ -489,7 +491,7 @@ async def _train_background(max_steps: int = 80):
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
-        steps = max(1, min(int(max_steps), 600))
+        steps = max(1, min(int(max_steps), 300))
         checkpoint = await _restore_training_checkpoint()
         resume_step = 0
         resumed = False
@@ -503,16 +505,16 @@ async def _train_background(max_steps: int = 80):
             if checkpoint:
                 await _delete_training_checkpoint()
             with model_lock:
-                before = evaluate(model, val_seqs)
+                before = evaluate(model, val_seqs, max_batches=4)
                 candidate = JuckexModel().to(DEVICE)
                 candidate.load_state_dict(model.state_dict())
         candidate.train()
         optimizer = torch.optim.AdamW(candidate.parameters(), lr=5e-5, weight_decay=0.01)
         last_loss = None
-        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 8, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
+        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 2, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
         save_training_state()
         for i in range(resume_step, steps):
-            xb, yb = sample_batch(train_seqs, batch_size=8)
+            xb, yb = sample_batch(train_seqs, batch_size=2)
             _, loss = candidate(xb, yb)
             if not torch.isfinite(loss):
                 raise RuntimeError("학습 손실값이 유효하지 않아 변경 사항을 폐기했습니다.")
@@ -523,12 +525,12 @@ async def _train_background(max_steps: int = 80):
             last_loss = float(loss.item())
             training_state["examples_seen"] = int(training_state.get("examples_seen", 0)) + int(xb.size(0))
             training_state["progress"] = int((i + 1) / steps * 100)
-            if (i + 1) % 20 == 0 or i + 1 == steps:
+            if (i + 1) % 25 == 0 or i + 1 == steps:
                 if not await _persist_training_checkpoint(candidate, i + 1, steps, fetched_count, dataset_cursor, before):
                     raise RuntimeError("Cloudflare에 학습 체크포인트를 저장하지 못했습니다. 새 모델 적용을 중단했습니다.")
                 training_state["checkpoint_step"] = i + 1
                 save_training_state()
-            if i % 10 == 0:
+            if i % 5 == 0:
                 save_training_state()
                 await asyncio.sleep(0)
         after = evaluate(candidate, val_seqs)
@@ -661,7 +663,7 @@ def _curated_exact_answer(question_text: str) -> str:
 
 
 def _curated_similar_answer(question_text: str) -> str:
-    """검수 문답에서 핵심 단어가 충분히 겹치는 항목만 검색합니다."""
+    """검수 문답에서 관련 근거를 최대 3개 찾아 함께 제공합니다."""
     path = ROOT / "training_extra.json"
     if not path.exists() or not question_text:
         return ""
@@ -697,10 +699,8 @@ def _curated_similar_answer(question_text: str) -> str:
         expanded.update(aliases.get(term, set()))
     try:
         rows = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(rows, list):
-            return ""
-        best_score, best_answer = 0.0, ""
-        for row in rows:
+        ranked = []
+        for row in rows if isinstance(rows, list) else []:
             if not isinstance(row, dict) or not row.get("approved", True):
                 continue
             answer = str(row.get("answer", "")).strip()
@@ -710,15 +710,22 @@ def _curated_similar_answer(question_text: str) -> str:
             overlap = expanded & candidate_terms
             recall = len(overlap) / max(1, len(expanded))
             precision = len(overlap) / max(1, len(candidate_terms))
-            # 질문 핵심어가 맞고 후보 질문도 지나치게 넓지 않을 때만 선택합니다.
             score = 0.7 * recall + 0.3 * precision
-            if score > best_score:
-                best_score, best_answer = score, answer
-        if best_score >= 0.62 and _answer_quality_ok(question_text, best_answer, question_text):
-            return best_answer
+            if score >= 0.45 and overlap and _answer_quality_ok(question_text, answer, question_text):
+                ranked.append((score, answer))
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        selected, seen = [], set()
+        for score, answer in ranked:
+            key = answer.casefold()
+            if key not in seen:
+                selected.append(answer)
+                seen.add(key)
+            if len(selected) == 3:
+                break
+        return "\\n".join(selected) if selected else ""
     except Exception as e:
         print(f"curated similarity search unavailable: {str(e)[:160]}")
-    return ""
+        return ""
 
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
     # 검색 결과는 정답으로 반환하지 않고, 자체 Transformer가 참고할 문맥으로만 사용합니다.
