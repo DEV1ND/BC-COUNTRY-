@@ -104,6 +104,9 @@ if STATE_PATH.exists():
         saved_state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
         if isinstance(saved_state, dict):
             training_state.update(saved_state)
+        if training_state.get("architecture") != ARCH_ID:
+            training_state.update({"status": "idle", "step": 0, "trained_pairs": 0, "model_version": 2, "progress": 0, "architecture": ARCH_ID})
+            training_state.pop("bootstrap_train_done", None)
         if training_state.get("status") in ("queued", "fetching", "training"):
             training_state.update({"status": "idle", "last_error": "서버 재시작으로 진행 중이던 학습을 중단했습니다. 다음 자동 실행에서 다시 시도합니다."})
     except Exception:
@@ -830,8 +833,11 @@ async def rollback(x_juckex_token: Optional[str] = Header(default=None)):
         import base64
         raw = base64.b64decode(r.json()["model"])
     candidate = JuckexModel().to(DEVICE)
-    _load_npz(candidate, raw)
-    rollback_step = max(2000, int(training_state.get("step", 2000)) - 1)
+    try:
+        _load_npz(candidate, raw)
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail="이전 모델은 다른 구조의 가중치라 현재 모델에 바로 복원할 수 없습니다.") from exc
+    rollback_step = max(0, int(training_state.get("step", 0)) - 1)
     persisted = await _persist_model(raw, rollback_step)
     if not persisted:
         raise HTTPException(status_code=503, detail="이전 모델을 원격 저장소에 적용하지 못했습니다.")
