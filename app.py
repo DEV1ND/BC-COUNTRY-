@@ -643,7 +643,7 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
         # 생성 결과가 비었거나 질문과 무관하면, 검수된 자체 문답의 정확 일치만 보조 응답으로 사용합니다.
         current_question = str(question or "").strip()
         if not current_question:
-            current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\\n답변:", 1)[0].strip()
+            current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\n답변:", 1)[0].strip()
             current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
         return _curated_exact_answer(current_question)
     return answer
