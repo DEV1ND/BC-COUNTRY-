@@ -362,8 +362,8 @@ async def fetch_training_pairs():
             if "done" not in body and len(batch) < page_size:
                 # done 필드가 없는 구버전 응답에서만 짧은 페이지를 마지막으로 간주
                 break
-        else:
-            raise RuntimeError(f"학습 데이터가 {max_rows:,}행 한도에 도달했습니다.")
+        if pages >= max_pages and len(rows) < max_rows:
+            raise RuntimeError(f"학습 데이터가 {max_rows:,}행 한도에 도달하기 전에 페이지 제한에 도달했습니다.")
 
     # Git에 보관한 검수 문답을 기존 D1 데이터에 추가합니다. 원본 D1은 수정하지 않습니다.
     extra_path = ROOT / "training_extra.json"
