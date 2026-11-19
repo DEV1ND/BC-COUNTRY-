@@ -247,7 +247,6 @@ def _initial_model():
     source = LOCAL_MODEL if LOCAL_MODEL.exists() else BASE_WEIGHTS
     _load_npz(m, source.read_bytes())
     return m
-
 model = _initial_model()
 
 @app.on_event("startup")
@@ -497,8 +496,7 @@ async def _train_background(max_steps: int = 80):
         try:
             await _delete_training_checkpoint()
         except Exception as cleanup_error:
-            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]
-        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
+            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
         save_training_state()
     except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
@@ -634,7 +632,12 @@ def _curated_similar_answer(question_text: str) -> str:
     query_terms = terms(question_text)
     if not query_terms:
         return ""
-    aliases = {"인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"}}
+    aliases = {
+        "인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
+        "웹페이지": {"웹페이지", "웹사이트"}, "웹사이트": {"웹사이트", "웹페이지"},
+        "자바스크립트": {"자바스크립트", "javascript", "js"},
+        "javascript": {"javascript", "자바스크립트", "js"},
+    }
     expanded = set(query_terms)
     for term in query_terms:
         expanded.update(aliases.get(term, set()))
@@ -651,19 +654,32 @@ def _curated_similar_answer(question_text: str) -> str:
                 continue
             candidate_terms = terms(row.get("question", ""))
             overlap = expanded & candidate_terms
-            score = len(overlap) / max(1, len(expanded))
-            if len(expanded) == 1:
-                score = 1.0 if overlap else 0.0
+            recall = len(overlap) / max(1, len(expanded))
+            precision = len(overlap) / max(1, len(candidate_terms))
+            # 질문 핵심어가 맞고 후보 질문도 지나치게 넓지 않을 때만 선택합니다.
+            score = 0.7 * recall + 0.3 * precision
             if score > best_score:
                 best_score, best_answer = score, answer
-        if best_score >= 0.5 and _answer_quality_ok(question_text, best_answer, question_text):
+        if best_score >= 0.62 and _answer_quality_ok(question_text, best_answer, question_text):
             return best_answer
     except Exception as e:
         print(f"curated similarity search unavailable: {str(e)[:160]}")
     return ""
 
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
-    # 샘플링을 제거해 동일한 입력에는 동일한 출력이 나오도록 합니다.
+    # 작은 문자 단위 모델이 잘 답하지 못하는 질문은 검수된 지식 검색을 먼저 사용합니다.
+    current_question = str(question or "").strip()
+    if not current_question:
+        current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\\n답변:", 1)[0].strip()
+        current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
+    exact_answer = _curated_exact_answer(current_question)
+    if exact_answer:
+        return exact_answer
+    similar_answer = _curated_similar_answer(current_question)
+    if similar_answer:
+        return similar_answer
+
+    # 검색에 맞는 지식이 없을 때만 자체 Transformer 추론을 실행합니다.
     input_ids, _ = encode_text(prompt)
     if not input_ids:
         input_ids = [0]
