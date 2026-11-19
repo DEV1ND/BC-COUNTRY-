@@ -520,10 +520,10 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35):
                 nxt = int(indices[torch.multinomial(probs, 1)].item())
                 ids.append(nxt)
                 tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
-                if tail.endswith("\\n\\n") or tail.endswith("\\n질문:"):
+                if tail.endswith("\n\n") or tail.endswith("\n질문:"):
                     break
             answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
-            answer = answer.split("\\n질문:", 1)[0].split("\\n\\n", 1)[0].strip()
+            answer = answer.split("\n질문:", 1)[0].split("\n\n", 1)[0].strip()
             candidates.append(answer)
             if len(answer) >= 8 and any(ch.isalnum() or ('가' <= ch <= '힣') for ch in answer):
                 return answer
