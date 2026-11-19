@@ -625,9 +625,15 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
     expanded = set(q_terms)
     for term in q_terms:
         expanded.update(aliases.get(term, set()))
-    # 조사 차이를 제거한 핵심 단어가 하나도 겹치지 않으면 무관한 답변으로 판정합니다.
-    if expanded and not (expanded & a_terms):
-        return False
+    # 한 단어만 우연히 겹치는 동문서답을 막습니다. 질문 핵심어의 일정 비율이 답변에도 나타나야 합니다.
+    if expanded:
+        overlap = expanded & a_terms
+        if not overlap:
+            return False
+        recall = len(overlap) / max(1, len(expanded))
+        minimum_hits = 2 if len(expanded) >= 4 else 1
+        if len(overlap) < minimum_hits or recall < 0.34:
+            return False
     if not expanded:
         # 인사처럼 핵심 명사가 없는 질문은 인사 문맥의 답변만 허용합니다.
         greeting = any(x in question for x in ("안녕", "반가", "ㅎㅇ", "hello", "hi"))
@@ -788,7 +794,7 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
     answer = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     answer = re.sub(r"^(?:질문|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     if not _answer_quality_ok(generation_prompt, answer, current_question):
-        return "아직 이 질문에 답할 만큼 학습된 내용이 충분하지 않아요. 질문을 조금 더 구체적으로 알려 주세요."
+        return "질문과 관련된 근거를 충분히 확인하지 못했어요. 핵심 주제나 원하는 범위를 조금 더 구체적으로 알려 주세요."
     return answer
 
 @app.get("/")
