@@ -257,6 +257,11 @@ async def startup_restore():
                 raw = _save_local(model, int(training_state.get("step", 2000)))
                 ok = await _persist_model(raw, int(training_state.get("step", 2000)))
         training_state["remote_storage"] = bool(ok)
+        if os.getenv("JUCKEX_BOOTSTRAP_TRAIN", "0") == "1" and not training_state.get("bootstrap_train_done"):
+            training_state["bootstrap_train_done"] = True
+            training_state.update({"status": "queued", "progress": 0, "last_error": None, "bootstrap_train_started_at": int(time.time())})
+            save_training_state()
+            asyncio.create_task(_train_background(400))
     except Exception as e:
         training_state["remote_storage_error"] = str(e)[:300]
 
@@ -465,7 +470,7 @@ async def _train_background(max_steps: int = 80):
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
-        steps = max(1, min(int(max_steps), 200))
+        steps = max(1, min(int(max_steps), 400))
         checkpoint = await _restore_training_checkpoint()
         resume_step = 0
         resumed = False
@@ -483,7 +488,7 @@ async def _train_background(max_steps: int = 80):
                 candidate = JuckexModel().to(DEVICE)
                 candidate.load_state_dict(model.state_dict())
         candidate.train()
-        optimizer = torch.optim.AdamW(candidate.parameters(), lr=2e-5, weight_decay=0.01)
+        optimizer = torch.optim.AdamW(candidate.parameters(), lr=5e-5, weight_decay=0.01)
         last_loss = None
         training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 8, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
         save_training_state()
