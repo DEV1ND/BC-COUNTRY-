@@ -268,6 +268,9 @@ async def fetch_training_pairs():
             if next_cursor <= cursor:
                 raise RuntimeError("학습 데이터 페이지 커서가 진행되지 않아 중복 수집을 중단했습니다.")
             cursor = next_cursor
+            training_state.update({"fetched_pairs": len(rows), "fetch_pages": pages, "fetch_cursor": cursor, "status": "fetching"})
+            if pages % 5 == 0:
+                save_training_state()
 
             if body.get("done") is True:
                 break
@@ -338,10 +341,11 @@ async def _train_background(max_steps: int = 80):
     try:
         training_state.update({"status": "fetching", "last_error": None, "started_at": int(time.time())})
         pairs = await fetch_training_pairs()
+        fetched_count = len(pairs)
         seqs, skipped = make_sequences(pairs)
         del pairs  # 원문 행과 토큰 배열을 동시에 오래 보유하지 않도록 메모리 회수
         if len(seqs) < 5:
-            raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {len(pairs)}개")
+            raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
         with model_lock:
             before = evaluate(model, val_seqs)
@@ -351,7 +355,7 @@ async def _train_background(max_steps: int = 80):
         optimizer = torch.optim.AdamW(candidate.parameters(), lr=2e-5, weight_decay=0.01)
         steps = max(1, min(int(max_steps), 200))
         last_loss = None
-        training_state.update({"status": "training", "dataset_pairs": len(pairs), "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": 0, "validation_loss_before": before})
+        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": 0, "validation_loss_before": before})
         save_training_state()
         for i in range(steps):
             xb, yb = sample_batch(train_seqs, batch_size=8)
@@ -383,7 +387,7 @@ async def _train_background(max_steps: int = 80):
         with model_lock:
             _save_local(candidate, next_step)
             model.load_state_dict(candidate.state_dict())
-        training_state.update({"status": "complete", "step": next_step, "trained_pairs": len(pairs), "dataset_pairs": len(pairs), "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None})
+        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None})
         save_training_state()
     except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
