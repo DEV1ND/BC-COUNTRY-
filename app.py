@@ -341,18 +341,46 @@ async def fetch_training_pairs():
         else:
             raise RuntimeError(f"학습 데이터가 {max_pages * page_size:,}행 한도를 넘어 수집을 중단했습니다.")
 
-    training_state.update({"fetched_pairs": len(rows), "fetch_pages": pages, "fetch_cursor": cursor})
+    # Git에 보관한 검수 문답을 기존 D1 데이터에 추가합니다. 원본 D1은 수정하지 않습니다.
+    extra_path = ROOT / "training_extra.json"
+    extra_count = 0
+    if extra_path.exists():
+        try:
+            extra = json.loads(extra_path.read_text(encoding="utf-8"))
+            if isinstance(extra, list):
+                known = {(str(x.get("question", "")).strip().casefold(), str(x.get("answer", "")).strip().casefold()) for x in rows}
+                for item in extra:
+                    if not isinstance(item, dict) or not item.get("approved", True):
+                        continue
+                    key = (str(item.get("question", "")).strip().casefold(), str(item.get("answer", "")).strip().casefold())
+                    if key[0] and key[1] and key not in known:
+                        rows.append({"question": key[0], "answer": str(item.get("answer", "")).strip(), "source": item.get("source", "curated")})
+                        known.add(key)
+                        extra_count += 1
+        except Exception as e:
+            raise RuntimeError(f"추가 검수 문답 파일을 읽지 못했습니다: {e}") from e
+    training_state.update({"fetched_pairs": len(rows), "d1_pairs": len(rows) - extra_count, "curated_pairs": extra_count, "fetch_pages": pages, "fetch_cursor": cursor})
     return rows
 
 
 def split_sequences(seqs):
     if len(seqs) < 2:
         return seqs, []
-    ordered = sorted(seqs, key=lambda s: hashlib.sha256(np.asarray(s[:64], dtype=np.int32).tobytes()).hexdigest())
-    cut = max(1, int(len(ordered) * 0.9))
-    if cut >= len(ordered):
-        cut = len(ordered) - 1
-    return ordered[:cut], ordered[cut:]
+    # 같은 질문의 변형 문장이 학습·검증 양쪽에 섞이지 않도록 질문 단위로 분리합니다.
+    groups = {}
+    for seq in seqs:
+        raw = "".join(ITOS.get(int(i), "") for i in seq)
+        q = raw.split("\\n답변:", 1)[0].removeprefix("질문:").strip().casefold()
+        key = re.sub(r"[^가-힣a-z0-9]", "", q)
+        groups.setdefault(key or hashlib.sha256(raw.encode("utf-8")).hexdigest(), []).append(seq)
+    ordered_keys = sorted(groups, key=lambda k: hashlib.sha256(k.encode("utf-8")).hexdigest())
+    if len(ordered_keys) < 2:
+        flat = [s for group in groups.values() for s in group]
+        return flat[:-1], flat[-1:]
+    cut = max(1, min(len(ordered_keys) - 1, int(len(ordered_keys) * 0.9)))
+    train = [s for k in ordered_keys[:cut] for s in groups[k]]
+    valid = [s for k in ordered_keys[cut:] for s in groups[k]]
+    return train, valid
 
 
 def sample_batch(seqs, batch_size=8):
@@ -481,6 +509,7 @@ class GenerateRequest(BaseModel):
     max_new_tokens: int = Field(default=180, ge=1, le=400)
     temperature: float = Field(default=0.8, ge=0.15, le=1.5)
     top_k: int = Field(default=35, ge=1, le=100)
+    question: Optional[str] = Field(default=None, max_length=500)
 
 class TrainRequest(BaseModel):
     max_steps: int = Field(default=80, ge=1, le=200)
@@ -495,7 +524,7 @@ def auth(token: Optional[str]):
         raise HTTPException(status_code=401, detail="인증 실패")
 
 
-def _answer_quality_ok(prompt: str, answer: str) -> bool:
+def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = None) -> bool:
     import re
     text = answer.strip()
     if len(text) < 8:
@@ -529,10 +558,15 @@ def _answer_quality_ok(prompt: str, answer: str) -> bool:
     # 질문의 핵심 단어가 답변에 전혀 없으면 무관한 답변일 가능성이 높아 폐기합니다.
     if expanded and not (expanded & a_terms):
         return False
+    if not expanded:
+        # 인사처럼 핵심 명사가 없는 질문은 인사 문맥의 답변만 허용합니다.
+        greeting = any(x in question for x in ("안녕", "반가", "ㅎㅇ", "hello", "hi"))
+        if greeting and not any(x in text for x in ("안녕", "반가", "어서 오", "환영")):
+            return False
     return True
 
 
-def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35):
+def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
     # 샘플링을 제거해 동일한 입력에는 동일한 출력이 나오도록 합니다.
     input_ids, _ = encode_text(prompt)
     if not input_ids:
@@ -578,7 +612,7 @@ def health():
 @app.post("/generate")
 def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(default=None)):
     auth(x_juckex_token)
-    result = generate(req.prompt, req.max_new_tokens, req.temperature, req.top_k)
+    result = generate(req.prompt, req.max_new_tokens, req.temperature, req.top_k, req.question)
     return {"text": result, "training_step": training_state["step"], "model": "juckex", "output_length": len(result)}
 
 @app.get("/model/status")
