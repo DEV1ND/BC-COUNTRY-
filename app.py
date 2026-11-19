@@ -897,7 +897,7 @@ async def model_guard(x_juckex_token: Optional[str] = Header(default=None)):
         with model_lock:
             live_loss = evaluate(model, val_seqs, max_batches=12)
         previous_loss = evaluate(previous_model, val_seqs, max_batches=12)
-        if live_loss is None or previous_loss is None or not math.isfinite(live_loss) or not math.isfinite(previous_loss):
+        if live_loss is None or previous_loss is None or not np.isfinite(live_loss) or not np.isfinite(previous_loss):
             raise RuntimeError("모델 비교 점수가 유효하지 않습니다.")
         regressed = live_loss > previous_loss * 1.05
         if regressed:
