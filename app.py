@@ -173,7 +173,7 @@ async def _persist_model(raw: bytes, step: int):
         r.raise_for_status()
         return True
 
-async def _persist_training_checkpoint(candidate: JuckexModel, step: int, max_steps: int, dataset_pairs: int, validation_loss_before):
+async def _persist_training_checkpoint(candidate: JuckexModel, step: int, max_steps: int, dataset_pairs: int, dataset_cursor: int, validation_loss_before):
     if not WORKER_URL:
         return False
     import base64
@@ -183,6 +183,7 @@ async def _persist_training_checkpoint(candidate: JuckexModel, step: int, max_st
         "step": int(step),
         "max_steps": int(max_steps),
         "dataset_pairs": int(dataset_pairs),
+        "dataset_cursor": int(dataset_cursor),
         "validation_loss_before": validation_loss_before,
     }
     headers = await _worker_headers()
@@ -210,6 +211,7 @@ async def _restore_training_checkpoint():
         "step": max(0, int(body.get("step", 0))),
         "max_steps": max(1, int(body.get("max_steps", 1))),
         "dataset_pairs": max(0, int(body.get("dataset_pairs", 0))),
+        "dataset_cursor": max(0, int(body.get("dataset_cursor", 0))),
         "validation_loss_before": body.get("validation_loss_before"),
     }
 
@@ -401,6 +403,7 @@ async def _train_background(max_steps: int = 80):
         training_state.update({"status": "fetching", "last_error": None, "started_at": int(time.time())})
         pairs = await fetch_training_pairs()
         fetched_count = len(pairs)
+        dataset_cursor = int(training_state.get("fetch_cursor", 0))
         seqs, skipped = make_sequences(pairs)
         del pairs  # 원문 행과 토큰 배열을 동시에 오래 보유하지 않도록 메모리 회수
         if len(seqs) < 5:
@@ -410,7 +413,7 @@ async def _train_background(max_steps: int = 80):
         checkpoint = await _restore_training_checkpoint()
         resume_step = 0
         resumed = False
-        if checkpoint and checkpoint["dataset_pairs"] == fetched_count and checkpoint["max_steps"] == steps and checkpoint["step"] <= steps:
+        if checkpoint and checkpoint["dataset_pairs"] == fetched_count and checkpoint["dataset_cursor"] == dataset_cursor and checkpoint["max_steps"] == steps and checkpoint["step"] <= steps:
             candidate = JuckexModel().to(DEVICE)
             _load_npz(candidate, checkpoint["raw"])
             before = checkpoint.get("validation_loss_before")
@@ -441,7 +444,7 @@ async def _train_background(max_steps: int = 80):
             training_state["examples_seen"] = int(training_state.get("examples_seen", 0)) + int(xb.size(0))
             training_state["progress"] = int((i + 1) / steps * 100)
             if (i + 1) % 20 == 0 or i + 1 == steps:
-                if not await _persist_training_checkpoint(candidate, i + 1, steps, fetched_count, before):
+                if not await _persist_training_checkpoint(candidate, i + 1, steps, fetched_count, dataset_cursor, before):
                     raise RuntimeError("Cloudflare에 학습 체크포인트를 저장하지 못했습니다. 새 모델 적용을 중단했습니다.")
                 training_state["checkpoint_step"] = i + 1
                 save_training_state()
@@ -463,7 +466,10 @@ async def _train_background(max_steps: int = 80):
         with model_lock:
             _save_local(candidate, next_step)
             model.load_state_dict(candidate.state_dict())
-        await _delete_training_checkpoint()
+        try:
+            await _delete_training_checkpoint()
+        except Exception as cleanup_error:
+            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]
         training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
         save_training_state()
     except Exception as e:
