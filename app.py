@@ -500,13 +500,13 @@ def _answer_quality_ok(prompt: str, answer: str) -> bool:
     text = answer.strip()
     if len(text) < 8:
         return False
-    if re.search(r"^(?:answer|답변)\\s*[:：]", text, re.IGNORECASE):
-        text = re.sub(r"^(?:answer|답변)\\s*[:：]\\s*", "", text, flags=re.IGNORECASE)
+    if re.search(r"^(?:answer|답변)\s*[:：]", text, re.IGNORECASE):
+        text = re.sub(r"^(?:answer|답변)\s*[:：]\s*", "", text, flags=re.IGNORECASE)
     letters = [c for c in text if c.isalpha() or ("가" <= c <= "힣")]
     hangul = sum("가" <= c <= "힣" for c in letters)
     if not letters or hangul / len(letters) < 0.28:
         return False
-    if re.search(r"(.)\\1{7,}", text):
+    if re.search(r"(.)\1{7,}", text):
         return False
     if len(text) > 30 and len(set(text)) < 7:
         return False
@@ -515,7 +515,7 @@ def _answer_quality_ok(prompt: str, answer: str) -> bool:
     if "질문:" in question:
         question = question.rsplit("질문:", 1)[-1]
     question = re.sub(r"이전 대화 기억:.*? / ", "", question, flags=re.DOTALL)
-    question = question.split("\\n답변:", 1)[0]
+    question = question.split("\n답변:", 1)[0]
     stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명", "알려주세요",
             "알려줘", "해주세요", "해줘", "오늘", "어때", "질문", "답변", "그리고", "대한"}
     q_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", question)
@@ -555,14 +555,14 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35):
             nxt = int(torch.argmax(scores).item())
             ids.append(nxt)
             tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
-            if tail.endswith("\\n\\n") or tail.endswith("\\n질문:"):
+            if tail.endswith("\n\n") or tail.endswith("\n질문:"):
                 break
             if len(tail) >= 24 and tail[-8:] in tail[:-8]:
                 break
 
     answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
-    answer = answer.split("\\n질문:", 1)[0].split("\\n\\n", 1)[0].strip()
-    answer = re.sub(r"^(?:Answer|답변)\\s*[:：]\\s*", "", answer, flags=re.IGNORECASE).strip()
+    answer = answer.split("\n질문:", 1)[0].split("\n\n", 1)[0].strip()
+    answer = re.sub(r"^(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     if not _answer_quality_ok(prompt, answer):
         return ""
     return answer
