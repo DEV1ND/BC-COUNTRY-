@@ -495,39 +495,77 @@ def auth(token: Optional[str]):
         raise HTTPException(status_code=401, detail="인증 실패")
 
 
+def _answer_quality_ok(prompt: str, answer: str) -> bool:
+    import re
+    text = answer.strip()
+    if len(text) < 8:
+        return False
+    if re.search(r"^(?:answer|답변)\\s*[:：]", text, re.IGNORECASE):
+        text = re.sub(r"^(?:answer|답변)\\s*[:：]\\s*", "", text, flags=re.IGNORECASE)
+    letters = [c for c in text if c.isalpha() or ("가" <= c <= "힣")]
+    hangul = sum("가" <= c <= "힣" for c in letters)
+    if not letters or hangul / len(letters) < 0.28:
+        return False
+    if re.search(r"(.)\\1{7,}", text):
+        return False
+    if len(text) > 30 and len(set(text)) < 7:
+        return False
+
+    question = str(prompt or "")
+    if "질문:" in question:
+        question = question.rsplit("질문:", 1)[-1]
+    question = re.sub(r"이전 대화 기억:.*? / ", "", question, flags=re.DOTALL)
+    question = question.split("\\n답변:", 1)[0]
+    stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명", "알려주세요",
+            "알려줘", "해주세요", "해줘", "오늘", "어때", "질문", "답변", "그리고", "대한"}
+    q_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", question)
+               if x.lower() not in stop}
+    a_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", text)}
+    aliases = {"인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
+               "juckex": {"juckex"}, "알고리즘": {"알고리즘"}}
+    expanded = set(q_terms)
+    for term in q_terms:
+        expanded.update(aliases.get(term, set()))
+    # 질문의 핵심 단어가 답변에 전혀 없으면 무관한 답변일 가능성이 높아 폐기합니다.
+    if expanded and not (expanded & a_terms):
+        return False
+    return True
+
+
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35):
-    # 입력 문자를 토큰화한 뒤 생성된 토큰 구간만 디코딩합니다.
-    # 알 수 없는 문자가 있어도 원문 문자열 길이와 토큰 길이가 어긋나지 않습니다.
+    # 샘플링을 제거해 동일한 입력에는 동일한 출력이 나오도록 합니다.
     input_ids, _ = encode_text(prompt)
     if not input_ids:
         input_ids = [0]
     input_len = len(input_ids)
-    temperature = max(0.15, min(float(temperature), 1.5))
     token_limit = max(1, min(int(max_new_tokens), 400))
-    candidates = []
+    ids = list(input_ids)
     with model_lock, torch.no_grad():
         model.eval()
-        for attempt in range(3):
-            ids = list(input_ids)
-            attempt_temp = max(0.35, temperature * (0.82 ** attempt))
-            for _ in range(token_limit):
-                context = torch.tensor([ids[-BLOCK:]], dtype=torch.long, device=DEVICE)
-                logits, _ = model(context)
-                scores = logits[0, -1] / attempt_temp
-                k = max(1, min(int(top_k), len(scores)))
-                values, indices = torch.topk(scores, k)
-                probs = F.softmax(values, dim=-1)
-                nxt = int(indices[torch.multinomial(probs, 1)].item())
-                ids.append(nxt)
-                tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
-                if tail.endswith("\n\n") or tail.endswith("\n질문:"):
-                    break
-            answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
-            answer = answer.split("\n질문:", 1)[0].split("\n\n", 1)[0].strip()
-            candidates.append(answer)
-            if len(answer) >= 8 and any(ch.isalnum() or ('가' <= ch <= '힣') for ch in answer):
-                return answer
-    return max(candidates, key=len) if candidates else ""
+        for _ in range(token_limit):
+            context = torch.tensor([ids[-BLOCK:]], dtype=torch.long, device=DEVICE)
+            logits, _ = model(context)
+            scores = logits[0, -1].clone()
+            # 직전 생성 구간의 과도한 반복을 약하게 억제합니다.
+            recent = ids[max(input_len, len(ids) - 24):]
+            if recent:
+                repeated = set(recent)
+                for token_id in repeated:
+                    scores[token_id] -= 0.18
+            nxt = int(torch.argmax(scores).item())
+            ids.append(nxt)
+            tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
+            if tail.endswith("\\n\\n") or tail.endswith("\\n질문:"):
+                break
+            if len(tail) >= 24 and tail[-8:] in tail[:-8]:
+                break
+
+    answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
+    answer = answer.split("\\n질문:", 1)[0].split("\\n\\n", 1)[0].strip()
+    answer = re.sub(r"^(?:Answer|답변)\\s*[:：]\\s*", "", answer, flags=re.IGNORECASE).strip()
+    if not _answer_quality_ok(prompt, answer):
+        return ""
+    return answer
 
 @app.get("/")
 def root():
