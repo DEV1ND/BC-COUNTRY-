@@ -652,5 +652,587 @@
     "answer": "시장은 상품이나 서비스를 사고파는 사람과 기업이 만나 거래하는 체계입니다.",
     "source": "curated-v3",
     "approved": true
+  },
+  {
+    "question": "덧셈이란 무엇인가요?",
+    "answer": "덧셈은 두 수나 여러 수를 합해 전체의 양을 구하는 계산입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "뺄셈이란 무엇인가요?",
+    "answer": "뺄셈은 어떤 수에서 다른 수를 빼고 남는 양을 구하는 계산입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "곱셈이란 무엇인가요?",
+    "answer": "곱셈은 같은 수를 여러 번 더하는 계산을 간단히 나타내는 방법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "나눗셈이란 무엇인가요?",
+    "answer": "나눗셈은 어떤 양을 같은 크기의 여러 부분으로 나누거나 몇 묶음인지 구하는 계산입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "약수란 무엇인가요?",
+    "answer": "약수는 어떤 자연수를 나누었을 때 나머지가 없이 나누어떨어지게 하는 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "배수란 무엇인가요?",
+    "answer": "배수는 어떤 수에 자연수를 곱해 얻을 수 있는 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "최대공약수란 무엇인가요?",
+    "answer": "최대공약수는 두 수 이상의 공약수 가운데 가장 큰 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "최소공배수란 무엇인가요?",
+    "answer": "최소공배수는 두 수 이상의 공배수 가운데 가장 작은 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "소인수분해란 무엇인가요?",
+    "answer": "소인수분해는 자연수를 소수들의 곱으로 나타내는 방법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "정수란 무엇인가요?",
+    "answer": "정수는 양의 정수와 음의 정수 그리고 0을 포함하는 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "유리수란 무엇인가요?",
+    "answer": "유리수는 두 정수의 비로 나타낼 수 있는 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "무리수란 무엇인가요?",
+    "answer": "무리수는 두 정수의 비로 나타낼 수 없고 소수로 나타내면 끝나지 않는 수입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "좌표평면이란 무엇인가요?",
+    "answer": "좌표평면은 가로축과 세로축을 이용해 점의 위치를 숫자로 나타내는 평면입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "원의 둘레는 어떻게 구하나요?",
+    "answer": "원의 둘레는 지름에 원주율을 곱해 구합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "원의 넓이는 어떻게 구하나요?",
+    "answer": "원의 넓이는 반지름을 두 번 곱한 값에 원주율을 곱해 구합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "평균과 중앙값의 차이는?",
+    "answer": "평균은 모든 값을 더해 개수로 나눈 값이고 중앙값은 크기순으로 놓았을 때 가운데에 있는 값입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "비례식이란 무엇인가요?",
+    "answer": "비례식은 두 비가 서로 같음을 나타내는 식입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "과학에서 관찰과 실험의 차이는?",
+    "answer": "관찰은 현상을 자세히 살펴 기록하는 것이고 실험은 조건을 조절해 원인과 결과를 확인하는 방법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "가설이란 무엇인가요?",
+    "answer": "가설은 관찰한 현상을 설명하기 위해 세우고 실험이나 자료로 확인할 수 있는 잠정적인 생각입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "변인이란 무엇인가요?",
+    "answer": "변인은 실험 결과에 영향을 줄 수 있는 조건이나 값입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "독립 변인이란 무엇인가요?",
+    "answer": "독립 변인은 실험에서 결과에 영향을 주는지 알아보기 위해 의도적으로 바꾸는 조건입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "종속 변인이란 무엇인가요?",
+    "answer": "종속 변인은 독립 변인을 바꾸었을 때 그에 따라 달라지는 결과입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "세포란 무엇인가요?",
+    "answer": "세포는 생물의 몸을 이루고 생명 활동을 수행하는 기본 단위입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "DNA의 역할은 무엇인가요?",
+    "answer": "DNA는 생물의 유전 정보를 저장하고 다음 세대로 전달하는 역할을 합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "호흡이란 무엇인가요?",
+    "answer": "호흡은 생물이 양분에서 에너지를 얻는 과정과 산소와 이산화탄소를 주고받는 작용을 말합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "소화란 무엇인가요?",
+    "answer": "소화는 음식물을 몸에 흡수할 수 있는 작은 영양소로 분해하는 과정입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "순환계의 역할은 무엇인가요?",
+    "answer": "순환계는 혈액을 통해 산소와 영양소를 온몸에 전달하고 노폐물을 운반합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "태양 에너지는 어디에서 오나요?",
+    "answer": "태양 에너지는 태양 내부에서 일어나는 핵융합 반응으로 만들어집니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "달의 모양이 바뀌는 이유는?",
+    "answer": "달이 지구 주위를 공전하면서 태양빛을 받는 부분이 지구에서 다르게 보이기 때문입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "지진은 왜 발생하나요?",
+    "answer": "지진은 지각에 쌓인 힘이 갑자기 방출되면서 땅이 흔들리는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "화산이란 무엇인가요?",
+    "answer": "화산은 지하의 마그마와 가스가 지표로 분출하는 통로와 지형을 말합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "응결이란 무엇인가요?",
+    "answer": "응결은 기체가 열을 잃고 액체로 변하는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "밀도는 어떻게 구하나요?",
+    "answer": "밀도는 물질의 질량을 부피로 나누어 구합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "전도와 대류의 차이는?",
+    "answer": "전도는 물질이 직접 이동하지 않고 열이 전달되는 현상이며 대류는 액체나 기체가 움직이며 열을 전달하는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "빛의 반사란 무엇인가요?",
+    "answer": "빛의 반사는 빛이 물체 표면에 닿은 뒤 진행 방향을 바꾸어 되돌아가는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "빛의 굴절이란 무엇인가요?",
+    "answer": "빛의 굴절은 빛이 서로 다른 물질의 경계면을 지날 때 진행 방향이 바뀌는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "산소의 특징은 무엇인가요?",
+    "answer": "산소는 색과 냄새가 없는 기체이며 생물의 호흡과 물질의 연소에 필요합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "이산화탄소는 어디에 쓰이나요?",
+    "answer": "이산화탄소는 식물의 광합성에 사용되고 탄산음료와 소화 장치 등에도 활용됩니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "파이썬은 어떤 언어인가요?",
+    "answer": "파이썬은 읽기 쉬운 문법을 가진 프로그래밍 언어이며 데이터 분석과 자동화와 웹 개발에 사용됩니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "HTML 태그란 무엇인가요?",
+    "answer": "HTML 태그는 웹 문서에서 제목이나 문단과 같은 요소의 종류와 구조를 표시하는 문법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "CSS 선택자는 무엇인가요?",
+    "answer": "CSS 선택자는 스타일을 적용할 HTML 요소를 지정하는 문법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "자바스크립트에서 객체란?",
+    "answer": "객체는 관련된 값과 기능을 이름과 쌍으로 묶어 표현하는 자료 구조입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "비동기 처리는 왜 사용하나요?",
+    "answer": "비동기 처리는 시간이 걸리는 작업을 기다리는 동안 다른 작업이 진행될 수 있게 해 화면이 멈추는 일을 줄입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "JSON은 무엇인가요?",
+    "answer": "JSON은 데이터를 이름과 값의 쌍이나 배열 형태로 표현하고 프로그램 사이에서 교환하는 형식입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "HTTPS는 HTTP와 무엇이 다른가요?",
+    "answer": "HTTPS는 HTTP 통신에 TLS 암호화를 적용해 전송 중인 데이터의 보호와 서버 인증을 강화합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "쿠키란 무엇인가요?",
+    "answer": "쿠키는 웹사이트가 브라우저에 저장해 로그인 상태나 설정 같은 정보를 기억하는 작은 데이터입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "캐시란 무엇인가요?",
+    "answer": "캐시는 자주 사용하는 데이터나 결과를 가까운 곳에 저장해 다음 요청을 더 빠르게 처리하는 기술입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "Git은 무엇인가요?",
+    "answer": "Git은 파일의 변경 이력을 기록하고 여러 사람이 코드를 함께 관리하도록 돕는 버전 관리 도구입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "배포란 무엇인가요?",
+    "answer": "배포는 개발한 프로그램을 서버나 사용자가 접근할 수 있는 환경에 올려 실제로 이용하게 하는 과정입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "환경 변수는 왜 사용하나요?",
+    "answer": "환경 변수는 비밀번호나 서비스 주소 같은 설정을 코드와 분리해 안전하고 유연하게 관리하기 위해 사용합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "데이터 백업은 왜 중요한가요?",
+    "answer": "데이터 백업은 장치 고장이나 실수로 원본을 잃었을 때 복구할 수 있도록 별도 사본을 보관하는 일입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "데이터베이스 인덱스란 무엇인가요?",
+    "answer": "인덱스는 데이터베이스에서 원하는 행을 더 빠르게 찾도록 돕는 검색용 자료 구조입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "SQL은 무엇인가요?",
+    "answer": "SQL은 관계형 데이터베이스에서 데이터를 조회하고 추가하고 수정하고 삭제하는 데 사용하는 언어입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "API 키는 왜 보호해야 하나요?",
+    "answer": "API 키가 유출되면 다른 사람이 내 서비스 권한을 사용하거나 비용과 데이터에 피해를 줄 수 있으므로 비밀로 관리해야 합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "클라우드 서버의 장점은?",
+    "answer": "클라우드 서버는 필요한 컴퓨팅 자원을 인터넷으로 이용하고 사용량에 따라 자원을 조절하기 쉽다는 장점이 있습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "DNS는 어떤 역할을 하나요?",
+    "answer": "DNS는 사람이 읽기 쉬운 도메인 이름을 컴퓨터가 통신에 사용하는 IP 주소로 연결해 줍니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "오류 로그란 무엇인가요?",
+    "answer": "오류 로그는 프로그램에서 발생한 문제와 실행 정보를 기록해 원인을 찾도록 돕는 자료입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "반응형 웹이란 무엇인가요?",
+    "answer": "반응형 웹은 화면 크기에 맞추어 글자와 배치와 요소 크기가 달라지도록 만든 웹사이트입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "사용자 인터페이스란 무엇인가요?",
+    "answer": "사용자 인터페이스는 사람이 프로그램의 기능을 보고 누르고 입력하며 이용하는 화면과 조작 방식을 말합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "접근성이 좋은 웹사이트란?",
+    "answer": "접근성이 좋은 웹사이트는 다양한 사용자가 기기와 능력에 관계없이 정보를 이해하고 기능을 이용할 수 있도록 만든 사이트입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "문단의 주제란 무엇인가요?",
+    "answer": "문단의 주제는 문단 전체에서 중심이 되는 생각이나 설명하려는 대상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "요약을 잘하는 방법은?",
+    "answer": "요약할 때는 중심 생각과 핵심 근거를 남기고 반복이나 세부 예시는 줄여 짧게 정리합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "주장과 근거의 차이는?",
+    "answer": "주장은 글쓴이가 말하고 싶은 생각이고 근거는 그 주장이 타당하다는 점을 뒷받침하는 이유나 자료입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "비판적으로 읽는다는 뜻은?",
+    "answer": "비판적으로 읽는다는 것은 글의 주장과 근거가 타당한지 출처와 사실을 따져 보며 읽는 것입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "동음이의어란 무엇인가요?",
+    "answer": "동음이의어는 소리는 같지만 뜻이 서로 다른 단어입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "반의어란 무엇인가요?",
+    "answer": "반의어는 서로 반대되는 뜻을 가진 단어입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "영어에서 현재형은 언제 쓰나요?",
+    "answer": "현재형은 습관이나 반복되는 일 그리고 일반적인 사실을 말할 때 주로 사용합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "영어에서 과거형은 언제 쓰나요?",
+    "answer": "과거형은 과거에 일어나 끝난 행동이나 상태를 나타낼 때 사용합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "영어에서 비교급은 무엇인가요?",
+    "answer": "비교급은 두 대상의 성질이나 정도를 비교할 때 사용하는 표현입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "영어에서 수동태란 무엇인가요?",
+    "answer": "수동태는 주어가 어떤 행동을 직접 하기보다 그 행동을 받는다는 점을 나타내는 문장 형태입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "역사에서 원인과 결과를 보는 이유는?",
+    "answer": "사건의 원인과 결과를 살펴보면 사건이 일어난 배경과 이후 사회에 미친 영향을 이해할 수 있습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "삼권분립이란 무엇인가요?",
+    "answer": "삼권분립은 국가 권력을 입법과 행정과 사법으로 나누어 서로 견제하고 균형을 이루게 하는 원리입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "지방자치란 무엇인가요?",
+    "answer": "지방자치는 지역 주민과 지방 정부가 지역의 일을 자율적으로 결정하고 처리하는 제도입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "헌법이 다른 법보다 중요한 이유는?",
+    "answer": "헌법은 국가의 기본 원리와 국민의 권리를 정하는 최고 규범이므로 다른 법률은 헌법에 어긋날 수 없습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "세금은 어디에 사용되나요?",
+    "answer": "세금은 교육과 도로와 안전과 복지처럼 사회에 필요한 공공 서비스를 제공하는 데 사용됩니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "예산이란 무엇인가요?",
+    "answer": "예산은 일정한 기간에 들어올 수입과 사용할 지출을 미리 계획한 것입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "무역이란 무엇인가요?",
+    "answer": "무역은 나라 사이에서 상품이나 서비스를 사고파는 경제 활동입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "수출과 수입의 차이는?",
+    "answer": "수출은 자국의 상품이나 서비스를 다른 나라에 판매하는 것이고 수입은 다른 나라에서 구매하는 것입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "생산성이란 무엇인가요?",
+    "answer": "생산성은 일정한 자원이나 시간으로 얼마나 많은 상품과 서비스를 만들어 내는지를 나타내는 정도입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "경쟁이 시장에 주는 영향은?",
+    "answer": "경쟁은 기업이 가격과 품질과 서비스를 개선하도록 자극할 수 있지만 지나친 경쟁은 부작용을 만들 수도 있습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "금리란 무엇인가요?",
+    "answer": "금리는 돈을 빌리거나 맡길 때 적용되는 이자의 비율입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "복리란 무엇인가요?",
+    "answer": "복리는 원금에 붙은 이자에도 다시 이자가 붙는 계산 방식입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "위험 분산이란 무엇인가요?",
+    "answer": "위험 분산은 자산이나 선택을 여러 곳에 나누어 한 곳의 손실이 전체에 미치는 영향을 줄이는 방법입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "기회와 위험을 함께 살펴야 하는 이유는?",
+    "answer": "선택의 이익만 보면 예상하지 못한 손실을 놓칠 수 있으므로 가능한 이익과 위험을 함께 비교해야 합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "계획을 세우는 이유는?",
+    "answer": "계획은 해야 할 일을 나누고 순서를 정해 시간과 자원을 효율적으로 사용하도록 돕습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "집중력을 높이는 방법은?",
+    "answer": "해야 할 일을 작은 단위로 나누고 방해 요소를 줄이며 정해진 시간 동안 한 가지 일에 집중하는 것이 도움이 됩니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "시험 오답 노트는 어떻게 쓰나요?",
+    "answer": "틀린 문제의 정답만 적기보다 틀린 이유와 올바른 풀이 과정을 짧게 정리하고 다시 풀어 보는 것이 좋습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "암기와 이해의 차이는?",
+    "answer": "암기는 정보를 기억하는 것이고 이해는 정보의 의미와 원리를 파악해 새로운 상황에도 적용할 수 있는 것입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "문제를 단계별로 푸는 이유는?",
+    "answer": "문제를 단계별로 나누면 조건을 놓칠 가능성이 줄고 어느 부분에서 막혔는지 확인하기 쉽습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "출처가 불분명한 정보는 어떻게 해야 하나요?",
+    "answer": "출처가 불분명한 정보는 사실로 단정하지 말고 다른 신뢰할 수 있는 자료와 비교해 확인해야 합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "인공지능의 환각이란 무엇인가요?",
+    "answer": "인공지능의 환각은 모델이 사실과 다른 내용을 그럴듯한 문장으로 만들어 내는 현상입니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "AI 답변을 검증하는 방법은?",
+    "answer": "중요한 AI 답변은 신뢰할 수 있는 자료와 대조하고 계산이나 근거를 직접 확인해야 합니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "학습 데이터의 품질이 중요한 이유는?",
+    "answer": "모델은 학습 데이터의 패턴을 배우므로 틀리거나 중복된 자료가 많으면 부정확한 결과를 만들 수 있습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "훈련 데이터와 검증 데이터의 차이는?",
+    "answer": "훈련 데이터는 모델의 가중치를 조정하는 데 쓰고 검증 데이터는 학습에 쓰지 않은 상태로 성능을 확인하는 데 씁니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "모델을 크게 만들면 무조건 좋아지나요?",
+    "answer": "모델이 커지면 더 복잡한 패턴을 배울 여지가 있지만 충분한 데이터와 계산 자원이 없으면 성능이 좋아진다고 보장할 수 없습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "데이터 중복을 제거하는 이유는?",
+    "answer": "같은 자료가 지나치게 반복되면 특정 내용에 치우치고 실제로 새로운 정보를 배우는 효과가 줄어들 수 있습니다.",
+    "source": "curated-scale-v1",
+    "approved": true
+  },
+  {
+    "question": "정확도와 손실의 차이는?",
+    "answer": "정확도는 맞힌 비율을 나타내고 손실은 모델의 예측이 정답에서 얼마나 벗어났는지를 수치로 나타냅니다.",
+    "source": "curated-scale-v1",
+    "approved": true
   }
 ]
