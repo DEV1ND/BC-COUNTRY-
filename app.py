@@ -582,6 +582,31 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
     return True
 
 
+def _curated_exact_answer(question_text: str) -> str:
+    """검수된 자체 문답에서 정확히 일치하는 질문만 안전하게 찾아 반환합니다."""
+    path = ROOT / "training_extra.json"
+    if not path.exists() or not question_text:
+        return ""
+    normalize = lambda value: re.sub(r"[^가-힣a-z0-9]", "", str(value).casefold())
+    target = normalize(question_text)
+    if len(target) < 2:
+        return ""
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(rows, list):
+            return ""
+        for row in rows:
+            if not isinstance(row, dict) or not row.get("approved", True):
+                continue
+            if normalize(row.get("question", "")) == target:
+                answer = str(row.get("answer", "")).strip()
+                if len(answer) >= 8 and _answer_quality_ok(question_text, answer, question_text):
+                    return answer
+    except Exception as e:
+        print(f"curated fallback unavailable: {str(e)[:160]}")
+    return ""
+
+
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
     # 샘플링을 제거해 동일한 입력에는 동일한 출력이 나오도록 합니다.
     input_ids, _ = encode_text(prompt)
@@ -615,7 +640,12 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
     answer = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     answer = re.sub(r"^(?:질문|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     if not _answer_quality_ok(prompt, answer, question):
-        return ""
+        # 생성 결과가 비었거나 질문과 무관하면, 검수된 자체 문답의 정확 일치만 보조 응답으로 사용합니다.
+        current_question = str(question or "").strip()
+        if not current_question:
+            current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\\n답변:", 1)[0].strip()
+            current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
+        return _curated_exact_answer(current_question)
     return answer
 
 @app.get("/")
