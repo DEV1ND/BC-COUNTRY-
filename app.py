@@ -496,23 +496,38 @@ def auth(token: Optional[str]):
 
 
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35):
-    ids, _ = encode_text(prompt)
-    if not ids:
-        ids = [0]
+    # 입력 문자를 토큰화한 뒤 생성된 토큰 구간만 디코딩합니다.
+    # 알 수 없는 문자가 있어도 원문 문자열 길이와 토큰 길이가 어긋나지 않습니다.
+    input_ids, _ = encode_text(prompt)
+    if not input_ids:
+        input_ids = [0]
+    input_len = len(input_ids)
     temperature = max(0.15, min(float(temperature), 1.5))
+    token_limit = max(1, min(int(max_new_tokens), 400))
+    candidates = []
     with model_lock, torch.no_grad():
         model.eval()
-        for _ in range(max(1, min(int(max_new_tokens), 400))):
-            context = torch.tensor([ids[-BLOCK:]], dtype=torch.long, device=DEVICE)
-            logits, _ = model(context)
-            scores = logits[0, -1] / temperature
-            k = max(1, min(int(top_k), len(scores)))
-            values, indices = torch.topk(scores, k)
-            probs = F.softmax(values, dim=-1)
-            nxt = int(indices[torch.multinomial(probs, 1)].item())
-            ids.append(nxt)
-    full = "".join(ITOS.get(i, "") for i in ids)
-    return full[len(prompt):] if full.startswith(prompt) else full
+        for attempt in range(3):
+            ids = list(input_ids)
+            attempt_temp = max(0.35, temperature * (0.82 ** attempt))
+            for _ in range(token_limit):
+                context = torch.tensor([ids[-BLOCK:]], dtype=torch.long, device=DEVICE)
+                logits, _ = model(context)
+                scores = logits[0, -1] / attempt_temp
+                k = max(1, min(int(top_k), len(scores)))
+                values, indices = torch.topk(scores, k)
+                probs = F.softmax(values, dim=-1)
+                nxt = int(indices[torch.multinomial(probs, 1)].item())
+                ids.append(nxt)
+                tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
+                if tail.endswith("\\n\\n") or tail.endswith("\\n질문:"):
+                    break
+            answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
+            answer = answer.split("\\n질문:", 1)[0].split("\\n\\n", 1)[0].strip()
+            candidates.append(answer)
+            if len(answer) >= 8 and any(ch.isalnum() or ('가' <= ch <= '힣') for ch in answer):
+                return answer
+    return max(candidates, key=len) if candidates else ""
 
 @app.get("/")
 def root():
@@ -523,9 +538,10 @@ def health():
     return {"ok": True, "vocab_size": VOCAB, "layers": LAYERS, "heads": HEADS, "training": training_state["status"], "remote_storage_configured": bool(WORKER_URL and SYNC_TOKEN)}
 
 @app.post("/generate")
-def generate_api(req: GenerateRequest):
+def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(default=None)):
+    auth(x_juckex_token)
     result = generate(req.prompt, req.max_new_tokens, req.temperature, req.top_k)
-    return {"text": result, "training_step": training_state["step"], "model": "juckex"}
+    return {"text": result, "training_step": training_state["step"], "model": "juckex", "output_length": len(result)}
 
 @app.get("/model/status")
 def model_status():
