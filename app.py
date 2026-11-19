@@ -233,26 +233,51 @@ def make_sequences(pairs):
         if coverage < 0.82 or len(ids) < 12:
             skipped += 1
             continue
-        seqs.append(ids)
+        # Python int 리스트보다 훨씬 적은 메모리를 쓰도록 토큰을 uint16 배열로 보관합니다.
+        seqs.append(np.asarray(ids, dtype=np.uint16))
     return seqs, skipped
 
 async def fetch_training_pairs():
+    """D1의 커서 페이지를 끝까지 읽습니다. 일부 페이지만 읽고 전체 데이터인 것처럼 처리하지 않습니다."""
     if not WORKER_URL:
         raise RuntimeError("JUCKEX_WORKER_URL 환경 변수가 설정되지 않았습니다.")
     headers = await _worker_headers()
-    rows, cursor = [], 0
-    async with httpx.AsyncClient(timeout=60) as client:
-        for _ in range(1000):
-            r = await client.get(WORKER_URL + "/api/internal/training-data", params={"after": cursor, "limit": 1000}, headers=headers)
+    rows, cursor, pages = [], 0, 0
+    page_size = 1000
+    max_pages = 1000  # 최대 1,000,000행까지 안전하게 처리
+    async with httpx.AsyncClient(timeout=90) as client:
+        while pages < max_pages:
+            r = await client.get(
+                WORKER_URL + "/api/internal/training-data",
+                params={"after": cursor, "limit": page_size},
+                headers=headers,
+            )
             r.raise_for_status()
             body = r.json()
             batch = body.get("pairs", [])
+            if not isinstance(batch, list):
+                raise RuntimeError("학습 데이터 응답 형식이 올바르지 않습니다.")
+            if not batch:
+                if body.get("done", True):
+                    break
+                raise RuntimeError("학습 데이터 페이지가 비어 있는데 서버가 완료를 알리지 않았습니다.")
+
             rows.extend(batch)
-            cursor = int(body.get("next", cursor))
-            if body.get("done") or not batch:
+            pages += 1
+            next_cursor = int(body.get("next", cursor))
+            if next_cursor <= cursor:
+                raise RuntimeError("학습 데이터 페이지 커서가 진행되지 않아 중복 수집을 중단했습니다.")
+            cursor = next_cursor
+
+            if body.get("done") is True:
                 break
-            if len(rows) >= 100000:
+            if "done" not in body and len(batch) < page_size:
+                # done 필드가 없는 구버전 응답에서만 짧은 페이지를 마지막으로 간주
                 break
+        else:
+            raise RuntimeError(f"학습 데이터가 {max_pages * page_size:,}행 한도를 넘어 수집을 중단했습니다.")
+
+    training_state.update({"fetched_pairs": len(rows), "fetch_pages": pages, "fetch_cursor": cursor})
     return rows
 
 
@@ -314,6 +339,7 @@ async def _train_background(max_steps: int = 80):
         training_state.update({"status": "fetching", "last_error": None, "started_at": int(time.time())})
         pairs = await fetch_training_pairs()
         seqs, skipped = make_sequences(pairs)
+        del pairs  # 원문 행과 토큰 배열을 동시에 오래 보유하지 않도록 메모리 회수
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {len(pairs)}개")
         train_seqs, val_seqs = split_sequences(seqs)
@@ -325,7 +351,8 @@ async def _train_background(max_steps: int = 80):
         optimizer = torch.optim.AdamW(candidate.parameters(), lr=2e-5, weight_decay=0.01)
         steps = max(1, min(int(max_steps), 200))
         last_loss = None
-        training_state.update({"status": "training", "dataset_pairs": len(pairs), "usable_pairs": len(seqs), "skipped_pairs": skipped, "validation_loss_before": before})
+        training_state.update({"status": "training", "dataset_pairs": len(pairs), "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": 0, "validation_loss_before": before})
+        save_training_state()
         for i in range(steps):
             xb, yb = sample_batch(train_seqs, batch_size=8)
             _, loss = candidate(xb, yb)
@@ -336,8 +363,11 @@ async def _train_background(max_steps: int = 80):
             torch.nn.utils.clip_grad_norm_(candidate.parameters(), 1.0)
             optimizer.step()
             last_loss = float(loss.item())
+            # 한 step에서 batch_size=8개 시퀀스를 학습 데이터로 샘플링합니다.
+            training_state["examples_seen"] = int(training_state.get("examples_seen", 0)) + int(xb.size(0))
             training_state["progress"] = int((i + 1) / steps * 100)
             if i % 10 == 0:
+                save_training_state()
                 await asyncio.sleep(0)
         after = evaluate(candidate, val_seqs)
         # Reject catastrophic regressions; a small noisy change is not enough to reject.
@@ -353,7 +383,7 @@ async def _train_background(max_steps: int = 80):
         with model_lock:
             _save_local(candidate, next_step)
             model.load_state_dict(candidate.state_dict())
-        training_state.update({"status": "complete", "step": next_step, "trained_pairs": len(pairs), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None})
+        training_state.update({"status": "complete", "step": next_step, "trained_pairs": len(pairs), "dataset_pairs": len(pairs), "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None})
         save_training_state()
     except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
