@@ -21,6 +21,7 @@ EMBD = int(CFG["N_EMBD"])
 HEADS = int(CFG["N_HEAD"])
 LAYERS = int(CFG["N_LAYER"])
 VOCAB = len(CHARS)
+ARCH_ID = f"juckex-transformer-v2-b{BLOCK}-e{EMBD}-h{HEADS}-l{LAYERS}-v{VOCAB}"
 DEVICE = torch.device("cpu")
 torch.set_num_threads(1)
 BASE_WEIGHTS = ROOT / "juckex_weights.npz"
@@ -97,7 +98,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False,
 
 model_lock = threading.RLock()
 train_start_lock = threading.Lock()
-training_state = {"status": "idle", "step": 2000, "trained_pairs": 111, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 1, "progress": 0}
+training_state = {"status": "idle", "step": 0, "trained_pairs": 0, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 2, "progress": 0, "architecture": ARCH_ID}
 if STATE_PATH.exists():
     try:
         saved_state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
@@ -185,6 +186,7 @@ async def _persist_training_checkpoint(candidate: JuckexModel, step: int, max_st
         "dataset_pairs": int(dataset_pairs),
         "dataset_cursor": int(dataset_cursor),
         "validation_loss_before": validation_loss_before,
+        "architecture_id": ARCH_ID,
     }
     headers = await _worker_headers()
     async with httpx.AsyncClient(timeout=90) as client:
@@ -213,6 +215,7 @@ async def _restore_training_checkpoint():
         "dataset_pairs": max(0, int(body.get("dataset_pairs", 0))),
         "dataset_cursor": max(0, int(body.get("dataset_cursor", 0))),
         "validation_loss_before": body.get("validation_loss_before"),
+        "architecture_id": str(body.get("architecture_id", "")),
     }
 
 async def _delete_training_checkpoint():
@@ -245,18 +248,31 @@ async def _restore_remote_model(model: JuckexModel):
 def _initial_model():
     m = JuckexModel().to(DEVICE)
     source = LOCAL_MODEL if LOCAL_MODEL.exists() else BASE_WEIGHTS
-    _load_npz(m, source.read_bytes())
+    try:
+        _load_npz(m, source.read_bytes())
+        training_state["loaded_weights_from"] = str(source.name)
+    except Exception as exc:
+        # 구조가 바뀐 구형 가중치는 새 모델에 억지로 끼우지 않고 새로 초기화합니다.
+        training_state["legacy_weights_detected"] = str(exc)[:240]
+        training_state["migration_required"] = True
     return m
 model = _initial_model()
 @app.on_event("startup")
 async def startup_restore():
     try:
-        with model_lock:
-            ok = await _restore_remote_model(model)
-            if not ok and WORKER_URL and SYNC_TOKEN:
-                raw = _save_local(model, int(training_state.get("step", 2000)))
-                ok = await _persist_model(raw, int(training_state.get("step", 2000)))
+        try:
+            with model_lock:
+                ok = await _restore_remote_model(model)
+        except Exception as restore_error:
+            # 이전 구조의 원격 가중치는 새 구조에 맞지 않으므로 보존된 이전 버전으로 남기고 새 구조를 시작합니다.
+            training_state["legacy_remote_model_detected"] = str(restore_error)[:240]
+            ok = False
+        if not ok and WORKER_URL and SYNC_TOKEN:
+            raw = _save_local(model, int(training_state.get("step", 0)))
+            ok = await _persist_model(raw, int(training_state.get("step", 0)))
         training_state["remote_storage"] = bool(ok)
+        training_state["architecture"] = ARCH_ID
+        training_state["parameter_count"] = sum(p.numel() for p in model.parameters())
         if os.getenv("JUCKEX_BOOTSTRAP_TRAIN", "0") == "1" and not training_state.get("bootstrap_train_done"):
             training_state["bootstrap_train_done"] = True
             training_state.update({"status": "queued", "progress": 0, "last_error": None, "bootstrap_train_started_at": int(time.time())})
@@ -470,11 +486,11 @@ async def _train_background(max_steps: int = 80):
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
-        steps = max(1, min(int(max_steps), 400))
+        steps = max(1, min(int(max_steps), 600))
         checkpoint = await _restore_training_checkpoint()
         resume_step = 0
         resumed = False
-        if checkpoint and checkpoint["dataset_pairs"] == fetched_count and checkpoint["dataset_cursor"] == dataset_cursor and checkpoint["max_steps"] == steps and checkpoint["step"] <= steps:
+        if checkpoint and checkpoint.get("architecture_id") == ARCH_ID and checkpoint["dataset_pairs"] == fetched_count and checkpoint["dataset_cursor"] == dataset_cursor and checkpoint["max_steps"] == steps and checkpoint["step"] <= steps:
             candidate = JuckexModel().to(DEVICE)
             _load_npz(candidate, checkpoint["raw"])
             before = checkpoint.get("validation_loss_before")
@@ -545,7 +561,7 @@ class GenerateRequest(BaseModel):
     question: Optional[str] = Field(default=None, max_length=500)
 
 class TrainRequest(BaseModel):
-    max_steps: int = Field(default=80, ge=1, le=200)
+    max_steps: int = Field(default=400, ge=1, le=600)
 
 class FeedbackRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
@@ -771,7 +787,7 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "vocab_size": VOCAB, "layers": LAYERS, "heads": HEADS, "training": training_state["status"], "remote_storage_configured": bool(WORKER_URL and SYNC_TOKEN)}
+    return {"ok": True, "vocab_size": VOCAB, "layers": LAYERS, "heads": HEADS, "embedding": EMBD, "context_length": BLOCK, "parameter_count": sum(p.numel() for p in model.parameters()), "architecture": ARCH_ID, "training": training_state["status"], "remote_storage_configured": bool(WORKER_URL and SYNC_TOKEN)}
 
 @app.post("/generate")
 def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(default=None)):
