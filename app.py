@@ -449,7 +449,7 @@ def evaluate(m, seqs, max_batches=12):
         m.train(was_training)
     return float(np.mean(losses)) if losses else None
 
-async async def _train_background(max_steps: int = 80):
+async def _train_background(max_steps: int = 80):
     global model
     try:
         training_state.update({"status": "fetching", "last_error": None, "started_at": int(time.time())})
