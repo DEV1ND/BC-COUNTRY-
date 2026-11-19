@@ -427,7 +427,37 @@ async def _train_background(max_steps: int = 80):
     global model
     try:
         training_state.update({"status": "fetching", "last_error": None, "started_at": int(time.time())})
-        pairs = await fetch_training_pairs()
+        try:
+            pairs = await fetch_training_pairs()
+            training_state["d1_fallback"] = False
+            training_state.pop("d1_fallback_reason", None)
+        except Exception as fetch_error:
+            # D1 free-tier row-read limits or temporary Worker failures must not block
+            # training on the separately reviewed, version-controlled examples.
+            extra_path = ROOT / "training_extra.json"
+            if not extra_path.exists():
+                raise
+            extra_rows = json.loads(extra_path.read_text(encoding="utf-8"))
+            pairs = [
+                {"question": str(row.get("question", "")).strip(),
+                 "answer": str(row.get("answer", "")).strip(),
+                 "source": row.get("source", "curated-fallback")}
+                for row in extra_rows
+                if isinstance(row, dict) and row.get("approved", True)
+                and str(row.get("question", "")).strip()
+                and str(row.get("answer", "")).strip()
+            ]
+            if len(pairs) < 5:
+                raise RuntimeError(
+                    f"D1 학습 데이터 연결 실패({str(fetch_error)[:180]}) 및 검수 자료 부족"
+                ) from fetch_error
+            training_state.update({
+                "d1_fallback": True,
+                "d1_fallback_reason": str(fetch_error)[:300],
+                "d1_pairs": 0,
+                "curated_pairs": len(pairs),
+                "fetch_cursor": 0,
+            })
         fetched_count = len(pairs)
         dataset_cursor = int(training_state.get("fetch_cursor", 0))
         seqs, skipped = make_sequences(pairs)
@@ -495,8 +525,10 @@ async def _train_background(max_steps: int = 80):
         try:
             await _delete_training_checkpoint()
         except Exception as cleanup_error:
-            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
-        save_training_state()    except Exception as e:
+            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]
+        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
+        save_training_state()
+    except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
         save_training_state()
 
