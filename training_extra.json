@@ -298,5 +298,23 @@
     "answer": "우주는 시간과 공간, 별과 행성, 은하와 물질 및 에너지를 모두 포함하는 광대한 영역입니다.",
     "source": "curated-v1",
     "approved": true
+  },
+  {
+    "question": "안녕하세요",
+    "answer": "안녕하세요. 무엇을 도와드릴까요?",
+    "source": "curated-greeting-v1",
+    "approved": true
+  },
+  {
+    "question": "안녕",
+    "answer": "안녕하세요. 무엇을 도와드릴까요?",
+    "source": "curated-greeting-v1",
+    "approved": true
+  },
+  {
+    "question": "반가워요",
+    "answer": "저도 반가워요. 궁금한 내용을 질문해 주세요.",
+    "source": "curated-greeting-v1",
+    "approved": true
   }
 ]
