@@ -697,24 +697,31 @@ def _curated_similar_answer(question_text: str) -> str:
     return ""
 
 def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=None):
-    # 작은 문자 단위 모델이 잘 답하지 못하는 질문은 검수된 지식 검색을 먼저 사용합니다.
+    # 검색 결과는 정답으로 반환하지 않고, 자체 Transformer가 참고할 문맥으로만 사용합니다.
     current_question = str(question or "").strip()
     if not current_question:
         current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\n답변:", 1)[0].strip()
         current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
-    exact_answer = _curated_exact_answer(current_question)
-    if exact_answer:
-        return exact_answer
-    similar_answer = _curated_similar_answer(current_question)
-    if similar_answer:
-        return similar_answer
 
-    # 검색에 맞는 지식이 없을 때만 자체 Transformer 추론을 실행합니다.
-    input_ids, _ = encode_text(prompt)
+    exact_context = _curated_exact_answer(current_question)
+    similar_context = "" if exact_context else _curated_similar_answer(current_question)
+    retrieved_context = exact_context or similar_context
+    generation_prompt = str(prompt or "").strip()
+    if retrieved_context:
+        # 프롬프트 뒤에 현재 질문과 근거를 배치해 BLOCK 길이 제한에서도 문맥이 남도록 합니다.
+        generation_prompt = (
+            "참고 정보: " + retrieved_context
+            + "\n질문: " + current_question
+            + "\n답변:"
+        )
+
+    input_ids, _ = encode_text(generation_prompt)
     if not input_ids:
         input_ids = [0]
     input_len = len(input_ids)
     token_limit = max(1, min(int(max_new_tokens), 400))
+    temperature = max(0.15, min(float(temperature), 1.5))
+    top_k = max(1, min(int(top_k), VOCAB))
     ids = list(input_ids)
     with model_lock, torch.no_grad():
         model.eval()
@@ -722,13 +729,22 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
             context = torch.tensor([ids[-BLOCK:]], dtype=torch.long, device=DEVICE)
             logits, _ = model(context)
             scores = logits[0, -1].clone()
-            # 직전 생성 구간의 과도한 반복을 약하게 억제합니다.
-            recent = ids[max(input_len, len(ids) - 24):]
+            # 최근 생성 토큰 반복을 완화하고, temperature/top-k 샘플링으로 매번 새 문장을 생성합니다.
+            recent = ids[max(input_len, len(ids) - 32):]
             if recent:
-                repeated = set(recent)
-                for token_id in repeated:
-                    scores[token_id] -= 0.18
-            nxt = int(torch.argmax(scores).item())
+                counts = {}
+                for token_id in recent:
+                    counts[token_id] = counts.get(token_id, 0) + 1
+                for token_id, count in counts.items():
+                    scores[token_id] -= min(0.8, 0.16 * count)
+            scores = scores / temperature
+            values, indices = torch.topk(scores, k=top_k)
+            probabilities = F.softmax(values, dim=-1)
+            if not torch.isfinite(probabilities).all() or float(probabilities.sum()) <= 0:
+                nxt = int(indices[0].item())
+            else:
+                sampled = torch.multinomial(probabilities, num_samples=1)
+                nxt = int(indices[sampled].item())
             ids.append(nxt)
             tail = "".join(ITOS.get(i, "") for i in ids[input_len:])
             if tail.endswith("\n\n") or tail.endswith("\n질문:"):
@@ -740,20 +756,8 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
     answer = answer.split("\n질문:", 1)[0].split("\n\n", 1)[0].strip()
     answer = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     answer = re.sub(r"^(?:질문|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
-    if not _answer_quality_ok(prompt, answer, question):
-        # 생성 결과가 비었거나 질문과 무관하면, 검수된 자체 문답의 정확 일치만 보조 응답으로 사용합니다.
-        current_question = str(question or "").strip()
-        if not current_question:
-            current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\n답변:", 1)[0].strip()
-            current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
-        exact_answer = _curated_exact_answer(current_question)
-        if exact_answer:
-            return exact_answer
-        similar_answer = _curated_similar_answer(current_question)
-        if similar_answer:
-            return similar_answer
-        # 추론 서버가 빈 문자열을 반환해 Worker가 장애로 오인하지 않도록 정상 안내를 반환합니다.
-        return "아직 이 질문에 대한 학습 자료가 충분하지 않아요. 다른 표현으로 질문하거나 주제를 더 구체적으로 알려 주세요."
+    if not _answer_quality_ok(generation_prompt, answer, current_question):
+        return "아직 이 질문에 답할 만큼 학습된 내용이 충분하지 않아요. 질문을 조금 더 구체적으로 알려 주세요."
     return answer
 
 @app.get("/")
