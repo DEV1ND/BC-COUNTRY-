@@ -383,7 +383,34 @@ async def fetch_training_pairs():
                         extra_count += 1
         except Exception as e:
             raise RuntimeError(f"추가 검수 문답 파일을 읽지 못했습니다: {e}") from e
-    training_state.update({"fetched_pairs": len(rows), "d1_pairs": len(rows) - extra_count, "curated_pairs": extra_count, "fetch_pages": pages, "fetch_cursor": cursor, "fetch_truncated": len(rows) >= max_rows})
+    source_count = 0
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            source_response = await client.get(WORKER_URL + "/api/internal/source-docs", headers=headers)
+            source_response.raise_for_status()
+            source_payload = source_response.json()
+        documents = source_payload.get("documents", [])
+        if isinstance(documents, list):
+            known_sources = set()
+            for doc in documents[:20]:
+                if not isinstance(doc, dict):
+                    continue
+                title = str(doc.get("title", "")).strip()[:180]
+                host = str(doc.get("host", "")).strip()
+                text = str(doc.get("text", "")).strip()[:12000]
+                url = str(doc.get("url", "")).strip()
+                if len(text) < 300 or not title or not url or host not in {"developers.cloudflare.com", "developer.mozilla.org", "docs.python.org", "www.korea.kr", "www.who.int"}:
+                    continue
+                fingerprint = str(doc.get("hash") or url)
+                if fingerprint in known_sources:
+                    continue
+                known_sources.add(fingerprint)
+                rows.append({"question": f"자료 제목: {title}\\n출처: {host}", "answer": text, "source": "approved-public-source", "approved": True})
+                source_count += 1
+    except Exception as source_error:
+        training_state["source_fetch_warning"] = str(source_error)[:240]
+
+    training_state.update({"fetched_pairs": len(rows), "d1_pairs": len(rows) - extra_count - source_count, "curated_pairs": extra_count, "source_documents": source_count, "fetch_pages": pages, "fetch_cursor": cursor, "fetch_truncated": len(rows) >= max_rows})
     return rows
 
 
