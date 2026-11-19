@@ -563,6 +563,9 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
         return found
     q_terms = core_terms(question)
     a_terms = core_terms(text)
+    greeting_question = any(x in question.casefold() for x in ("안녕", "반가", "ㅎㅇ", "hello", "hi"))
+    if greeting_question:
+        return any(x in text for x in ("안녕", "반가", "어서 오", "환영"))
     aliases = {"인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
                "juckex": {"juckex"}, "알고리즘": {"알고리즘"}}
     expanded = set(q_terms)
