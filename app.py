@@ -370,7 +370,7 @@ def split_sequences(seqs):
     groups = {}
     for seq in seqs:
         raw = "".join(ITOS.get(int(i), "") for i in seq)
-        q = raw.split("\\n답변:", 1)[0].removeprefix("질문:").strip().casefold()
+        q = raw.split("\n답변:", 1)[0].removeprefix("질문:").strip().casefold()
         key = re.sub(r"[^가-힣a-z0-9]", "", q)
         groups.setdefault(key or hashlib.sha256(raw.encode("utf-8")).hexdigest(), []).append(seq)
     ordered_keys = sorted(groups, key=lambda k: hashlib.sha256(k.encode("utf-8")).hexdigest())
@@ -529,8 +529,7 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
     text = answer.strip()
     if len(text) < 8:
         return False
-    if re.search(r"^(?:answer|답변)\s*[:：]", text, re.IGNORECASE):
-        text = re.sub(r"^(?:answer|답변)\s*[:：]\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:answer|답변)\s*[:：]\s*", "", text, flags=re.IGNORECASE)
     letters = [c for c in text if c.isalpha() or ("가" <= c <= "힣")]
     hangul = sum("가" <= c <= "힣" for c in letters)
     if not letters or hangul / len(letters) < 0.28:
@@ -540,11 +539,13 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
     if len(text) > 30 and len(set(text)) < 7:
         return False
 
-    question = str(prompt or "")
-    if "질문:" in question:
-        question = question.rsplit("질문:", 1)[-1]
-    question = re.sub(r"이전 대화 기억:.*? / ", "", question, flags=re.DOTALL)
-    question = question.split("\n답변:", 1)[0]
+    question = str(question_text or "").strip()
+    if not question:
+        question = str(prompt or "")
+        if "질문:" in question:
+            question = question.rsplit("질문:", 1)[-1]
+        question = re.sub(r"이전 대화 기억:.*? / ", "", question, flags=re.DOTALL)
+        question = question.split("\n답변:", 1)[0]
     stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명", "알려주세요",
             "알려줘", "해주세요", "해줘", "오늘", "어때", "질문", "답변", "그리고", "대한"}
     q_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", question)
@@ -596,8 +597,9 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
 
     answer = "".join(ITOS.get(i, "") for i in ids[input_len:])
     answer = answer.split("\n질문:", 1)[0].split("\n\n", 1)[0].strip()
-    answer = re.sub(r"^(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
-    if not _answer_quality_ok(prompt, answer):
+    answer = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
+    answer = re.sub(r"^(?:질문|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
+    if not _answer_quality_ok(prompt, answer, question):
         return ""
     return answer
 
