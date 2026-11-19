@@ -248,7 +248,6 @@ def _initial_model():
     _load_npz(m, source.read_bytes())
     return m
 model = _initial_model()
-
 @app.on_event("startup")
 async def startup_restore():
     try:
@@ -497,8 +496,7 @@ async def _train_background(max_steps: int = 80):
             await _delete_training_checkpoint()
         except Exception as cleanup_error:
             training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
-        save_training_state()
-    except Exception as e:
+        save_training_state()    except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
         save_training_state()
 
@@ -670,7 +668,7 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
     # 작은 문자 단위 모델이 잘 답하지 못하는 질문은 검수된 지식 검색을 먼저 사용합니다.
     current_question = str(question or "").strip()
     if not current_question:
-        current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\\n답변:", 1)[0].strip()
+        current_question = str(prompt or "").rsplit("질문:", 1)[-1].split("\n답변:", 1)[0].strip()
         current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
     exact_answer = _curated_exact_answer(current_question)
     if exact_answer:
