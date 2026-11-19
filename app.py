@@ -405,8 +405,20 @@ async def fetch_training_pairs():
                 if fingerprint in known_sources:
                     continue
                 known_sources.add(fingerprint)
-                rows.append({"question": f"자료 제목: {title}\\n출처: {host}", "answer": text, "source": "approved-public-source", "approved": True})
-                source_count += 1
+                # 긴 문서는 겹치는 구간으로 나눠 끝부분까지 학습 자료에 포함합니다.
+                chunk_size, overlap = 1700, 180
+                stride = chunk_size - overlap
+                chunks = [text[pos:pos + chunk_size].strip() for pos in range(0, len(text), stride)]
+                for chunk_index, chunk_text in enumerate(chunks, 1):
+                    if len(chunk_text) < 240:
+                        continue
+                    rows.append({
+                        "question": f"자료 제목: {title} / 출처: {host} / 구간: {chunk_index}",
+                        "answer": chunk_text,
+                        "source": "approved-public-source",
+                        "approved": True,
+                    })
+                    source_count += 1
     except Exception as source_error:
         training_state["source_fetch_warning"] = str(source_error)[:240]
 
@@ -518,7 +530,7 @@ async def _train_background(max_steps: int = 80):
         if len(seqs) < 5:
             raise RuntimeError(f"실제 Transformer 학습에 필요한 유효 데이터가 부족합니다. 유효 {len(seqs)}개 / 전체 {fetched_count}개")
         train_seqs, val_seqs = split_sequences(seqs)
-        steps = max(1, min(int(max_steps), 300))
+        steps = max(1, min(int(max_steps), 600))
         checkpoint = await _restore_training_checkpoint()
         resume_step = 0
         resumed = False
@@ -541,7 +553,7 @@ async def _train_background(max_steps: int = 80):
         training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 2, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
         save_training_state()
         for i in range(resume_step, steps):
-            xb, yb = sample_batch(train_seqs, batch_size=2)
+            xb, yb = sample_batch(train_seqs, batch_size=4)
             _, loss = candidate(xb, yb)
             if not torch.isfinite(loss):
                 raise RuntimeError("학습 손실값이 유효하지 않아 변경 사항을 폐기했습니다.")
