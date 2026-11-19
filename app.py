@@ -548,15 +548,27 @@ def _answer_quality_ok(prompt: str, answer: str, question_text: Optional[str] = 
         question = question.split("\n답변:", 1)[0]
     stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명", "알려주세요",
             "알려줘", "해주세요", "해줘", "오늘", "어때", "질문", "답변", "그리고", "대한"}
-    q_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", question)
-               if x.lower() not in stop}
-    a_terms = {x.lower() for x in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", text)}
+    particles = ("으로", "에서", "에게", "까지", "부터", "처럼", "보다", "이라", "이란",
+                 "란", "은", "는", "이", "가", "을", "를", "의", "와", "과", "도", "로", "에")
+    def core_terms(value):
+        found = set()
+        for raw in re.findall(r"[가-힣]{2,}|[a-zA-Z]{3,}", value):
+            term = raw.lower()
+            for suffix in particles:
+                if term.endswith(suffix) and len(term) - len(suffix) >= 2:
+                    term = term[:-len(suffix)]
+                    break
+            if term not in stop and len(term) >= 2:
+                found.add(term)
+        return found
+    q_terms = core_terms(question)
+    a_terms = core_terms(text)
     aliases = {"인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
                "juckex": {"juckex"}, "알고리즘": {"알고리즘"}}
     expanded = set(q_terms)
     for term in q_terms:
         expanded.update(aliases.get(term, set()))
-    # 질문의 핵심 단어가 답변에 전혀 없으면 무관한 답변일 가능성이 높아 폐기합니다.
+    # 조사 차이를 제거한 핵심 단어가 하나도 겹치지 않으면 무관한 답변으로 판정합니다.
     if expanded and not (expanded & a_terms):
         return False
     if not expanded:
