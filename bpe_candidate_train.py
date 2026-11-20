@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import app as live
-from bpe_tokenizer import BPETokenizer
+from bpe_tokenizer import BPETokenizer, encode_prompt_answer
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
@@ -81,9 +81,8 @@ def encode_rows(rows, tokenizer):
 def encode_training_examples(rows, tokenizer):
     examples = []
     for row in rows:
-        sequence = tokenizer.encode(row["text"])
         prompt = "질문:" + row["question"] + "\n답변:"
-        prompt_tokens = len(tokenizer.encode(prompt))
+        sequence, prompt_tokens = encode_prompt_answer(prompt, row["answer"], tokenizer)
         examples.append((sequence, prompt_tokens))
     return examples
 
