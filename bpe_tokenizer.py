@@ -95,3 +95,10 @@ def load_approved_texts(path):
     if not texts:
         raise ValueError("사용 가능한 승인 데이터가 없습니다.")
     return texts
+
+
+def encode_prompt_answer(prompt, answer, tokenizer, suffix="\\n\\n"):
+    """Encode prompt and target separately so BPE cannot merge across their boundary."""
+    prompt_ids = tokenizer.encode(str(prompt))
+    answer_ids = tokenizer.encode(str(answer) + suffix)
+    return prompt_ids + answer_ids, len(prompt_ids)
