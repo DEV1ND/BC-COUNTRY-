@@ -153,15 +153,30 @@ def main():
     train_rows, valid_rows = split_pairs(rows)
     if not train_rows or not valid_rows:
         raise RuntimeError("학습/검증 데이터 분리가 비어 있습니다.")
+    independent_path = ROOT / "bpe_independent_eval.json"
+    independent_rows = json.loads(independent_path.read_text(encoding="utf-8"))
+    if not isinstance(independent_rows, list) or len(independent_rows) < 10:
+        raise RuntimeError("독립 평가 문항이 10개 미만이거나 형식이 잘못되었습니다.")
+    independent_clean = []
+    for row in independent_rows:
+        if not isinstance(row, dict):
+            continue
+        q, a = str(row.get("question", "")).strip(), str(row.get("answer", "")).strip()
+        if len(q) >= 2 and len(a) >= 8:
+            independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\\n답변:" + a + "\\n\\n"})
+    if len(independent_clean) < 10:
+        raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
     tokenizer = BPETokenizer.train(
         [row["text"] for row in train_rows],
         vocab_size=args.vocab_size,
         min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows],
+        extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
     )
     train_sequences = encode_rows(train_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
+    independent_bpe = encode_rows(independent_clean, tokenizer)
+    independent_char = [live.encode_text(row["text"])[0] for row in independent_clean]
 
     roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows)
     if roundtrip_passed != len(rows):
@@ -220,7 +235,9 @@ def main():
     candidate.to(DEVICE)
     bpe_bpc = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
     live_bpc = live_bits_per_char(valid_char)
-    if not math.isfinite(bpe_bpc) or not math.isfinite(live_bpc):
+    independent_bpe_bpc = candidate_bits_per_char(candidate, independent_bpe, tokenizer)
+    independent_live_bpc = live_bits_per_char(independent_char)
+    if not all(math.isfinite(v) for v in (bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc)):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
     torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
@@ -231,7 +248,12 @@ def main():
         "status": "evaluated_not_promoted",
         "live_model_changed": False,
         "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
-        "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+        "validation_scope": "deterministic_holdout_from_approved_training_extra",
+        "independent_evaluation_scope": "fixed_20_question_set_never_used_for_gradient_updates_or_bpe_merge_counts",
+        "independent_evaluation_pairs": len(independent_clean),
+        "independent_bpe_bits_per_character": round(independent_bpe_bpc, 5),
+        "independent_live_char_bits_per_character": round(independent_live_bpc, 5),
+        "candidate_better_on_independent_set": bool(independent_bpe_bpc < independent_live_bpc),
         "training_pairs": len(train_rows),
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
@@ -246,7 +268,7 @@ def main():
         "live_char_model_bits_per_character": round(live_bpc, 5),
         "bpe_candidate_bits_per_character": round(bpe_bpc, 5),
         "candidate_better_on_this_split": bool(bpe_bpc < live_bpc),
-        "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+        "promotion": "보류: 고정 독립 평가셋의 BPC는 참고 지표일 뿐이며 실제 생성 품질과 현재 운영 가중치 비교 전 자동 승격하지 않음",
         "candidate_checkpoint": str(candidate_path.name),
         "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
