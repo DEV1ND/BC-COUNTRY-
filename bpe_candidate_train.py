@@ -132,13 +132,16 @@ def live_answer_bits_per_char(rows):
     try:
         for row in rows:
             ids_list, _ = live.encode_text(row["text"])
-            prompt_chars = len("질문:" + row["question"] + "\n답변:")
+            prompt_text = "질문:" + row["question"] + "\n답변:"
+            prompt_ids, _ = live.encode_text(prompt_text)
             chunk = ids_list[:live.BLOCK + 1]
             if len(chunk) < 2:
                 continue
             ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
             targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
-            start = max(0, prompt_chars - 1)
+            # Character tokenizer: token count equals character count. Use the
+            # encoded prompt length so the first answer character is scored.
+            start = max(0, len(prompt_ids) - 1)
             if start >= len(targets):
                 continue
             logits, _ = live.model(ids)
@@ -363,7 +366,11 @@ def main():
     independent_examples = encode_training_examples(independent_clean, tokenizer)
     independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
     independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
-    if not all(math.isfinite(v) for v in (bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc)):
+    if not all(math.isfinite(v) for v in (
+        bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc,
+        validation_answer_bpc, validation_live_answer_bpc,
+        independent_answer_bpc, independent_live_answer_bpc,
+    )):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
     torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
