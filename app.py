@@ -917,6 +917,56 @@ def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(de
     result = generate(req.prompt, req.max_new_tokens, req.temperature, req.top_k, req.question)
     return {"text": result, "training_step": training_state["step"], "model": "juckex", "output_length": len(result)}
 
+@app.get("/model/benchmark")
+def model_benchmark():
+    """Read-only repeatable benchmark. Candidate tokenizer is assessed but never promoted."""
+    try:
+        rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+        approved = [row for row in rows if isinstance(row, dict) and row.get("approved", True)]
+        exact_sample = approved[:30]
+        exact_hits = sum(bool(_curated_exact_answer(row.get("question", ""))) for row in exact_sample)
+        cases = [
+            ("AI가 뭐야?", "인공지능"),
+            ("파이썬이 뭐야?", "파이썬"),
+            ("HTML이 뭐야?", "HTML"),
+            ("삼권분립이 뭐야?", "삼권분립"),
+        ]
+        retrieval = []
+        for query, expected in cases:
+            answer = _curated_similar_answer(query)
+            retrieval.append({"question": query, "passed": bool(answer and expected.casefold() in answer.casefold())})
+        unrelated_answer = _curated_similar_answer("은하철도 우주선 엔진의 양자 추진 원리는?")
+        from bpe_tokenizer import BPETokenizer, load_approved_texts
+        texts = load_approved_texts(ROOT / "training_extra.json")
+        candidate = BPETokenizer.train(texts, vocab_size=1024, min_pair_frequency=2)
+        encoded = [candidate.encode(value) for value in texts]
+        original_chars = sum(len(value) for value in texts)
+        encoded_tokens = sum(len(value) for value in encoded)
+        roundtrip_hits = sum(candidate.decode(ids) == value for ids, value in zip(encoded, texts))
+        return {
+            "ok": True,
+            "live_model_changed": False,
+            "retrieval": {
+                "exact_hits": exact_hits, "exact_total": len(exact_sample),
+                "paraphrase_cases": retrieval,
+                "paraphrase_hits": sum(item["passed"] for item in retrieval),
+                "unrelated_query_rejected": not bool(unrelated_answer),
+            },
+            "bpe_candidate": {
+                "vocab_size": len(candidate.vocab), "merge_count": len(candidate.merges),
+                "source_texts": len(texts), "source_characters": original_chars,
+                "encoded_tokens": encoded_tokens,
+                "compression_ratio": round(encoded_tokens / max(1, original_chars), 4),
+                "roundtrip_hits": roundtrip_hits, "roundtrip_total": len(texts),
+                "unknown_character_test": 0 in candidate.encode("새로운🛰문자"),
+            },
+            "promotion": "보류: 별도 Transformer 후보 학습과 독립 검증 데이터 평가가 필요합니다.",
+        }
+    except Exception as exc:
+        print(f"benchmark failed: {str(exc)[:240]}")
+        raise HTTPException(status_code=500, detail="벤치마크 실행 실패: " + str(exc)[:180])
+
+
 @app.get("/model/status")
 def model_status():
     return {k: v for k, v in training_state.items() if k not in ("last_error",)} | {"last_error": training_state.get("last_error")}
