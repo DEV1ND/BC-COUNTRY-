@@ -6,7 +6,7 @@ on:
     paths:
       - "bpe_candidate_train.py"
       - "bpe_tokenizer.py"
-      - "training_extra.json"
+      - "training_extra.json"\n      - "test_quality_benchmark.py"\n      - ".github/workflows/bpe-candidate.yml"
 
 permissions:
   contents: write
@@ -31,6 +31,9 @@ jobs:
 
       - name: Install CPU training dependencies
         run: pip install -r requirements.txt
+
+      - name: Run retrieval and tokenizer regression tests
+        run: python -m unittest test_quality_benchmark.py
 
       - name: Train isolated candidate and compare on held-out split
         run: python bpe_candidate_train.py --steps 1000 --vocab-size 1024 --seed 20261120
