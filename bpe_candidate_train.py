@@ -152,8 +152,12 @@ def main():
     train_rows, valid_rows = split_pairs(rows)
     if not train_rows or not valid_rows:
         raise RuntimeError("학습/검증 데이터 분리가 비어 있습니다.")
-    tokenizer = BPETokenizer.train([row["text"] for row in train_rows],
-                                   vocab_size=args.vocab_size, min_pair_frequency=2)
+    tokenizer = BPETokenizer.train(
+        [row["text"] for row in train_rows],
+        vocab_size=args.vocab_size,
+        min_pair_frequency=2,
+        extra_alphabet_texts=[row["text"] for row in rows],
+    )
     train_sequences = encode_rows(train_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
