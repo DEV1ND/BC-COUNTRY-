@@ -3,7 +3,6 @@ This script never writes to or promotes the production model.
 Run: python bpe_candidate_train.py --steps 120
 """
 import argparse
-import asyncio
 import json
 import math
 import time
@@ -18,8 +17,9 @@ import app as live
 from bpe_tokenizer import BPETokenizer
 
 ROOT = Path(__file__).resolve().parent
-OUT = Path("/tmp/juckex_bpe_candidate.pt")
-REPORT = Path("/tmp/juckex_bpe_candidate_report.json")
+OUT = ROOT / "bpe_candidate_checkpoint.pt"
+REPORT = ROOT / "bpe_candidate_report.json"
+TOKENIZER_REPORT = ROOT / "bpe_candidate.json"
 BLOCK = 256
 DEVICE = torch.device("cpu")
 
@@ -143,13 +143,28 @@ def main():
     torch.manual_seed(20261120)
     np.random.seed(20261120)
 
-    rows = clean_pairs(asyncio.run(live.fetch_training_pairs()))
+    # CI/offline candidate training uses only locally reviewed, approved Q&A.
+    # It never calls the production Worker or modifies production storage.
+    source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+    rows = clean_pairs(source_rows)
     train_rows, valid_rows = split_pairs(rows)
     tokenizer = BPETokenizer.train([row["text"] for row in train_rows],
                                    vocab_size=args.vocab_size, min_pair_frequency=2)
     train_sequences = encode_rows(train_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
+
+    tokenizer_payload = tokenizer.to_dict()
+    tokenizer_payload["assessment"] = {
+        "source": "approved-training-extra",
+        "training_pairs": len(train_rows),
+        "validation_pairs": len(valid_rows),
+        "vocab_size": len(tokenizer.vocab),
+        "roundtrip_passed": sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows),
+        "roundtrip_total": len(rows),
+        "live_model_changed": False,
+    }
+    TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab)).to(DEVICE)
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
@@ -177,6 +192,8 @@ def main():
         "created_at": int(time.time()),
         "status": "evaluated_not_promoted",
         "live_model_changed": False,
+        "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+        "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
         "training_pairs": len(train_rows),
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
@@ -187,7 +204,8 @@ def main():
         "bpe_candidate_bits_per_character": round(bpe_bpc, 5),
         "candidate_better_on_this_split": bool(bpe_bpc < live_bpc),
         "promotion": "보류: 반복 실행 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
-        "candidate_checkpoint": str(candidate_path),
+        "candidate_checkpoint": str(candidate_path.name),
+        "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
     REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
