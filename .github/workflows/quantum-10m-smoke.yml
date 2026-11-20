@@ -2,6 +2,12 @@ name: JUCKEX Quantum 10M architecture smoke test
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'quantum_10m_config.json'
+      - 'bpe_candidate_train.py'
+      - 'test_quality_benchmark.py'
 
 permissions:
   contents: read
