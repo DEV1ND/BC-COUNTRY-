@@ -48,7 +48,7 @@ class BPECandidate(nn.Module):
 def clean_pairs(rows):
     cleaned, seen = [], set()
     for row in rows:
-        if not isinstance(row, dict) or not row.get("approved", True):
+        if not isinstance(row, dict) or row.get("approved") is not True:
             continue
         q = str(row.get("question", "")).strip()[:500]
         a = str(row.get("answer", "")).strip()[:2000]
@@ -147,20 +147,27 @@ def main():
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
     rows = clean_pairs(source_rows)
+    if len(rows) < 10:
+        raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
     train_rows, valid_rows = split_pairs(rows)
+    if not train_rows or not valid_rows:
+        raise RuntimeError("학습/검증 데이터 분리가 비어 있습니다.")
     tokenizer = BPETokenizer.train([row["text"] for row in train_rows],
                                    vocab_size=args.vocab_size, min_pair_frequency=2)
     train_sequences = encode_rows(train_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
 
+    roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows)
+    if roundtrip_passed != len(rows):
+        raise RuntimeError(f"BPE 왕복 변환 검증 실패: {roundtrip_passed}/{len(rows)}")
     tokenizer_payload = tokenizer.to_dict()
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
         "training_pairs": len(train_rows),
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
-        "roundtrip_passed": sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows),
+        "roundtrip_passed": roundtrip_passed,
         "roundtrip_total": len(rows),
         "live_model_changed": False,
     }
@@ -184,6 +191,8 @@ def main():
 
     bpe_bpc = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
     live_bpc = live_bits_per_char(valid_char)
+    if not math.isfinite(bpe_bpc) or not math.isfinite(live_bpc):
+        raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
     torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
                 "architecture": {"width": 128, "heads": 4, "layers": 4, "block": BLOCK},
