@@ -107,26 +107,30 @@ def candidate_bits_per_char(candidate, sequences, tokenizer):
             logits = candidate(ids)[0]
             losses = F.cross_entropy(logits, targets, reduction="none")
             token_chars = [max(1, len(tokenizer.itos.get(int(token_id), ""))) for token_id in targets]
-            nll_sum += float((losses * torch.tensor(token_chars, device=DEVICE)).sum().item())
+            nll_sum += float(losses.sum().item())
             char_count += sum(token_chars)
     return nll_sum / max(1, char_count) / math.log(2)
 
 
 @torch.no_grad()
 def live_bits_per_char(sequences):
+    was_training = live.model.training
     live.model.eval()
     nll_sum, char_count = 0.0, 0
-    for seq in sequences:
-        for start in range(0, max(1, len(seq) - 1), live.BLOCK):
-            chunk = seq[start:start + live.BLOCK + 1]
-            if len(chunk) < 2:
-                continue
-            ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
-            targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
-            logits, _ = live.model(ids)
-            losses = F.cross_entropy(logits[0], targets, reduction="none")
-            nll_sum += float(losses.sum().item())
-            char_count += len(targets)
+    try:
+        for seq in sequences:
+            for start in range(0, max(1, len(seq) - 1), live.BLOCK):
+                chunk = seq[start:start + live.BLOCK + 1]
+                if len(chunk) < 2:
+                    continue
+                ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
+                targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
+                logits, _ = live.model(ids)
+                losses = F.cross_entropy(logits[0], targets, reduction="none")
+                nll_sum += float(losses.sum().item())
+                char_count += len(targets)
+    finally:
+        live.model.train(was_training)
     return nll_sum / max(1, char_count) / math.log(2)
 
 
