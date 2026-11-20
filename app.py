@@ -717,17 +717,33 @@ def _curated_exact_answer(question_text: str) -> str:
 
 
 def _curated_similar_answer(question_text: str) -> str:
-    """검수 문답에서 관련 근거를 최대 3개 찾아 함께 제공합니다."""
+    """검수 문답을 형태소 근사 + 문자 n-gram으로 검색하고, 높은 관련성의 근거만 반환합니다."""
     path = ROOT / "training_extra.json"
     if not path.exists() or not question_text:
         return ""
-    stop = {"무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명",
-            "알려주세요", "알려줘", "해주세요", "해줘", "오늘", "어때", "질문",
-            "답변", "그리고", "대한", "뭐야", "뭐예요", "뭔가요", "뭔데", "뜻",
-            "방법", "차이", "어떻게", "인가"}
-    suffixes = ("으로", "에서", "에게", "까지", "부터", "처럼", "보다",
-                "이라", "이란", "란", "은", "는", "이", "가", "을", "를",
-                "의", "와", "과", "도", "로", "에")
+
+    stop = {
+        "무엇", "무엇인가요", "무엇인지", "이란", "인가요", "이야", "설명",
+        "알려주세요", "알려줘", "해주세요", "해줘", "오늘", "어때", "질문",
+        "답변", "그리고", "대한", "뭐야", "뭐예요", "뭔가요", "뭔데", "뜻",
+        "방법", "차이", "어떻게", "인가", "좀", "관련", "대해", "궁금",
+    }
+    suffixes = (
+        "으로", "에서", "에게", "까지", "부터", "처럼", "보다", "이라",
+        "이란", "란", "은", "는", "이", "가", "을", "를", "의", "와",
+        "과", "도", "로", "에", "랑", "하고",
+    )
+    aliases = {
+        "인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
+        "웹페이지": {"웹페이지", "웹사이트"}, "웹사이트": {"웹사이트", "웹페이지"},
+        "자바스크립트": {"자바스크립트", "javascript", "js"},
+        "javascript": {"javascript", "자바스크립트", "js"},
+        "파이썬": {"파이썬", "python"}, "python": {"python", "파이썬"},
+        "자바": {"자바", "java"}, "java": {"java", "자바"},
+        "머신러닝": {"머신러닝", "기계학습"},
+        "기계학습": {"머신러닝", "기계학습"},
+    }
+
     def terms(value):
         found = set()
         for raw in re.findall(r"[가-힣]{2,}|[a-zA-Z0-9]{2,}", str(value).casefold()):
@@ -738,45 +754,74 @@ def _curated_similar_answer(question_text: str) -> str:
                     break
             if len(term) >= 2 and term not in stop:
                 found.add(term)
-        return found
+        expanded = set(found)
+        for term in found:
+            expanded.update(aliases.get(term, set()))
+        return expanded
+
+    def normalized(value):
+        return re.sub(r"[^가-힣a-z0-9]", "", str(value).casefold())
+
+    def bigrams(value):
+        value = normalized(value)
+        if len(value) < 2:
+            return {value} if value else set()
+        return {value[i:i + 2] for i in range(len(value) - 1)}
+
     query_terms = terms(question_text)
-    if not query_terms:
+    query_grams = bigrams(question_text)
+    if not query_terms and not query_grams:
         return ""
-    aliases = {
-        "인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
-        "웹페이지": {"웹페이지", "웹사이트"}, "웹사이트": {"웹사이트", "웹페이지"},
-        "자바스크립트": {"자바스크립트", "javascript", "js"},
-        "javascript": {"javascript", "자바스크립트", "js"},
-    }
-    expanded = set(query_terms)
-    for term in query_terms:
-        expanded.update(aliases.get(term, set()))
+
     try:
         rows = json.loads(path.read_text(encoding="utf-8"))
         ranked = []
         for row in rows if isinstance(rows, list) else []:
             if not isinstance(row, dict) or not row.get("approved", True):
                 continue
+            candidate_question = str(row.get("question", "")).strip()
             answer = str(row.get("answer", "")).strip()
-            if len(answer) < 8:
+            if len(candidate_question) < 2 or len(answer) < 8:
                 continue
-            candidate_terms = terms(row.get("question", ""))
-            overlap = expanded & candidate_terms
-            recall = len(overlap) / max(1, len(expanded))
+            candidate_terms = terms(candidate_question)
+            overlap = query_terms & candidate_terms
+            recall = len(overlap) / max(1, len(query_terms))
             precision = len(overlap) / max(1, len(candidate_terms))
-            score = 0.7 * recall + 0.3 * precision
-            if score >= 0.45 and overlap and _answer_quality_ok(question_text, answer, question_text):
-                ranked.append((score, answer))
-        ranked.sort(key=lambda item: item[0], reverse=True)
+            candidate_grams = bigrams(candidate_question)
+            dice = (2 * len(query_grams & candidate_grams) /
+                    max(1, len(query_grams) + len(candidate_grams)))
+            exactish = normalized(question_text) == normalized(candidate_question)
+            score = 1.0 if exactish else 0.55 * recall + 0.25 * precision + 0.20 * dice
+
+            # 짧은 단일 키워드의 우연한 일치만으로 답변을 확정하지 않습니다.
+            min_recall = 0.66 if len(query_terms) <= 2 else 0.45
+            if (exactish or (score >= 0.62 and overlap and recall >= min_recall)):
+                ranked.append((score, recall, candidate_question, answer))
+
+        ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        if not ranked:
+            return ""
+
+        # 한 개의 질문과 답변이 가장 강하게 맞는 경우에만 답변을 제공합니다.
+        best = ranked[0]
+        if best[0] >= 0.78 and best[1] >= 0.75:
+            return best[3]
+
+        # 복합 질문은 서로 다른 검수 자료를 근거로 표시해 단일 답변인 것처럼 꾸미지 않습니다.
         selected, seen = [], set()
-        for score, answer in ranked:
-            key = answer.casefold()
-            if key not in seen:
-                selected.append(answer)
-                seen.add(key)
-            if len(selected) == 3:
+        for score, recall, candidate_question, answer in ranked:
+            key = normalized(candidate_question)
+            if key in seen:
+                continue
+            selected.append((candidate_question, answer))
+            seen.add(key)
+            if len(selected) >= 3:
                 break
-        return "\\n".join(selected) if selected else ""
+        if not selected:
+            return ""
+        return "질문과 관련해 확인된 자료입니다.\n" + "\n".join(
+            f"- {question}: {answer}" for question, answer in selected
+        )
     except Exception as e:
         print(f"curated similarity search unavailable: {str(e)[:160]}")
         return ""
