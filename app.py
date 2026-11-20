@@ -294,6 +294,7 @@ def encode_text(text: str):
 
 def make_sequences(pairs):
     seqs, skipped, seen = [], 0, set()
+    coverage_sum, coverage_count, unknown_chars = 0.0, 0, 0
     for row in pairs:
         q = str(row.get("question", "")).replace("\x00", " ").strip()[:500]
         a = str(row.get("answer", "")).replace("\x00", "").strip()[:2000]
@@ -313,11 +314,17 @@ def make_sequences(pairs):
         seen.add(pair_key)
         text = "질문:" + q + "\n답변:" + a + "\n\n"
         ids, coverage = encode_text(text)
+        coverage_sum += coverage
+        coverage_count += 1
+        unknown_chars += max(0, len(text) - sum(ch in STOI for ch in text))
         if coverage < 0.82 or len(ids) < 12:
             skipped += 1
             continue
         # 중복과 저품질 항목을 제외한 뒤 uint16 토큰 배열로 저장합니다.
         seqs.append(np.asarray(ids, dtype=np.uint16))
+    training_state["token_coverage"] = round(coverage_sum / max(1, coverage_count), 4)
+    training_state["unknown_characters"] = int(unknown_chars)
+    training_state["tokenizer_type"] = "기존 한국어 문자/음절 토크나이저"
     return seqs, skipped
 
 async def fetch_training_pairs():
@@ -434,6 +441,8 @@ def split_sequences(seqs):
     for seq in seqs:
         raw = "".join(ITOS.get(int(i), "") for i in seq)
         q = raw.split("\n답변:", 1)[0].removeprefix("질문:").strip().casefold()
+        q = re.sub(r"\s*/\s*출처:.*$", "", q)
+        q = re.sub(r"\s*/\s*구간:\s*\d+\s*$", "", q)
         key = re.sub(r"[^가-힣a-z0-9]", "", q)
         groups.setdefault(key or hashlib.sha256(raw.encode("utf-8")).hexdigest(), []).append(seq)
     ordered_keys = sorted(groups, key=lambda k: hashlib.sha256(k.encode("utf-8")).hexdigest())
@@ -478,7 +487,7 @@ def evaluate(m, seqs, max_batches=12):
     losses = []
     try:
         for _ in range(min(max_batches, max(1, len(seqs)))):
-            x, y = sample_batch(seqs, batch_size=2)
+            x, y = sample_batch(seqs, batch_size=4)
             _, loss = m(x, y)
             if loss is not None and torch.isfinite(loss):
                 losses.append(float(loss.item()))
@@ -550,10 +559,10 @@ async def _train_background(max_steps: int = 80):
         candidate.train()
         optimizer = torch.optim.AdamW(candidate.parameters(), lr=5e-5, weight_decay=0.01)
         last_loss = None
-        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 2, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
+        training_state.update({"status": "training", "dataset_pairs": fetched_count, "usable_pairs": len(seqs), "skipped_pairs": skipped, "examples_seen": resume_step * 8, "validation_loss_before": before, "checkpoint_step": resume_step, "resumed": resumed})
         save_training_state()
         for i in range(resume_step, steps):
-            xb, yb = sample_batch(train_seqs, batch_size=4)
+            xb, yb = sample_batch(train_seqs, batch_size=8)
             _, loss = candidate(xb, yb)
             if not torch.isfinite(loss):
                 raise RuntimeError("학습 손실값이 유효하지 않아 변경 사항을 폐기했습니다.")
