@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: juckex-bpe-candidate
+  group: juckex-bpe-candidate-independent-v2
   cancel-in-progress: false
 
 jobs:
@@ -91,6 +91,7 @@ jobs:
             bpe_seed_sweep_report.json
             bpe_candidate.json
             bpe_candidate_checkpoint.pt
+            bpe_generation_seed_*.json
           if-no-files-found: error
           retention-days: 14
 
