@@ -105,10 +105,21 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bpe_candidate_report.json bpe_candidate.json bpe_candidate_report_seed_*.json bpe_seed_sweep_report.json
+          git add bpe_candidate_report.json bpe_candidate.json bpe_candidate_report_seed_*.json bpe_seed_sweep_report.json bpe_generation_seed_*.json
           if git diff --cached --quiet; then
             echo "No benchmark report changes to publish"
           else
             git commit -m "Publish three-seed BPE candidate evaluation"
-            git push
+            # Training runs can finish close together. Rebase generated reports
+            # on the newest main before pushing to avoid non-fast-forward loss.
+            for attempt in 1 2 3; do
+              git pull --rebase origin main
+              if git push; then
+                exit 0
+              fi
+              echo "Push attempt $attempt failed; retrying after fetching latest main."
+              sleep 2
+            done
+            echo "Could not publish reports after three attempts."
+            exit 1
           fi
