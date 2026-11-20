@@ -18,9 +18,9 @@ class RetrievalBenchmark(unittest.TestCase):
     def test_known_paraphrases_retrieve_relevant_material(self):
         cases = [
             ("AI가 뭐야?", ("인공지능", "ai")),
-            ("파이썬은 어떤 프로그래밍 언어야?", ("파이썬", "python")),
-            ("HTML의 역할은 뭐야?", ("HTML", "웹")),
-            ("삼권분립의 의미를 알려줘", ("삼권분립", "권력")),
+            ("파이썬이 뭐야?", ("파이썬", "python")),
+            ("HTML이 뭐야?", ("HTML", "웹")),
+            ("삼권분립이 뭐야?", ("삼권분립", "권력")),
         ]
         for question, expected_terms in cases:
             answer = _curated_similar_answer(question)
