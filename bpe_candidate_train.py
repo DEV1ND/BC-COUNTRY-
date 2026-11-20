@@ -136,12 +136,13 @@ def live_bits_per_char(sequences):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--steps", type=int, default=120)
+    parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--vocab-size", type=int, default=1024)
+    parser.add_argument("--seed", type=int, default=20261120)
     args = parser.parse_args()
     torch.set_num_threads(1)
-    torch.manual_seed(20261120)
-    np.random.seed(20261120)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
@@ -181,7 +182,14 @@ def main():
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
     candidate.train()
     losses = []
-    for step in range(max(1, min(args.steps, 1000))):
+    validation_curve = []
+    best_bpc = float("inf")
+    best_step = 0
+    best_state = None
+    stale_evaluations = 0
+    total_steps = max(1, min(args.steps, 5000))
+    eval_interval = 100
+    for step in range(1, total_steps + 1):
         x, y = make_batch(train_sequences, batch_size=8)
         optimizer.zero_grad(set_to_none=True)
         logits = candidate(x)
@@ -193,6 +201,23 @@ def main():
         optimizer.step()
         losses.append(float(loss.item()))
 
+        if step % eval_interval == 0 or step == total_steps:
+            score = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
+            validation_curve.append({"step": step, "bits_per_character": round(score, 6)})
+            if math.isfinite(score) and score < best_bpc:
+                best_bpc = score
+                best_step = step
+                best_state = {k: v.detach().cpu().clone() for k, v in candidate.state_dict().items()}
+                stale_evaluations = 0
+            else:
+                stale_evaluations += 1
+            if stale_evaluations >= 5:
+                break
+
+    if best_state is None:
+        raise RuntimeError("유효한 BPE 검증 체크포인트를 만들지 못했습니다.")
+    candidate.load_state_dict(best_state)
+    candidate.to(DEVICE)
     bpe_bpc = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
     live_bpc = live_bits_per_char(valid_char)
     if not math.isfinite(bpe_bpc) or not math.isfinite(live_bpc):
@@ -211,12 +236,12 @@ def main():
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
         "bpe_merge_count": len(tokenizer.merges),
-        "steps": len(losses),
+        "steps": len(losses),\n        "best_step": best_step,\n        "seed": args.seed,\n        "validation_curve": validation_curve,\n        "early_stopped": len(losses) < total_steps,\n        "candidate_parameters": sum(p.numel() for p in candidate.parameters()),
         "final_training_loss": round(losses[-1], 5),
         "live_char_model_bits_per_character": round(live_bpc, 5),
         "bpe_candidate_bits_per_character": round(bpe_bpc, 5),
         "candidate_better_on_this_split": bool(bpe_bpc < live_bpc),
-        "promotion": "보류: 반복 실행 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+        "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
         "candidate_checkpoint": str(candidate_path.name),
         "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
