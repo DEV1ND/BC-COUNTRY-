@@ -12,7 +12,7 @@ on:
       - ".github/workflows/bpe-candidate.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: juckex-bpe-candidate-independent-v2
@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           for seed in 20261120 20261121 20261122; do
             echo "Training isolated candidate with seed=$seed"
-            python bpe_candidate_train.py --steps 1000 --vocab-size 1024 --seed "$seed"
+            python bpe_candidate_train.py --steps 3000 --vocab-size 1024 --seed "$seed"
             cp bpe_candidate_report.json "bpe_candidate_report_seed_${seed}.json"
           done
 
@@ -59,6 +59,8 @@ jobs:
           baseline = [r["live_char_model_bits_per_character"] for r in reports]
           independent = [r["independent_bpe_bits_per_character"] for r in reports]
           independent_baseline = [r["independent_live_char_bits_per_character"] for r in reports]
+          answer_only = [r["independent_answer_only_bpc"] for r in reports]
+          answer_only_baseline = [r["independent_live_answer_only_bpc"] for r in reports]
           generation = [json.loads(Path(f"bpe_generation_seed_{seed}.json").read_text(encoding="utf-8")) for seed in seeds]
           generation_proxy = [r["mean_reference_char_bigram_f1_proxy"] for r in generation]
           mean = sum(scores) / len(scores)
@@ -77,6 +79,9 @@ jobs:
               "independent_bpe_bpc_population_stddev": round((sum((x - sum(independent)/len(independent))**2 for x in independent)/len(independent))**0.5, 6),
               "independent_char_baseline_bpc_mean": round(sum(independent_baseline) / len(independent_baseline), 6),
               "all_runs_bpe_better_on_independent_set": all(r["candidate_better_on_independent_set"] for r in reports),
+              "independent_answer_only_bpc_mean": round(sum(answer_only) / len(answer_only), 6),
+              "independent_live_answer_only_bpc_mean": round(sum(answer_only_baseline) / len(answer_only_baseline), 6),
+              "all_runs_better_on_answer_only_metric": all(a < b for a, b in zip(answer_only, answer_only_baseline)),
               "generation_proxy_mean_across_seeds": round(sum(generation_proxy) / len(generation_proxy), 6),
               "generation_proxy_scope": "character_bigram_overlap_with_reference_answers_not_semantic_accuracy",
               "all_generation_runs_nonempty": all(r["nonempty_count"] == len(r["samples"]) for r in generation),
@@ -100,26 +105,3 @@ jobs:
             bpe_generation_seed_*.json
           if-no-files-found: error
           retention-days: 14
-
-      - name: Publish read-only benchmark reports
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bpe_candidate_report.json bpe_candidate.json bpe_candidate_report_seed_*.json bpe_seed_sweep_report.json bpe_generation_seed_*.json
-          if git diff --cached --quiet; then
-            echo "No benchmark report changes to publish"
-          else
-            git commit -m "Publish three-seed BPE candidate evaluation"
-            # Training runs can finish close together. Rebase generated reports
-            # on the newest main before pushing to avoid non-fast-forward loss.
-            for attempt in 1 2 3; do
-              git pull --rebase origin main
-              if git push; then
-                exit 0
-              fi
-              echo "Push attempt $attempt failed; retrying after fetching latest main."
-              sleep 2
-            done
-            echo "Could not publish reports after three attempts."
-            exit 1
-          fi
