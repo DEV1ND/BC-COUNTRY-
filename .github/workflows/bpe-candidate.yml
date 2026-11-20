@@ -1,4 +1,4 @@
-name: JUCKEX BPE candidate evaluation
+name: JUCKEX Quantum compact candidate evaluation
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           for seed in 20261120 20261121 20261122; do
             echo "Training isolated candidate with seed=$seed"
-            python bpe_candidate_train.py --steps 3000 --vocab-size 1024 --seed "$seed"
+            python bpe_candidate_train.py --steps 3000 --vocab-size 1024 --width 64 --heads 4 --layers 2 --seed "$seed"
             cp bpe_candidate_report.json "bpe_candidate_report_seed_${seed}.json"
           done
 
@@ -67,7 +67,7 @@ jobs:
           variance = sum((x - mean) ** 2 for x in scores) / len(scores)
           result = {
               "status": "evaluated_not_promoted",
-              "evaluation": "three_seed_repeatability_on_same_deterministic_validation_split",
+              "evaluation": "compact_architecture_three_seed_repeatability_on_same_deterministic_validation_split",
               "live_model_changed": False,
               "seeds": seeds,
               "runs": reports,
