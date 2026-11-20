@@ -25,7 +25,7 @@ DEVICE = torch.device("cpu")
 
 
 class BPECandidate(nn.Module):
-    def __init__(self, vocab_size, width=128, heads=4, layers=4):
+    def __init__(self, vocab_size, width=64, heads=4, layers=2):
         super().__init__()
         self.token = nn.Embedding(vocab_size, width)
         self.position = nn.Embedding(BLOCK, width)
@@ -255,7 +255,12 @@ def main():
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--vocab-size", type=int, default=1024)
     parser.add_argument("--seed", type=int, default=20261120)
+    parser.add_argument("--width", type=int, default=64)
+    parser.add_argument("--heads", type=int, default=4)
+    parser.add_argument("--layers", type=int, default=2)
     args = parser.parse_args()
+    if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
+        parser.error("width와 heads는 양수여야 하며 width는 heads로 나누어져야 합니다.")
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -314,7 +319,7 @@ def main():
     }
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    candidate = BPECandidate(len(tokenizer.vocab)).to(DEVICE)
+    candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
     candidate.train()
     losses = []
@@ -397,7 +402,7 @@ def main():
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
     torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
-                "architecture": {"width": 128, "heads": 4, "layers": 4, "block": BLOCK},
+                "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
                 "steps": len(losses)}, candidate_path)
     report = {
         "created_at": int(time.time()),
@@ -424,6 +429,7 @@ def main():
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
         "candidate_parameters": sum(p.numel() for p in candidate.parameters()),
+        "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
         "final_training_loss": round(losses[-1], 5),
         "live_char_model_bits_per_character": round(live_bpc, 5),
         "bpe_candidate_bits_per_character": round(bpe_bpc, 5),
