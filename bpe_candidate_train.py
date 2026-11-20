@@ -87,6 +87,27 @@ def encode_training_examples(rows, tokenizer):
     return examples
 
 
+def augment_training_rows(rows):
+    """Create prompt-style variants from approved training pairs only.
+    Split happens before this function, so validation/evaluation questions never leak in.
+    Answers and factual claims are kept unchanged.
+    """
+    augmented = []
+    prefixes = (
+        "",
+        "초보자도 이해할 수 있게 설명해 주세요: ",
+        "다음 질문에 답해 주세요: ",
+        "쉽게 풀어서 설명해 주세요: ",
+    )
+    for row in rows:
+        for prefix in prefixes:
+            augmented.append({
+                "question": prefix + row["question"],
+                "answer": row["answer"],
+            })
+    return augmented
+
+
 def make_batch(examples, batch_size=8):
     # Keep the complete question as context; train loss only on answer tokens.
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
@@ -268,7 +289,8 @@ def main():
         extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
     )
     train_sequences = encode_rows(train_rows, tokenizer)
-    train_examples = encode_training_examples(train_rows, tokenizer)
+    augmented_train_rows = augment_training_rows(train_rows)
+    train_examples = encode_training_examples(augmented_train_rows, tokenizer)
     valid_examples = encode_training_examples(valid_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
@@ -282,6 +304,8 @@ def main():
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
         "training_pairs": len(train_rows),
+        "augmented_training_examples": len(augmented_train_rows),
+        "augmentation_factor": len(augmented_train_rows) / max(1, len(train_rows)),
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
         "roundtrip_passed": roundtrip_passed,
