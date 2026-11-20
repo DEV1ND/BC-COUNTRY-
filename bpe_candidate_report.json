@@ -1,5 +1,5 @@
 {
-  "created_at": 1795166150,
+  "created_at": 1795168731,
   "status": "evaluated_not_promoted",
   "live_model_changed": false,
   "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
@@ -9,55 +9,55 @@
   "bpe_vocab_size": 1024,
   "bpe_merge_count": 526,
   "steps": 1000,
-  "best_step": 1000,
-  "seed": 20261120,
+  "best_step": 900,
+  "seed": 20261122,
   "validation_curve": [
     {
       "step": 100,
-      "bits_per_character": 4.196817
+      "bits_per_character": 4.20062
     },
     {
       "step": 200,
-      "bits_per_character": 4.161735
+      "bits_per_character": 4.162282
     },
     {
       "step": 300,
-      "bits_per_character": 4.089927
+      "bits_per_character": 4.078278
     },
     {
       "step": 400,
-      "bits_per_character": 4.031581
+      "bits_per_character": 4.029368
     },
     {
       "step": 500,
-      "bits_per_character": 3.99263
+      "bits_per_character": 3.958617
     },
     {
       "step": 600,
-      "bits_per_character": 3.939558
+      "bits_per_character": 3.915192
     },
     {
       "step": 700,
-      "bits_per_character": 3.92603
+      "bits_per_character": 3.896783
     },
     {
       "step": 800,
-      "bits_per_character": 3.909042
+      "bits_per_character": 3.875064
     },
     {
       "step": 900,
-      "bits_per_character": 3.896411
+      "bits_per_character": 3.862708
     },
     {
       "step": 1000,
-      "bits_per_character": 3.890464
+      "bits_per_character": 3.864599
     }
   ],
   "early_stopped": false,
   "candidate_parameters": 1089280,
-  "final_training_loss": 2.80157,
-  "live_char_model_bits_per_character": 9.48522,
-  "bpe_candidate_bits_per_character": 3.89046,
+  "final_training_loss": 2.88861,
+  "live_char_model_bits_per_character": 9.40248,
+  "bpe_candidate_bits_per_character": 3.86271,
   "candidate_better_on_this_split": true,
   "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
   "candidate_checkpoint": "bpe_candidate_checkpoint.pt",

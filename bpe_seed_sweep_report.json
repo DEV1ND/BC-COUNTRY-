@@ -1,0 +1,212 @@
+{
+  "status": "evaluated_not_promoted",
+  "evaluation": "three_seed_repeatability_on_same_deterministic_validation_split",
+  "live_model_changed": false,
+  "seeds": [
+    20261120,
+    20261121,
+    20261122
+  ],
+  "runs": [
+    {
+      "created_at": 1795168425,
+      "status": "evaluated_not_promoted",
+      "live_model_changed": false,
+      "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+      "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+      "training_pairs": 185,
+      "validation_pairs": 21,
+      "bpe_vocab_size": 1024,
+      "bpe_merge_count": 526,
+      "steps": 1000,
+      "best_step": 1000,
+      "seed": 20261120,
+      "validation_curve": [
+        {
+          "step": 100,
+          "bits_per_character": 4.196817
+        },
+        {
+          "step": 200,
+          "bits_per_character": 4.161735
+        },
+        {
+          "step": 300,
+          "bits_per_character": 4.089927
+        },
+        {
+          "step": 400,
+          "bits_per_character": 4.031581
+        },
+        {
+          "step": 500,
+          "bits_per_character": 3.99263
+        },
+        {
+          "step": 600,
+          "bits_per_character": 3.939558
+        },
+        {
+          "step": 700,
+          "bits_per_character": 3.92603
+        },
+        {
+          "step": 800,
+          "bits_per_character": 3.909042
+        },
+        {
+          "step": 900,
+          "bits_per_character": 3.896411
+        },
+        {
+          "step": 1000,
+          "bits_per_character": 3.890464
+        }
+      ],
+      "early_stopped": false,
+      "candidate_parameters": 1089280,
+      "final_training_loss": 2.80157,
+      "live_char_model_bits_per_character": 9.54822,
+      "bpe_candidate_bits_per_character": 3.89046,
+      "candidate_better_on_this_split": true,
+      "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+      "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
+      "tokenizer_report": "bpe_candidate.json"
+    },
+    {
+      "created_at": 1795168577,
+      "status": "evaluated_not_promoted",
+      "live_model_changed": false,
+      "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+      "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+      "training_pairs": 185,
+      "validation_pairs": 21,
+      "bpe_vocab_size": 1024,
+      "bpe_merge_count": 526,
+      "steps": 1000,
+      "best_step": 900,
+      "seed": 20261121,
+      "validation_curve": [
+        {
+          "step": 100,
+          "bits_per_character": 4.195719
+        },
+        {
+          "step": 200,
+          "bits_per_character": 4.149822
+        },
+        {
+          "step": 300,
+          "bits_per_character": 4.104365
+        },
+        {
+          "step": 400,
+          "bits_per_character": 3.993295
+        },
+        {
+          "step": 500,
+          "bits_per_character": 3.934607
+        },
+        {
+          "step": 600,
+          "bits_per_character": 3.874776
+        },
+        {
+          "step": 700,
+          "bits_per_character": 3.858039
+        },
+        {
+          "step": 800,
+          "bits_per_character": 3.810805
+        },
+        {
+          "step": 900,
+          "bits_per_character": 3.765804
+        },
+        {
+          "step": 1000,
+          "bits_per_character": 3.773558
+        }
+      ],
+      "early_stopped": false,
+      "candidate_parameters": 1089280,
+      "final_training_loss": 3.17412,
+      "live_char_model_bits_per_character": 9.38223,
+      "bpe_candidate_bits_per_character": 3.7658,
+      "candidate_better_on_this_split": true,
+      "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+      "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
+      "tokenizer_report": "bpe_candidate.json"
+    },
+    {
+      "created_at": 1795168731,
+      "status": "evaluated_not_promoted",
+      "live_model_changed": false,
+      "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+      "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+      "training_pairs": 185,
+      "validation_pairs": 21,
+      "bpe_vocab_size": 1024,
+      "bpe_merge_count": 526,
+      "steps": 1000,
+      "best_step": 900,
+      "seed": 20261122,
+      "validation_curve": [
+        {
+          "step": 100,
+          "bits_per_character": 4.20062
+        },
+        {
+          "step": 200,
+          "bits_per_character": 4.162282
+        },
+        {
+          "step": 300,
+          "bits_per_character": 4.078278
+        },
+        {
+          "step": 400,
+          "bits_per_character": 4.029368
+        },
+        {
+          "step": 500,
+          "bits_per_character": 3.958617
+        },
+        {
+          "step": 600,
+          "bits_per_character": 3.915192
+        },
+        {
+          "step": 700,
+          "bits_per_character": 3.896783
+        },
+        {
+          "step": 800,
+          "bits_per_character": 3.875064
+        },
+        {
+          "step": 900,
+          "bits_per_character": 3.862708
+        },
+        {
+          "step": 1000,
+          "bits_per_character": 3.864599
+        }
+      ],
+      "early_stopped": false,
+      "candidate_parameters": 1089280,
+      "final_training_loss": 2.88861,
+      "live_char_model_bits_per_character": 9.40248,
+      "bpe_candidate_bits_per_character": 3.86271,
+      "candidate_better_on_this_split": true,
+      "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+      "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
+      "tokenizer_report": "bpe_candidate.json"
+    }
+  ],
+  "bpe_bpc_mean": 3.839657,
+  "bpe_bpc_population_stddev": 0.053439,
+  "char_baseline_bpc_mean": 9.44431,
+  "all_runs_bpe_better_on_validation": true,
+  "promotion": "보류: 세 seed는 재현성 점검일 뿐이며 독립 외부 테스트와 실제 답변 생성 평가가 추가로 필요합니다."
+}

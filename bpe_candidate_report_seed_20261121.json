@@ -1,0 +1,65 @@
+{
+  "created_at": 1795168577,
+  "status": "evaluated_not_promoted",
+  "live_model_changed": false,
+  "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+  "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+  "training_pairs": 185,
+  "validation_pairs": 21,
+  "bpe_vocab_size": 1024,
+  "bpe_merge_count": 526,
+  "steps": 1000,
+  "best_step": 900,
+  "seed": 20261121,
+  "validation_curve": [
+    {
+      "step": 100,
+      "bits_per_character": 4.195719
+    },
+    {
+      "step": 200,
+      "bits_per_character": 4.149822
+    },
+    {
+      "step": 300,
+      "bits_per_character": 4.104365
+    },
+    {
+      "step": 400,
+      "bits_per_character": 3.993295
+    },
+    {
+      "step": 500,
+      "bits_per_character": 3.934607
+    },
+    {
+      "step": 600,
+      "bits_per_character": 3.874776
+    },
+    {
+      "step": 700,
+      "bits_per_character": 3.858039
+    },
+    {
+      "step": 800,
+      "bits_per_character": 3.810805
+    },
+    {
+      "step": 900,
+      "bits_per_character": 3.765804
+    },
+    {
+      "step": 1000,
+      "bits_per_character": 3.773558
+    }
+  ],
+  "early_stopped": false,
+  "candidate_parameters": 1089280,
+  "final_training_loss": 3.17412,
+  "live_char_model_bits_per_character": 9.38223,
+  "bpe_candidate_bits_per_character": 3.7658,
+  "candidate_better_on_this_split": true,
+  "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+  "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
+  "tokenizer_report": "bpe_candidate.json"
+}
