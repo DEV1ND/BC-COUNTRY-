@@ -789,8 +789,16 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
         current_question = re.sub(r"^이전 대화 기억:.*? / ", "", current_question)
 
     exact_context = _curated_exact_answer(current_question)
-    similar_context = "" if exact_context else _curated_similar_answer(current_question)
-    retrieved_context = exact_context or similar_context
+    if exact_context:
+        # 검수된 질문과 정확히 일치하면 소형 문자 모델이 문장을 망가뜨리지 않도록
+        # 검수 답변을 그대로 반환합니다.
+        return exact_context
+    similar_context = _curated_similar_answer(current_question)
+    if similar_context:
+        # 충분히 관련 있는 검수 문답이 있으면 생성 모델의 무관한 출력보다
+        # 검수된 근거를 우선합니다.
+        return similar_context
+    retrieved_context = ""
     generation_prompt = str(prompt or "").strip()
     if retrieved_context:
         # 프롬프트 뒤에 현재 질문과 근거를 배치해 BLOCK 길이 제한에서도 문맥이 남도록 합니다.
@@ -842,7 +850,12 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
     answer = re.sub(r"^\s*(?:[/\\>*#-]\s*)?(?:Answer|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     answer = re.sub(r"^(?:질문|답변)\s*[:：]\s*", "", answer, flags=re.IGNORECASE).strip()
     if not _answer_quality_ok(generation_prompt, answer, current_question):
-        return "질문과 관련된 근거를 충분히 확인하지 못했어요. 핵심 주제나 원하는 범위를 조금 더 구체적으로 알려 주세요."
+        topic = current_question[:80].strip()
+        print(f"generation rejected by quality guard; question_length={len(current_question)} answer_length={len(answer)}")
+        return (
+            f"'{topic}'에 대해서는 아직 신뢰할 만한 답변을 만들지 못했어요. "
+            "현재 학습 자료에서 직접 확인되는 내용이 부족하거나 문장 생성 품질이 낮습니다."
+        )
     return answer
 
 @app.get("/")
