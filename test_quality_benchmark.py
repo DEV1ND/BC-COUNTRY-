@@ -66,5 +66,36 @@ class BPETokenizerCandidate(unittest.TestCase):
             self.assertEqual(tokenizer.decode(tokenizer.encode(text)), text)
         self.assertIn(0, tokenizer.encode("새로운🛰문자"))
 
+
+class TrainingDataQuality(unittest.TestCase):
+    @staticmethod
+    def normalize_question(value):
+        import re
+        return re.sub(r"[^0-9a-z가-힣]", "", str(value).casefold())
+
+    def test_all_training_rows_are_reviewed_and_have_provenance(self):
+        rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(rows), 100)
+        for index, row in enumerate(rows):
+            self.assertIsInstance(row, dict, msg=f"행 {index}: 객체가 아닙니다.")
+            self.assertIs(row.get("approved"), True, msg=f"행 {index}: 승인되지 않았습니다.")
+            self.assertTrue(str(row.get("source", "")).strip(), msg=f"행 {index}: 출처 태그가 없습니다.")
+            self.assertGreaterEqual(len(str(row.get("question", "")).strip()), 2)
+            self.assertGreaterEqual(len(str(row.get("answer", "")).strip()), 4)
+
+    def test_training_questions_have_no_normalized_duplicates(self):
+        rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+        normalized = [self.normalize_question(row["question"]) for row in rows]
+        self.assertEqual(len(normalized), len(set(normalized)), "표기만 다른 중복 질문이 있습니다.")
+
+    def test_independent_evaluation_questions_do_not_overlap_training(self):
+        training = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+        independent = json.loads((ROOT / "bpe_independent_eval.json").read_text(encoding="utf-8"))
+        train_questions = {self.normalize_question(row["question"]) for row in training}
+        eval_questions = {self.normalize_question(row["question"]) for row in independent}
+        overlap = train_questions & eval_questions
+        self.assertFalse(overlap, msg=f"독립 평가 질문이 학습 데이터와 겹칩니다: {sorted(overlap)}")
+
+
 if __name__ == "__main__":
     unittest.main()
