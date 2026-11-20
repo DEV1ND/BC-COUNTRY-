@@ -1,0 +1,62 @@
+name: JUCKEX Quantum 10M architecture smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juckex-quantum-10m-smoke
+  cancel-in-progress: false
+
+jobs:
+  architecture-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU training dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run regression tests
+        run: python -m unittest test_quality_benchmark.py
+
+      - name: Verify and smoke-train Quantum 10M
+        run: |
+          python bpe_candidate_train.py --steps 100 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("bpe_candidate_report.json").read_text(encoding="utf-8"))
+          count = report["candidate_parameters"]
+          assert 9_800_000 <= count <= 10_200_000, count
+          assert report["live_model_changed"] is False
+          print(json.dumps({
+              "architecture": report["architecture"],
+              "parameters": count,
+              "status": "architecture_smoke_test_only",
+              "promotion": "not_promoted",
+              "live_model_changed": False
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Upload 10M smoke-test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: juckex-quantum-10m-smoke
+          path: |
+            bpe_candidate_report.json
+            bpe_candidate.json
+            bpe_candidate_checkpoint.pt
+            bpe_generation_seed_20261123.json
+          if-no-files-found: error
+          retention-days: 14
