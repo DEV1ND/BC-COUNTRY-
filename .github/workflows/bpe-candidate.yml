@@ -33,7 +33,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Train isolated candidate and compare on held-out split
-        run: python bpe_candidate_train.py --steps 120 --vocab-size 1024
+        run: python bpe_candidate_train.py --steps 1000 --vocab-size 1024 --seed 20261120
 
       - name: Upload candidate artifacts
         uses: actions/upload-artifact@v4
