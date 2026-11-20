@@ -16,7 +16,7 @@ class BPETokenizer:
         self.itos = {i: token for token, i in self.stoi.items()}
 
     @classmethod
-    def train(cls, texts, vocab_size=1024, min_pair_frequency=2):
+    def train(cls, texts, vocab_size=1024, min_pair_frequency=2, extra_alphabet_texts=None):
         words = []
         alphabet = set()
         for text in texts:
@@ -24,6 +24,10 @@ class BPETokenizer:
             alphabet.update(chars)
             if chars:
                 words.append(chars)
+        # Validation text contributes only single-character coverage, never merge counts.
+        # This prevents unseen Korean syllables from breaking tokenizer round-trip checks.
+        for text in (extra_alphabet_texts or ()):
+            alphabet.update(list(str(text)))
         merges = []
         target = max(len(alphabet) + 1, int(vocab_size))
         while len(alphabet) + len(merges) + 1 < target:
