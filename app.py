@@ -381,7 +381,7 @@ async def fetch_training_pairs():
             if isinstance(extra, list):
                 known = {(str(x.get("question", "")).strip().casefold(), str(x.get("answer", "")).strip().casefold()) for x in rows}
                 for item in extra:
-                    if not isinstance(item, dict) or not item.get("approved", True):
+                    if not isinstance(item, dict) or item.get("approved") is not True:
                         continue
                     key = (str(item.get("question", "")).strip().casefold(), str(item.get("answer", "")).strip().casefold())
                     if key[0] and key[1] and key not in known:
