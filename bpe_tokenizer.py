@@ -82,7 +82,7 @@ def load_approved_texts(path):
         raise ValueError("검수 데이터는 배열이어야 합니다.")
     texts = []
     for row in rows:
-        if not isinstance(row, dict) or not row.get("approved", True):
+        if not isinstance(row, dict) or row.get("approved") is not True:
             continue
         question = str(row.get("question", "")).strip()
         answer = str(row.get("answer", "")).strip()
