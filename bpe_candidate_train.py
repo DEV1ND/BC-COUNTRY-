@@ -113,6 +113,22 @@ def candidate_bits_per_char(candidate, sequences, tokenizer):
 
 
 @torch.no_grad()
+def character_bigram_f1(reference, generated):
+    # Lexical-overlap proxy only; it is not a semantic correctness score.
+    def grams(value):
+        compact = "".join(str(value).split())
+        return [compact[i:i + 2] for i in range(max(0, len(compact) - 1))]
+    ref, hyp = grams(reference), grams(generated)
+    if not ref or not hyp:
+        return 0.0
+    from collections import Counter
+    rc, hc = Counter(ref), Counter(hyp)
+    overlap = sum((rc & hc).values())
+    precision = overlap / max(1, len(hyp))
+    recall = overlap / max(1, len(ref))
+    return 2 * precision * recall / max(1e-12, precision + recall)
+
+
 def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
     prompt = "질문:" + question + "\n답변:"
     ids = tokenizer.encode(prompt)
@@ -262,6 +278,8 @@ def main():
             "generated_answer": generated,
             "nonempty": bool(generated),
             "contains_replacement_character": "�" in generated,
+            "generated_characters": len(generated),
+            "reference_char_bigram_f1_proxy": round(character_bigram_f1(row["answer"], generated), 5),
         })
     generation_report = {
         "seed": args.seed,
@@ -269,8 +287,10 @@ def main():
         "samples": generation_samples,
         "nonempty_count": sum(x["nonempty"] for x in generation_samples),
         "replacement_character_count": sum(x["contains_replacement_character"] for x in generation_samples),
+        "mean_reference_char_bigram_f1_proxy": round(sum(x["reference_char_bigram_f1_proxy"] for x in generation_samples) / max(1, len(generation_samples)), 5),
         "human_quality_review_required": True,
         "automatic_semantic_accuracy_claim": False,
+        "metric_warning": "문자 bigram 중복률은 어휘 유사도 참고치이며 사실 정확도나 의미적 정답률이 아닙니다.",
     }
     (ROOT / f"bpe_generation_seed_{args.seed}.json").write_text(
         json.dumps(generation_report, ensure_ascii=False, indent=2), encoding="utf-8"
