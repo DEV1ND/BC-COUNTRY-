@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent
 class RetrievalBenchmark(unittest.TestCase):
     def test_exact_curated_questions(self):
         rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
-        approved = [r for r in rows if isinstance(r, dict) and r.get("approved", True)]
+        approved = [r for r in rows if isinstance(r, dict) and r.get("approved") is True]
         sample = approved[:30]
         hits = sum(bool(_curated_exact_answer(row["question"])) for row in sample)
         self.assertGreaterEqual(hits, max(1, int(len(sample) * 0.95)))
@@ -33,6 +33,18 @@ class RetrievalBenchmark(unittest.TestCase):
         self.assertEqual(answer, "")
 
 class BPETokenizerCandidate(unittest.TestCase):
+    def test_validation_characters_do_not_break_roundtrip(self):
+        train_texts = ["질문:인공지능이란 무엇인가? 답변:컴퓨터가 지능적인 작업을 수행하도록 만드는 기술입니다."]
+        validation_texts = ["질문:양자컴퓨팅은 무엇인가? 답변:양자 상태를 이용해 계산하는 방식입니다."]
+        tokenizer = BPETokenizer.train(
+            train_texts,
+            vocab_size=256,
+            min_pair_frequency=2,
+            extra_alphabet_texts=validation_texts,
+        )
+        for text in validation_texts:
+            self.assertEqual(tokenizer.decode(tokenizer.encode(text)), text)
+
     def test_roundtrip_and_unknown_handling(self):
         texts = load_approved_texts(ROOT / "training_extra.json")
         tokenizer = BPETokenizer.train(texts, vocab_size=512, min_pair_frequency=2)
