@@ -113,6 +113,26 @@ def candidate_bits_per_char(candidate, sequences, tokenizer):
 
 
 @torch.no_grad()
+def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
+    prompt = "질문:" + question + "\\n답변:"
+    ids = tokenizer.encode(prompt)
+    generated = list(ids)
+    candidate.eval()
+    for _ in range(max_new_tokens):
+        context = generated[-BLOCK:]
+        x = torch.tensor(context, dtype=torch.long, device=DEVICE).unsqueeze(0)
+        logits = candidate(x)[0, -1]
+        next_id = int(torch.argmax(logits).item())
+        generated.append(next_id)
+        decoded = tokenizer.decode(generated[len(ids):])
+        if "\\n\\n" in decoded:
+            decoded = decoded.split("\\n\\n", 1)[0]
+            break
+    answer = tokenizer.decode(generated[len(ids):]).split("\\n\\n", 1)[0].strip()
+    return answer[:1000]
+
+
+@torch.no_grad()
 def live_bits_per_char(sequences):
     was_training = live.model.training
     live.model.eval()
@@ -233,6 +253,28 @@ def main():
         raise RuntimeError("유효한 BPE 검증 체크포인트를 만들지 못했습니다.")
     candidate.load_state_dict(best_state)
     candidate.to(DEVICE)
+    generation_samples = []
+    for row in independent_clean:
+        generated = generate_answer(candidate, tokenizer, row["question"])
+        generation_samples.append({
+            "question": row["question"],
+            "reference_answer": row["answer"],
+            "generated_answer": generated,
+            "nonempty": bool(generated),
+            "contains_replacement_character": "�" in generated,
+        })
+    generation_report = {
+        "seed": args.seed,
+        "model": "isolated_bpe_candidate",
+        "samples": generation_samples,
+        "nonempty_count": sum(x["nonempty"] for x in generation_samples),
+        "replacement_character_count": sum(x["contains_replacement_character"] for x in generation_samples),
+        "human_quality_review_required": True,
+        "automatic_semantic_accuracy_claim": False,
+    }
+    (ROOT / f"bpe_generation_seed_{args.seed}.json").write_text(
+        json.dumps(generation_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     bpe_bpc = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
     live_bpc = live_bits_per_char(valid_char)
     independent_bpe_bpc = candidate_bits_per_char(candidate, independent_bpe, tokenizer)
