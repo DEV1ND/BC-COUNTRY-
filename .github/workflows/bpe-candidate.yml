@@ -1,0 +1,48 @@
+name: JUCKEX BPE candidate evaluation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bpe_candidate_train.py"
+      - "bpe_tokenizer.py"
+      - "training_extra.json"
+      - ".github/workflows/bpe-candidate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juckex-bpe-candidate
+  cancel-in-progress: false
+
+jobs:
+  train-and-evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU training dependencies
+        run: pip install -r requirements.txt
+
+      - name: Train isolated candidate and compare on held-out split
+        run: python bpe_candidate_train.py --steps 120 --vocab-size 1024
+
+      - name: Upload candidate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: juckex-bpe-candidate
+          path: |
+            bpe_candidate_report.json
+            bpe_candidate.json
+            bpe_candidate_checkpoint.pt
+          if-no-files-found: error
+          retention-days: 14
