@@ -714,7 +714,7 @@ def _curated_exact_answer(question_text: str) -> str:
                 hangul = sum("가" <= ch <= "힣" for ch in letters)
                 if (len(answer) >= 8 and letters
                         and hangul / max(1, len(letters)) >= 0.28
-                        and not re.search(r"(.)\\1{7,}", answer)):
+                        and not re.search(r"(.)\1{7,}", answer)):
                     return answer
     except Exception as e:
         print(f"curated fallback unavailable: {str(e)[:160]}")
