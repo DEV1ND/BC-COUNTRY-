@@ -1,0 +1,44 @@
+"""Small repeatable quality checks for retrieval and the isolated BPE candidate."""
+import json
+import unittest
+from pathlib import Path
+from app import _curated_exact_answer, _curated_similar_answer
+from bpe_tokenizer import BPETokenizer, load_approved_texts
+
+ROOT = Path(__file__).resolve().parent
+
+class RetrievalBenchmark(unittest.TestCase):
+    def test_exact_curated_questions(self):
+        rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+        approved = [r for r in rows if isinstance(r, dict) and r.get("approved", True)]
+        sample = approved[:30]
+        hits = sum(bool(_curated_exact_answer(row["question"])) for row in sample)
+        self.assertGreaterEqual(hits, max(1, int(len(sample) * 0.95)))
+
+    def test_known_paraphrases_retrieve_relevant_material(self):
+        cases = [
+            ("AI가 뭐야?", ("인공지능", "ai")),
+            ("파이썬은 어떤 프로그래밍 언어야?", ("파이썬", "python")),
+            ("HTML의 역할은 뭐야?", ("HTML", "웹")),
+            ("삼권분립의 의미를 알려줘", ("삼권분립", "권력")),
+        ]
+        for question, expected_terms in cases:
+            answer = _curated_similar_answer(question)
+            self.assertTrue(answer, msg=f"검색 결과 없음: {question}")
+            self.assertTrue(any(term.casefold() in answer.casefold() for term in expected_terms),
+                            msg=f"관련 근거 부족: {question} -> {answer[:120]}")
+
+    def test_unrelated_question_does_not_force_curated_answer(self):
+        answer = _curated_similar_answer("은하철도 우주선 엔진의 양자 추진 원리는?")
+        self.assertEqual(answer, "")
+
+class BPETokenizerCandidate(unittest.TestCase):
+    def test_roundtrip_and_unknown_handling(self):
+        texts = load_approved_texts(ROOT / "training_extra.json")
+        tokenizer = BPETokenizer.train(texts, vocab_size=512, min_pair_frequency=2)
+        for text in texts[:50]:
+            self.assertEqual(tokenizer.decode(tokenizer.encode(text)), text)
+        self.assertIn(0, tokenizer.encode("새로운🛰문자"))
+
+if __name__ == "__main__":
+    unittest.main()
