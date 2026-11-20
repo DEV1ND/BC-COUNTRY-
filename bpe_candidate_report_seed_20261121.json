@@ -1,65 +1,70 @@
 {
-  "created_at": 1795168577,
+  "created_at": 1795171924,
   "status": "evaluated_not_promoted",
   "live_model_changed": false,
   "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
-  "validation_scope": "deterministic_holdout_from_approved_training_extra_not_independent_external_test_set",
+  "validation_scope": "deterministic_holdout_from_approved_training_extra",
+  "independent_evaluation_scope": "fixed_20_question_set_never_used_for_gradient_updates_or_bpe_merge_counts",
+  "independent_evaluation_pairs": 20,
+  "independent_bpe_bits_per_character": 4.74417,
+  "independent_live_char_bits_per_character": 9.4549,
+  "candidate_better_on_independent_set": true,
   "training_pairs": 185,
   "validation_pairs": 21,
   "bpe_vocab_size": 1024,
-  "bpe_merge_count": 526,
+  "bpe_merge_count": 506,
   "steps": 1000,
   "best_step": 900,
   "seed": 20261121,
   "validation_curve": [
     {
       "step": 100,
-      "bits_per_character": 4.195719
+      "bits_per_character": 4.197817
     },
     {
       "step": 200,
-      "bits_per_character": 4.149822
+      "bits_per_character": 4.174743
     },
     {
       "step": 300,
-      "bits_per_character": 4.104365
+      "bits_per_character": 4.1105
     },
     {
       "step": 400,
-      "bits_per_character": 3.993295
+      "bits_per_character": 4.023669
     },
     {
       "step": 500,
-      "bits_per_character": 3.934607
+      "bits_per_character": 3.942938
     },
     {
       "step": 600,
-      "bits_per_character": 3.874776
+      "bits_per_character": 3.912743
     },
     {
       "step": 700,
-      "bits_per_character": 3.858039
+      "bits_per_character": 3.887373
     },
     {
       "step": 800,
-      "bits_per_character": 3.810805
+      "bits_per_character": 3.863474
     },
     {
       "step": 900,
-      "bits_per_character": 3.765804
+      "bits_per_character": 3.804402
     },
     {
       "step": 1000,
-      "bits_per_character": 3.773558
+      "bits_per_character": 3.836399
     }
   ],
   "early_stopped": false,
   "candidate_parameters": 1089280,
-  "final_training_loss": 3.17412,
-  "live_char_model_bits_per_character": 9.38223,
-  "bpe_candidate_bits_per_character": 3.7658,
+  "final_training_loss": 3.26965,
+  "live_char_model_bits_per_character": 9.426,
+  "bpe_candidate_bits_per_character": 3.8044,
   "candidate_better_on_this_split": true,
-  "promotion": "보류: 여러 seed 반복 및 별도 고정 테스트셋 검증 전 자동 승격하지 않음",
+  "promotion": "보류: 고정 독립 평가셋의 BPC는 참고 지표일 뿐이며 실제 생성 품질과 현재 운영 가중치 비교 전 자동 승격하지 않음",
   "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
   "tokenizer_report": "bpe_candidate.json"
 }

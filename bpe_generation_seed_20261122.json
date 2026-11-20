@@ -1,0 +1,192 @@
+{
+  "seed": 20261122,
+  "model": "isolated_bpe_candidate",
+  "samples": [
+    {
+      "question": "판 구조론이란 무엇인가요?",
+      "reference_answer": "판 구조론은 지구의 암석권이 여러 판으로 나뉘어 움직인다는 이론입니다. 판의 상호작용은 지진과 화산 활동, 산맥 형성 등에 영향을 줍니다.",
+      "generated_answer": "지만 지만 지만 지만 뜻이 서로 다른 단어입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 27,
+      "reference_char_bigram_f1_proxy": 0.07792
+    },
+    {
+      "question": "태양계에서 가장 큰 행성은?",
+      "reference_answer": "목성은 태양계에서 가장 큰 행성입니다. 거대한 기체 행성으로 알려져 있습니다.",
+      "generated_answer": "중 인증을 더 빠르게 정하는 기술입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 22,
+      "reference_char_bigram_f1_proxy": 0.12245
+    },
+    {
+      "question": "세포막의 주요 기능은 무엇인가요?",
+      "reference_answer": "세포막은 세포 안팎을 구분하고 물질의 출입을 선택적으로 조절하며 세포 내부 환경을 유지하는 데 도움을 줍니다.",
+      "generated_answer": "순서대로 수행하는 인공지능의 한 분야입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 24,
+      "reference_char_bigram_f1_proxy": 0.09231
+    },
+    {
+      "question": "지구의 위성은 무엇인가요?",
+      "reference_answer": "달은 지구의 자연 위성입니다. 달은 지구 주위를 공전하며 태양빛을 반사합니다.",
+      "generated_answer": "순서대로 수행하는 기술입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 16,
+      "reference_char_bigram_f1_proxy": 0.13043
+    },
+    {
+      "question": "민주주의의 뜻을 설명해줘.",
+      "reference_answer": "민주주의는 국가의 주권이 국민에게 있고 국민의 의사에 따라 국가를 운영하는 정치 원리입니다.",
+      "generated_answer": "한 분야입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 8,
+      "reference_char_bigram_f1_proxy": 0.13333
+    },
+    {
+      "question": "삼권분립은 무엇인가요?",
+      "reference_answer": "삼권분립은 국가 권력을 입법부, 행정부, 사법부로 나누어 서로 견제하고 균형을 이루게 하는 원리입니다.",
+      "generated_answer": "순서대로 수행하는 인공지능의 입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 20,
+      "reference_char_bigram_f1_proxy": 0.13333
+    },
+    {
+      "question": "HTML은 어떤 언어인가요?",
+      "reference_answer": "HTML은 웹 문서의 구조와 내용을 표현하는 마크업 언어입니다. 제목, 문단, 링크 등의 요소를 정의합니다.",
+      "generated_answer": "자기록해 원인을 더 빠르게 정하는 기술입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 25,
+      "reference_char_bigram_f1_proxy": 0.12308
+    },
+    {
+      "question": "CSS의 역할은 무엇인가요?",
+      "reference_answer": "CSS는 웹 문서의 색상, 글꼴, 간격, 배치 등 화면에 보이는 디자인을 지정하는 스타일 언어입니다.",
+      "generated_answer": "순서대로 수행하는 인공지능의 입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 20,
+      "reference_char_bigram_f1_proxy": 0.13793
+    },
+    {
+      "question": "자바스크립트는 어디에 사용되나요?",
+      "reference_answer": "자바스크립트는 웹페이지에 상호작용과 동적인 기능을 추가하는 프로그래밍 언어이며 서버 개발에도 사용됩니다.",
+      "generated_answer": "과거의 흐름으로 설명합니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 15,
+      "reference_char_bigram_f1_proxy": 0.0678
+    },
+    {
+      "question": "파이썬의 특징은 무엇인가요?",
+      "reference_answer": "파이썬은 문법이 비교적 간결하고 다양한 라이브러리를 제공해 자동화, 데이터 분석, 인공지능 개발 등에 활용됩니다.",
+      "generated_answer": "순서대로 수행하는 인공지능의 한 분야입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 24,
+      "reference_char_bigram_f1_proxy": 0.14706
+    },
+    {
+      "question": "퇴적암은 어떻게 만들어지나요?",
+      "reference_answer": "퇴적암은 암석 조각이나 생물의 유해 등이 쌓인 뒤 오랜 시간 압축되고 굳어져 만들어지는 암석입니다.",
+      "generated_answer": "의 제목과 자가 달라지만 지만 지만 지입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 25,
+      "reference_char_bigram_f1_proxy": 0.10169
+    },
+    {
+      "question": "확률의 기본 의미는 무엇인가요?",
+      "reference_answer": "확률은 어떤 사건이 일어날 가능성을 수로 나타낸 것입니다. 일반적으로 0과 1 사이의 값으로 표현합니다.",
+      "generated_answer": "C해 전송 중인 정보를 보호와 유연하게 정리하고 은유는 값입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 36,
+      "reference_char_bigram_f1_proxy": 0.08451
+    },
+    {
+      "question": "빛의 속도는 대략 얼마인가요?",
+      "reference_answer": "진공에서 빛의 속도는 초속 약 299,792킬로미터이며 보통 초속 약 30만 킬로미터로 나타냅니다.",
+      "generated_answer": "소비입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 6,
+      "reference_char_bigram_f1_proxy": 0.08333
+    },
+    {
+      "question": "물질의 세 가지 상태는?",
+      "reference_answer": "물질의 대표적인 세 가지 상태는 고체, 액체, 기체입니다. 온도와 압력에 따라 상태가 달라질 수 있습니다.",
+      "generated_answer": "가 달라집니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 8,
+      "reference_char_bigram_f1_proxy": 0.16
+    },
+    {
+      "question": "기후와 날씨의 차이는?",
+      "reference_answer": "날씨는 짧은 기간의 대기 상태이고 기후는 오랜 기간 관측한 날씨의 평균적인 특성입니다.",
+      "generated_answer": "리를 수정 활동입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 12,
+      "reference_char_bigram_f1_proxy": 0.13333
+    },
+    {
+      "question": "세계에서 가장 큰 바다는?",
+      "reference_answer": "태평양은 지구에서 면적이 가장 큰 바다입니다.",
+      "generated_answer": "고 다른 법률은 데이터를 임시하는 기술입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 25,
+      "reference_char_bigram_f1_proxy": 0.15789
+    },
+    {
+      "question": "윤년은 어떤 해인가요?",
+      "reference_answer": "윤년은 달력과 지구의 공전 주기를 맞추기 위해 2월이 29일까지 있는 해입니다. 일반적으로 4년마다 오지만 세기 연도에는 예외 규칙이 있습니다.",
+      "generated_answer": "일반적 영향을 줄 수 있는 조건이나 값입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 25,
+      "reference_char_bigram_f1_proxy": 0.1519
+    },
+    {
+      "question": "뉴턴의 제1법칙을 설명해줘.",
+      "reference_answer": "뉴턴의 제1법칙은 관성 법칙입니다. 물체에 작용하는 알짜힘이 0이면 정지한 물체는 계속 정지하고 운동하는 물체는 등속 직선 운동을 합니다.",
+      "generated_answer": "한 분야입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 8,
+      "reference_char_bigram_f1_proxy": 0.09231
+    },
+    {
+      "question": "운영체제의 역할은 무엇인가요?",
+      "reference_answer": "운영체제는 컴퓨터 하드웨어와 응용 프로그램 사이에서 자원을 관리하고 프로그램 실행, 파일 관리, 사용자 인터페이스 등을 제공합니다.",
+      "generated_answer": "순서대로 수행하는 인공지능의 한 분야입니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 24,
+      "reference_char_bigram_f1_proxy": 0.05263
+    },
+    {
+      "question": "인공지능과 머신러닝의 관계는?",
+      "reference_answer": "인공지능은 기계가 지능적인 작업을 수행하도록 하는 넓은 분야이고 머신러닝은 데이터에서 패턴을 학습하는 인공지능의 한 분야입니다.",
+      "generated_answer": "을 이루고 법으로 설명합니다.",
+      "nonempty": true,
+      "contains_replacement_character": false,
+      "generated_characters": 16,
+      "reference_char_bigram_f1_proxy": 0.05882
+    }
+  ],
+  "nonempty_count": 20,
+  "replacement_character_count": 0,
+  "mean_reference_char_bigram_f1_proxy": 0.1121,
+  "human_quality_review_required": true,
+  "automatic_semantic_accuracy_claim": false,
+  "metric_warning": "문자 bigram 중복률은 어휘 유사도 참고치이며 사실 정확도나 의미적 정답률이 아닙니다."
+}
