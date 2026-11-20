@@ -97,7 +97,7 @@ def load_approved_texts(path):
     return texts
 
 
-def encode_prompt_answer(prompt, answer, tokenizer, suffix="\\n\\n"):
+def encode_prompt_answer(prompt, answer, tokenizer, suffix="\n\n"):
     """Encode prompt and target separately so BPE cannot merge across their boundary."""
     prompt_ids = tokenizer.encode(str(prompt))
     answer_ids = tokenizer.encode(str(answer) + suffix)
