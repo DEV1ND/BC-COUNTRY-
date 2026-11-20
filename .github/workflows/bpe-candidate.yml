@@ -6,7 +6,9 @@ on:
     paths:
       - "bpe_candidate_train.py"
       - "bpe_tokenizer.py"
-      - "training_extra.json"\n      - "test_quality_benchmark.py"\n      - ".github/workflows/bpe-candidate.yml"
+      - "training_extra.json"
+      - "test_quality_benchmark.py"
+      - ".github/workflows/bpe-candidate.yml"
 
 permissions:
   contents: write
