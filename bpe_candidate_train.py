@@ -106,7 +106,7 @@ def candidate_bits_per_char(candidate, sequences, tokenizer):
             targets = torch.tensor(chunk[1:], dtype=torch.long, device=DEVICE)
             logits = candidate(ids)[0]
             losses = F.cross_entropy(logits, targets, reduction="none")
-            token_chars = [max(1, len(tokenizer.itos.get(int(token_id), ""))) for token_id in targets]
+            token_chars = [1 if int(token_id) == 0 else max(1, len(tokenizer.itos.get(int(token_id), ""))) for token_id in targets]
             nll_sum += float(losses.sum().item())
             char_count += sum(token_chars)
     return nll_sum / max(1, char_count) / math.log(2)
