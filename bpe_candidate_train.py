@@ -114,7 +114,7 @@ def candidate_bits_per_char(candidate, sequences, tokenizer):
 
 @torch.no_grad()
 def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
-    prompt = "질문:" + question + "\\n답변:"
+    prompt = "질문:" + question + "\n답변:"
     ids = tokenizer.encode(prompt)
     generated = list(ids)
     candidate.eval()
@@ -125,10 +125,10 @@ def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
         next_id = int(torch.argmax(logits).item())
         generated.append(next_id)
         decoded = tokenizer.decode(generated[len(ids):])
-        if "\\n\\n" in decoded:
-            decoded = decoded.split("\\n\\n", 1)[0]
+        if "\n\n" in decoded:
+            decoded = decoded.split("\n\n", 1)[0]
             break
-    answer = tokenizer.decode(generated[len(ids):]).split("\\n\\n", 1)[0].strip()
+    answer = tokenizer.decode(generated[len(ids):]).split("\n\n", 1)[0].strip()
     return answer[:1000]
 
 
@@ -183,7 +183,7 @@ def main():
             continue
         q, a = str(row.get("question", "")).strip(), str(row.get("answer", "")).strip()
         if len(q) >= 2 and len(a) >= 8:
-            independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\\n답변:" + a + "\\n\\n"})
+            independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
     tokenizer = BPETokenizer.train(
