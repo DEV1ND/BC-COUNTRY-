@@ -708,7 +708,13 @@ def _curated_exact_answer(question_text: str) -> str:
                 continue
             if normalize(row.get("question", "")) == target:
                 answer = str(row.get("answer", "")).strip()
-                if len(answer) >= 8 and _answer_quality_ok(question_text, answer, question_text):
+                # 승인된 문답의 질문이 정확히 일치하면 의미 단어 겹침 검사로
+                # 정상 답변을 잘못 거르는 일을 피하고, 기본 품질만 확인합니다.
+                letters = [ch for ch in answer if ch.isalpha() or ("가" <= ch <= "힣")]
+                hangul = sum("가" <= ch <= "힣" for ch in letters)
+                if (len(answer) >= 8 and letters
+                        and hangul / max(1, len(letters)) >= 0.28
+                        and not re.search(r"(.)\\1{7,}", answer)):
                     return answer
     except Exception as e:
         print(f"curated fallback unavailable: {str(e)[:160]}")
@@ -733,16 +739,23 @@ def _curated_similar_answer(question_text: str) -> str:
         "이란", "란", "은", "는", "이", "가", "을", "를", "의", "와",
         "과", "도", "로", "에", "랑", "하고",
     )
-    aliases = {
-        "인공지능": {"인공지능", "ai"}, "ai": {"ai", "인공지능"},
-        "웹페이지": {"웹페이지", "웹사이트"}, "웹사이트": {"웹사이트", "웹페이지"},
-        "자바스크립트": {"자바스크립트", "javascript", "js"},
-        "javascript": {"javascript", "자바스크립트", "js"},
-        "파이썬": {"파이썬", "python"}, "python": {"python", "파이썬"},
-        "자바": {"자바", "java"}, "java": {"java", "자바"},
-        "머신러닝": {"머신러닝", "기계학습"},
-        "기계학습": {"머신러닝", "기계학습"},
-    }
+    # 동의어는 여러 토큰으로 늘리지 않고 하나의 개념 키로 정규화합니다.
+    # 예: "AI가 뭐야?"와 "인공지능이란?"은 모두 "인공지능"으로 비교됩니다.
+    alias_groups = (
+        {"인공지능", "ai"},
+        {"웹페이지", "웹사이트"},
+        {"자바스크립트", "javascript", "js"},
+        {"파이썬", "python"},
+        {"자바", "java"},
+        {"머신러닝", "기계학습"},
+    )
+    canonical_alias = {alias: sorted(group)[0] for group in alias_groups for alias in group}
+    canonical_alias.update({"ai": "인공지능", "인공지능": "인공지능",
+                            "웹페이지": "웹사이트", "웹사이트": "웹사이트",
+                            "자바스크립트": "javascript", "javascript": "javascript", "js": "javascript",
+                            "파이썬": "python", "python": "python",
+                            "자바": "java", "java": "java",
+                            "머신러닝": "머신러닝", "기계학습": "머신러닝"})
 
     def terms(value):
         found = set()
@@ -753,11 +766,8 @@ def _curated_similar_answer(question_text: str) -> str:
                     term = term[:-len(suffix)]
                     break
             if len(term) >= 2 and term not in stop:
-                found.add(term)
-        expanded = set(found)
-        for term in found:
-            expanded.update(aliases.get(term, set()))
-        return expanded
+                found.add(canonical_alias.get(term, term))
+        return found
 
     def normalized(value):
         return re.sub(r"[^가-힣a-z0-9]", "", str(value).casefold())
