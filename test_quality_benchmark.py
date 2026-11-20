@@ -50,14 +50,14 @@ class BPETokenizerCandidate(unittest.TestCase):
         prompt = "질문:가\n답변:"
         answer = "나라는 독립된 답변입니다."
         tokenizer = BPETokenizer.train(
-            [prompt + answer + "\\n\\n"],
+            [prompt + answer + "\n\n"],
             vocab_size=256,
             min_pair_frequency=1,
         )
         combined, prompt_length = encode_prompt_answer(prompt, answer, tokenizer)
         self.assertEqual(combined[:prompt_length], tokenizer.encode(prompt))
-        self.assertEqual(combined[prompt_length:], tokenizer.encode(answer + "\\n\\n"))
-        self.assertEqual(tokenizer.decode(combined), prompt + answer + "\\n\\n")
+        self.assertEqual(combined[prompt_length:], tokenizer.encode(answer + "\n\n"))
+        self.assertEqual(tokenizer.decode(combined), prompt + answer + "\n\n")
 
     def test_roundtrip_and_unknown_handling(self):
         texts = load_approved_texts(ROOT / "training_extra.json")
