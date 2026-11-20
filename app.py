@@ -517,7 +517,7 @@ async def _train_background(max_steps: int = 80):
                  "answer": str(row.get("answer", "")).strip(),
                  "source": row.get("source", "curated-fallback")}
                 for row in extra_rows
-                if isinstance(row, dict) and row.get("approved", True)
+                if isinstance(row, dict) and row.get("approved") is True
                 and str(row.get("question", "")).strip()
                 and str(row.get("answer", "")).strip()
             ]
@@ -704,7 +704,7 @@ def _curated_exact_answer(question_text: str) -> str:
         if not isinstance(rows, list):
             return ""
         for row in rows:
-            if not isinstance(row, dict) or not row.get("approved", True):
+            if not isinstance(row, dict) or row.get("approved") is not True:
                 continue
             if normalize(row.get("question", "")) == target:
                 answer = str(row.get("answer", "")).strip()
@@ -787,7 +787,7 @@ def _curated_similar_answer(question_text: str) -> str:
         rows = json.loads(path.read_text(encoding="utf-8"))
         ranked = []
         for row in rows if isinstance(rows, list) else []:
-            if not isinstance(row, dict) or not row.get("approved", True):
+            if not isinstance(row, dict) or row.get("approved") is not True:
                 continue
             candidate_question = str(row.get("question", "")).strip()
             answer = str(row.get("answer", "")).strip()
@@ -932,7 +932,7 @@ def model_benchmark():
     """Fast read-only benchmark. Expensive BPE training runs only in an offline job."""
     try:
         rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
-        approved = [row for row in rows if isinstance(row, dict) and row.get("approved", True)]
+        approved = [row for row in rows if isinstance(row, dict) and row.get("approved") is True]
         exact_sample = approved[:30]
         exact_hits = sum(bool(_curated_exact_answer(row.get("question", ""))) for row in exact_sample)
         cases = [
