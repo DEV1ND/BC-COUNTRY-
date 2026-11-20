@@ -914,7 +914,18 @@ async def model_guard(x_juckex_token: Optional[str] = Header(default=None)):
         import base64
         previous_raw = base64.b64decode(body["model"], validate=True)
         previous_model = JuckexModel().to(DEVICE)
-        _load_npz(previous_model, previous_raw)
+        try:
+            _load_npz(previous_model, previous_raw)
+        except Exception as incompatible:
+            # Keep legacy backups intact, but never compare incompatible tensor shapes.
+            training_state.update({
+                "last_guarded_updated_at": updated_at,
+                "last_guard_at": int(time.time()),
+                "last_guard_result": "incompatible_previous_architecture",
+                "last_guard_error": str(incompatible)[:400],
+            })
+            save_training_state()
+            return {"ok": True, "skipped": True, "reason": "previous_model_architecture_mismatch"}
         with model_lock:
             live_loss = evaluate(model, val_seqs, max_batches=12)
         previous_loss = evaluate(previous_model, val_seqs, max_batches=12)
