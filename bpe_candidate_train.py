@@ -258,6 +258,8 @@ def main():
     parser.add_argument("--width", type=int, default=64)
     parser.add_argument("--heads", type=int, default=4)
     parser.add_argument("--layers", type=int, default=2)
+    parser.add_argument("--target-parameters", type=int, default=0)
+    parser.add_argument("--parameter-tolerance", type=float, default=0.02)
     args = parser.parse_args()
     if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
         parser.error("width와 heads는 양수여야 하며 width는 heads로 나누어져야 합니다.")
@@ -320,6 +322,9 @@ def main():
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
+    parameter_count = sum(p.numel() for p in candidate.parameters())
+    if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
+        raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
     candidate.train()
     losses = []
@@ -428,7 +433,7 @@ def main():
         "seed": args.seed,
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
-        "candidate_parameters": sum(p.numel() for p in candidate.parameters()),
+        "candidate_parameters": parameter_count,
         "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
         "final_training_loss": round(losses[-1], 5),
         "live_char_model_bits_per_character": round(live_bpc, 5),
