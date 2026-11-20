@@ -78,19 +78,76 @@ def encode_rows(rows, tokenizer):
     return [tokenizer.encode(row["text"]) for row in rows]
 
 
-def make_batch(sequences, batch_size=8):
+def encode_training_examples(rows, tokenizer):
+    examples = []
+    for row in rows:
+        sequence = tokenizer.encode(row["text"])
+        prompt = "질문:" + row["question"] + "\n답변:"
+        prompt_tokens = len(tokenizer.encode(prompt))
+        examples.append((sequence, prompt_tokens))
+    return examples
+
+
+def make_batch(examples, batch_size=8):
+    # Keep the complete question as context; train loss only on answer tokens.
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
     for bi in range(batch_size):
-        seq = sequences[np.random.randint(0, len(sequences))]
-        if len(seq) < 2:
+        seq, prompt_tokens = examples[np.random.randint(0, len(examples))]
+        chunk = seq[:BLOCK + 1]
+        if len(chunk) < 2:
             continue
-        start = np.random.randint(0, max(1, len(seq) - 1))
-        chunk = seq[start:start + BLOCK + 1]
         inp, target = chunk[:-1], chunk[1:]
         x[bi, :len(inp)] = torch.tensor(inp, dtype=torch.long)
         y[bi, :len(target)] = torch.tensor(target, dtype=torch.long)
+        y[bi, :max(0, min(len(target), prompt_tokens - 1))] = -100
     return x.to(DEVICE), y.to(DEVICE)
+
+
+@torch.no_grad()
+def answer_bits_per_char(candidate, examples, tokenizer):
+    candidate.eval()
+    nll_sum, char_count = 0.0, 0
+    for seq, prompt_tokens in examples:
+        chunk = seq[:BLOCK + 1]
+        if len(chunk) < 2:
+            continue
+        ids = torch.tensor(chunk[:-1], dtype=torch.long, device=DEVICE).unsqueeze(0)
+        targets = torch.tensor(chunk[1:], dtype=torch.long, device=DEVICE)
+        start = max(0, prompt_tokens - 1)
+        if start >= len(targets):
+            continue
+        losses = F.cross_entropy(candidate(ids)[0, start:], targets[start:], reduction="none")
+        token_chars = [max(1, len(tokenizer.itos.get(int(t), ""))) for t in targets[start:]]
+        nll_sum += float(losses.sum().item())
+        char_count += sum(token_chars)
+    return nll_sum / max(1, char_count) / math.log(2)
+
+
+@torch.no_grad()
+def live_answer_bits_per_char(rows):
+    was_training = live.model.training
+    live.model.eval()
+    nll_sum, char_count = 0.0, 0
+    try:
+        for row in rows:
+            ids_list, _ = live.encode_text(row["text"])
+            prompt_chars = len("질문:" + row["question"] + "\n답변:")
+            chunk = ids_list[:live.BLOCK + 1]
+            if len(chunk) < 2:
+                continue
+            ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
+            targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
+            start = max(0, prompt_chars - 1)
+            if start >= len(targets):
+                continue
+            logits, _ = live.model(ids)
+            losses = F.cross_entropy(logits[0, start:], targets[start:], reduction="none")
+            nll_sum += float(losses.sum().item())
+            char_count += len(targets[start:])
+    finally:
+        live.model.train(was_training)
+    return nll_sum / max(1, char_count) / math.log(2)
 
 
 @torch.no_grad()
@@ -209,6 +266,8 @@ def main():
         extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
     )
     train_sequences = encode_rows(train_rows, tokenizer)
+    train_examples = encode_training_examples(train_rows, tokenizer)
+    valid_examples = encode_training_examples(valid_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
     independent_bpe = encode_rows(independent_clean, tokenizer)
@@ -241,7 +300,7 @@ def main():
     total_steps = max(1, min(args.steps, 5000))
     eval_interval = 100
     for step in range(1, total_steps + 1):
-        x, y = make_batch(train_sequences, batch_size=8)
+        x, y = make_batch(train_examples, batch_size=8)
         optimizer.zero_grad(set_to_none=True)
         logits = candidate(x)
         loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1), ignore_index=-100)
@@ -253,7 +312,7 @@ def main():
         losses.append(float(loss.item()))
 
         if step % eval_interval == 0 or step == total_steps:
-            score = candidate_bits_per_char(candidate, valid_bpe, tokenizer)
+            score = answer_bits_per_char(candidate, valid_examples, tokenizer)
             validation_curve.append({"step": step, "bits_per_character": round(score, 6)})
             if math.isfinite(score) and score < best_bpc:
                 best_bpc = score
@@ -299,6 +358,11 @@ def main():
     live_bpc = live_bits_per_char(valid_char)
     independent_bpe_bpc = candidate_bits_per_char(candidate, independent_bpe, tokenizer)
     independent_live_bpc = live_bits_per_char(independent_char)
+    validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
+    validation_live_answer_bpc = live_answer_bits_per_char(valid_rows)
+    independent_examples = encode_training_examples(independent_clean, tokenizer)
+    independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
+    independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
     if not all(math.isfinite(v) for v in (bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc)):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
@@ -315,7 +379,11 @@ def main():
         "independent_evaluation_pairs": len(independent_clean),
         "independent_bpe_bits_per_character": round(independent_bpe_bpc, 5),
         "independent_live_char_bits_per_character": round(independent_live_bpc, 5),
-        "candidate_better_on_independent_set": bool(independent_bpe_bpc < independent_live_bpc),
+        "validation_answer_only_bpc": round(validation_answer_bpc, 5),
+        "validation_live_answer_only_bpc": round(validation_live_answer_bpc, 5),
+        "independent_answer_only_bpc": round(independent_answer_bpc, 5),
+        "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
+        "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
@@ -330,7 +398,9 @@ def main():
         "live_char_model_bits_per_character": round(live_bpc, 5),
         "bpe_candidate_bits_per_character": round(bpe_bpc, 5),
         "candidate_better_on_this_split": bool(bpe_bpc < live_bpc),
-        "promotion": "보류: 고정 독립 평가셋의 BPC는 참고 지표일 뿐이며 실제 생성 품질과 현재 운영 가중치 비교 전 자동 승격하지 않음",
+        "best_checkpoint_metric": "validation_answer_only_bpc",
+        "training_objective": "question_context_preserved_answer_tokens_only",
+        "promotion": "보류: 실제 생성 품질의 사람 검토와 독립 평가가 완료되기 전 자동 승격하지 않음",
         "candidate_checkpoint": str(candidate_path.name),
         "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
