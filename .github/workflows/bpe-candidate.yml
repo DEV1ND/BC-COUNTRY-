@@ -7,7 +7,6 @@ on:
       - "bpe_candidate_train.py"
       - "bpe_tokenizer.py"
       - "training_extra.json"
-      - ".github/workflows/bpe-candidate.yml"
 
 permissions:
   contents: write
