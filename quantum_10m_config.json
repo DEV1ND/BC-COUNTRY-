@@ -1,0 +1,17 @@
+{
+  "model_name": "Quantum",
+  "profile": "10M",
+  "architecture": {
+    "type": "causal_transformer",
+    "width": 496,
+    "heads": 8,
+    "layers": 3,
+    "block_size": 256,
+    "vocab_size": 1024
+  },
+  "target_parameters": 10000000,
+  "parameter_tolerance": 0.02,
+  "training_mode": "isolated_smoke_test",
+  "promotion": "manual_quality_review_required",
+  "production_model_changes": false
+}
