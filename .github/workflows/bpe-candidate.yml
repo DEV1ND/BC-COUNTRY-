@@ -10,7 +10,7 @@ on:
       - ".github/workflows/bpe-candidate.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: juckex-bpe-candidate
@@ -46,3 +46,15 @@ jobs:
             bpe_candidate_checkpoint.pt
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish read-only benchmark report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bpe_candidate_report.json bpe_candidate.json
+          if git diff --cached --quiet; then
+            echo "No benchmark report changes to publish"
+          else
+            git commit -m "Publish isolated BPE candidate evaluation report"
+            git push
+          fi
