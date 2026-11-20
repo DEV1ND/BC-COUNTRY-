@@ -919,7 +919,7 @@ def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(de
 
 @app.get("/model/benchmark")
 def model_benchmark():
-    """Read-only repeatable benchmark. Candidate tokenizer is assessed but never promoted."""
+    """Fast read-only benchmark. Expensive BPE training runs only in an offline job."""
     try:
         rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
         approved = [row for row in rows if isinstance(row, dict) and row.get("approved", True)]
@@ -936,13 +936,18 @@ def model_benchmark():
             answer = _curated_similar_answer(query)
             retrieval.append({"question": query, "passed": bool(answer and expected.casefold() in answer.casefold())})
         unrelated_answer = _curated_similar_answer("은하철도 우주선 엔진의 양자 추진 원리는?")
-        from bpe_tokenizer import BPETokenizer, load_approved_texts
-        texts = load_approved_texts(ROOT / "training_extra.json")
-        candidate = BPETokenizer.train(texts, vocab_size=1024, min_pair_frequency=2)
-        encoded = [candidate.encode(value) for value in texts]
-        original_chars = sum(len(value) for value in texts)
-        encoded_tokens = sum(len(value) for value in encoded)
-        roundtrip_hits = sum(candidate.decode(ids) == value for ids, value in zip(encoded, texts))
+        candidate_path = ROOT / "bpe_candidate.json"
+        candidate_report = ROOT / "bpe_candidate_report.json"
+        bpe_status = "not_built"
+        bpe_summary = None
+        if candidate_report.exists():
+            try:
+                bpe_summary = json.loads(candidate_report.read_text(encoding="utf-8"))
+                bpe_status = "built_offline"
+            except Exception:
+                bpe_status = "report_invalid"
+        elif candidate_path.exists():
+            bpe_status = "tokenizer_file_exists_report_missing"
         return {
             "ok": True,
             "live_model_changed": False,
@@ -953,12 +958,9 @@ def model_benchmark():
                 "unrelated_query_rejected": not bool(unrelated_answer),
             },
             "bpe_candidate": {
-                "vocab_size": len(candidate.vocab), "merge_count": len(candidate.merges),
-                "source_texts": len(texts), "source_characters": original_chars,
-                "encoded_tokens": encoded_tokens,
-                "compression_ratio": round(encoded_tokens / max(1, original_chars), 4),
-                "roundtrip_hits": roundtrip_hits, "roundtrip_total": len(texts),
-                "unknown_character_test": 0 in candidate.encode("새로운🛰문자"),
+                "status": bpe_status,
+                "offline_report": bpe_summary,
+                "note": "BPE 학습은 웹 요청에서 실행하지 않습니다. 별도 오프라인 작업으로 실행해야 합니다.",
             },
             "promotion": "보류: 별도 Transformer 후보 학습과 독립 검증 데이터 평가가 필요합니다.",
         }
