@@ -43,10 +43,11 @@ def serialize_knowledge_sources(items: Iterable[Mapping]) -> list[dict]:
 
 def build_knowledge_context(items: Iterable[Mapping], excerpt_chars: int = 420) -> str:
     """Build model context only from the same source records exposed to the caller."""
-    sources = serialize_knowledge_sources(items)
+    rows = list(items or [])
+    sources = serialize_knowledge_sources(rows)
     by_key = {
         (str(item["url"]).strip(), str(item["title"]).strip()): item
-        for item in (items or [])
+        for item in rows
         if isinstance(item, Mapping)
     }
     excerpts = []
