@@ -9,24 +9,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
 
-BLOCK = 256
+BLOCK = 512
 DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
 CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
 
 class BPECandidate(nn.Module):
-    def __init__(self, vocab_size, width=64, heads=4, layers=2):
+    def __init__(self, vocab_size, width=64, heads=4, layers=2, block=512):
         super().__init__()
         self.token = nn.Embedding(vocab_size, width)
-        self.position = nn.Embedding(BLOCK, width)
+        self.block = int(block)
+        self.position = nn.Embedding(self.block, width)
         layer = nn.TransformerEncoderLayer(d_model=width, nhead=heads,
             dim_feedforward=width * 4, dropout=0.1, batch_first=True,
             norm_first=True, activation="gelu")
         self.encoder = nn.TransformerEncoder(layer, num_layers=layers)
         self.norm = nn.LayerNorm(width)
         self.output = nn.Linear(width, vocab_size)
-        self.register_buffer("causal", torch.triu(torch.ones(BLOCK, BLOCK, dtype=torch.bool), diagonal=1))
+        self.register_buffer("causal", torch.triu(torch.ones(self.block, self.block, dtype=torch.bool), diagonal=1))
     def forward(self, ids):
         _, length = ids.shape
         x = self.token(ids) + self.position(torch.arange(length, device=ids.device))
@@ -44,12 +45,15 @@ def load_model():
     payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
     arch = payload["architecture"]
     tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
-    model = BPECandidate(len(tokenizer.vocab), int(arch["width"]), int(arch["heads"]), int(arch["layers"]))
+    block = int(arch.get("block", 256))
+    model = BPECandidate(len(tokenizer.vocab), int(arch["width"]), int(arch["heads"]), int(arch["layers"]), block=block)
     model.load_state_dict(payload["state_dict"], strict=True)
     model.eval()
     return model, tokenizer, payload
 
 model, tokenizer, checkpoint_meta = load_model()
+if checkpoint_meta:
+    BLOCK = int(checkpoint_meta.get("architecture", {}).get("block", 256))
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["https://juckex-quantum-lab.bcsite.workers.dev"],
                    allow_credentials=False, allow_methods=["GET", "POST"],
