@@ -1,7 +1,7 @@
 import json, subprocess, sys, tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent
 with tempfile.TemporaryDirectory() as td:
     root = Path(td)
     source = root / "source.jsonl"
