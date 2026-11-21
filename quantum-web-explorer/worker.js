@@ -1,137 +1,155 @@
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (configure a public contact URL or email)";
-const MAX_RESULTS = 10;
+const MAX_RESULTS = 8;
 const SYNC_BATCH = 10;
 
-function json(data, status=200) {
-  return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});
+function json(data,status=200){return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});}
+async function sha256(value){
+  const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-async function sha256(text) {
-  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");
-}
-async function wikiRequest(params) {
+async function wikiRequest(params){
   const url=new URL(WIKI_API);
   url.search=new URLSearchParams({...params,format:"json",formatversion:"2",maxlag:"5"});
   const res=await fetch(url,{headers:{"user-agent":USER_AGENT,"accept":"application/json"},signal:AbortSignal.timeout(15000)});
-  if(res.status===429||res.status===503) {
-    const wait=Number(res.headers.get("retry-after")||5);
-    throw new Error("Wikimedia throttled; retry after "+wait+" seconds");
-  }
+  if(res.status===429||res.status===503) throw new Error("Wikimedia rate limit/server busy; retry on a later scheduled run");
   if(!res.ok) throw new Error("Wikipedia API HTTP "+res.status);
   const data=await res.json();
   if(data.error) throw new Error(data.error.info||data.error.code);
   return data;
 }
-async function collectTopic(topic,env) {
-  const search=await wikiRequest({
-    action:"query",list:"search",srsearch:topic.query,srnamespace:"0",
-    srlimit:String(MAX_RESULTS),srprop:"snippet|timestamp"
-  });
-  let discovered=0;
-  for(const hit of (search.query?.search||[])) {
-    const detail=await wikiRequest({
-      action:"query",prop:"extracts|info",explaintext:"1",exsectionformat:"plain",
-      inprop:"url",pageids:String(hit.pageid)
-    });
-    const page=detail.query?.pages?.[0];
-    const text=String(page?.extract||"").trim();
-    if(!page||text.length<400) continue;
+async function collectTopic(topic,env){
+  const search=await wikiRequest({action:"query",list:"search",srsearch:topic.query,srnamespace:"0",srlimit:String(MAX_RESULTS),srprop:"snippet|timestamp"});
+  let discovered=0,updated=0;
+  for(const hit of search.query?.search||[]){
+    const detail=await wikiRequest({action:"query",prop:"extracts|info",explaintext:"1",exsectionformat:"plain",inprop:"url",pageids:String(hit.pageid)});
+    const page=detail.query?.pages?.[0], text=String(page?.extract||"").trim();
+    if(!page||text.length<500) continue;
     const hash=await sha256(text);
-    const exists=await env.DB.prepare("SELECT id FROM pages WHERE content_hash=?").bind(hash).first();
-    if(exists) continue;
-    const id=crypto.randomUUID();
-    const key="pages/"+id+".txt";
+    const sameHash=await env.DB.prepare("SELECT id,url FROM pages WHERE content_hash=?").bind(hash).first();
     const sourceUrl=page.fullurl||("https://ko.wikipedia.org/wiki/"+encodeURIComponent(page.title.replace(/ /g,"_")));
+    if(sameHash&&sameHash.url!==sourceUrl) continue;
+    const existing=await env.DB.prepare("SELECT id,content_hash FROM pages WHERE url=?").bind(sourceUrl).first();
+    if(existing&&existing.content_hash===hash){
+      await env.DB.prepare("UPDATE pages SET last_seen_at=datetime('now') WHERE id=?").bind(existing.id).run();
+      continue;
+    }
+    const id=existing?.id||crypto.randomUUID(), key="pages/"+id+"/"+hash+".txt";
     await env.RAW_PAGES.put(key,text,{httpMetadata:{contentType:"text/plain; charset=utf-8"}});
-    await env.DB.prepare(
-      "INSERT INTO pages (id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,license_name,attribution,discovered_at) VALUES (?,'wikipedia',?,?,?,?,?,?, 'pending_review','attribution_required','CC BY-SA 4.0','Wikipedia contributors; retain page title, URL, license, and indicate modifications',datetime('now'))"
-    ).bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key).run();
-    discovered++;
+    if(existing){
+      await env.DB.prepare(`UPDATE pages SET title=?,snippet=?,content_hash=?,r2_key=?,revision_id=?,status='pending_review',
+        license_status='attribution_required',license_name='CC BY-SA 4.0',
+        attribution='Wikipedia contributors; retain page title, URL, license, and indicate modifications',
+        discovered_at=datetime('now'),last_seen_at=datetime('now'),reviewed_at=NULL,reviewer_note=NULL,synced_at=NULL,sync_error=NULL
+        WHERE id=?`).bind(page.title,String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key,page.lastrevid||null,id).run();
+      updated++;
+    }else{
+      await env.DB.prepare(`INSERT INTO pages
+        (id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
+        VALUES (?,'wikipedia',?,?,?,?,?,?, 'pending_review','attribution_required','CC BY-SA 4.0',
+        'Wikipedia contributors; retain page title, URL, license, and indicate modifications',?,datetime('now'),datetime('now'))`)
+        .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key,page.lastrevid||null).run();
+      discovered++;
+    }
   }
-  await env.DB.prepare("UPDATE search_topics SET last_searched_at=datetime('now') WHERE query=?").bind(topic.query).run();
-  return discovered;
+  await env.DB.prepare("UPDATE search_topics SET last_searched_at=datetime('now'),last_error=NULL WHERE query=?").bind(topic.query).run();
+  return {discovered,updated};
 }
-async function runCycle(env) {
-  const state=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
-  if(!state||state.value!=="1") return {running:false,discovered:0,message:"paused"};
-  const {results:topics=[]}=await env.DB.prepare(
-    "SELECT query FROM search_topics WHERE enabled=1 ORDER BY last_searched_at IS NOT NULL,last_searched_at LIMIT 2"
-  ).all();
-  let discovered=0; const errors=[];
-  // Sequential requests, low concurrency, and maxlag protect Wikimedia infrastructure.
-  for(const topic of topics) {
-    try { discovered+=await collectTopic(topic,env); }
-    catch(e) { errors.push(String(e.message||e)); }
-  }
-  await env.DB.prepare("INSERT INTO crawl_runs(discovered,errors,ran_at) VALUES(?,?,datetime('now'))")
-    .bind(discovered,JSON.stringify(errors.slice(0,5))).run();
-  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,errors};
-}
-
-async function approvePage(request,env) {
-  let body; try { body=await request.json(); } catch { return json({error:"invalid_json"},400); }
-  const id=String(body.id||"").trim(), note=String(body.note||"").trim().slice(0,1000);
-  if(!id) return json({error:"id_required"},400);
-  const page=await env.DB.prepare("SELECT id,status,license_name FROM pages WHERE id=?").bind(id).first();
-  if(!page) return json({error:"page_not_found"},404);
-  if(page.status!=="pending_review") return json({error:"only_pending_pages_can_be_approved",status:page.status},409);
-  await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=?").bind(note,id).run();
-  return json({ok:true,id,status:"approved",license:page.license_name,notice:"CC BY-SA attribution and share-alike obligations still apply."});
-}
-async function syncApproved(env) {
-  if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return json({error:"inference_sync_not_configured"},503);
+async function syncApproved(env){
+  if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return {ok:false,synced:0,error:"inference_sync_not_configured"};
   const {results=[]}=await env.DB.prepare("SELECT id,title,url,r2_key,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL ORDER BY reviewed_at LIMIT ?").bind(SYNC_BATCH).all();
-  if(!results.length) return json({ok:true,synced:0,message:"no_approved_documents_waiting"});
+  if(!results.length) return {ok:true,synced:0};
   const docs=[];
-  for(const row of results) {
+  for(const row of results){
     const obj=await env.RAW_PAGES.get(row.r2_key); if(!obj) continue;
-    const text=await obj.text(); if(!text.trim()) continue;
+    const text=await obj.text(); if(text.trim().length<200) continue;
     docs.push({page_id:row.id,title:row.title,url:row.url,text:text.slice(0,120000),license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"});
   }
-  if(!docs.length) return json({ok:false,synced:0,error:"approved_r2_documents_missing"},502);
+  if(!docs.length) return {ok:false,synced:0,error:"approved_r2_documents_missing"};
   let response;
-  try {
+  try{
     response=await fetch(new URL("/admin/knowledge/import",env.QUANTUM_INFERENCE_URL),{
       method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.QUANTUM_API_TOKEN},
       body:JSON.stringify({documents:docs}),signal:AbortSignal.timeout(30000)
     });
-  } catch(e) { return json({ok:false,synced:0,error:"inference_unreachable",detail:String(e.message||e)},502); }
+  }catch(e){return {ok:false,synced:0,error:"inference_unreachable",detail:String(e.message||e)};}
   const result=await response.json().catch(()=>({}));
-  if(!response.ok) return json({ok:false,synced:0,error:"inference_rejected",status:response.status,detail:result},502);
+  if(!response.ok) return {ok:false,synced:0,error:"inference_rejected",status:response.status,detail:result};
   for(const doc of docs) await env.DB.prepare("UPDATE pages SET synced_at=datetime('now'),sync_error=NULL WHERE id=?").bind(doc.page_id).run();
-  return json({ok:true,synced:docs.length,remaining:Math.max(0,results.length-docs.length),inference:result});
+  return {ok:true,synced:docs.length,inference:result};
 }
-
-function authorized(request,env) {
-  return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;
+async function runCycle(env){
+  const state=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
+  if(!state||state.value!=="1") return {running:false,discovered:0,updated:0,synced:0,message:"paused"};
+  const {results:topics=[]}=await env.DB.prepare("SELECT query FROM search_topics WHERE enabled=1 ORDER BY last_searched_at IS NOT NULL,last_searched_at LIMIT 2").all();
+  let discovered=0,updated=0; const errors=[];
+  for(const topic of topics){
+    try{const r=await collectTopic(topic,env);discovered+=r.discovered;updated+=r.updated;}
+    catch(e){
+      const message=String(e.message||e); errors.push({topic:topic.query,error:message});
+      await env.DB.prepare("UPDATE search_topics SET last_error=? WHERE query=?").bind(message.slice(0,500),topic.query).run();
+    }
+  }
+  const sync=await syncApproved(env);
+  await env.DB.prepare("INSERT INTO crawl_runs(discovered,updated,synced,errors,ran_at) VALUES(?,?,?,?,datetime('now'))")
+    .bind(discovered,updated,sync.synced||0,JSON.stringify({crawl:errors,sync:sync.error||null})).run();
+  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,sync,errors};
 }
+async function approvePage(request,env){
+  let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
+  const id=String(body.id||"").trim(),note=String(body.note||"").trim().slice(0,1000);
+  if(!id)return json({error:"id_required"},400);
+  const page=await env.DB.prepare("SELECT id,status,license_name FROM pages WHERE id=?").bind(id).first();
+  if(!page)return json({error:"page_not_found"},404);
+  if(page.status!=="pending_review")return json({error:"only_pending_pages_can_be_approved",status:page.status},409);
+  await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=?").bind(note,id).run();
+  return json({ok:true,id,status:"approved",license:page.license_name,notice:"CC BY-SA attribution and share-alike obligations still apply."});
+}
+function authorized(request,env){return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;}
 export default {
-  async fetch(request,env) {
+  async fetch(request,env){
     const url=new URL(request.url);
-    if(request.method==="GET"&&url.pathname==="/health")
-      return json({ok:true,service:"quantum-wikipedia-explorer",isolated:true,provider:"ko.wikipedia.org"});
-    if(!authorized(request,env)) return json({error:"unauthorized"},401);
-    if(request.method==="GET"&&url.pathname==="/status") {
+    if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"quantum-wikipedia-explorer",isolated:true,provider:"ko.wikipedia.org"});
+    if(!authorized(request,env))return json({error:"unauthorized"},401);
+    if(request.method==="GET"&&url.pathname==="/status"){
       const running=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
       const counts=await env.DB.prepare("SELECT status,COUNT(*) AS count FROM pages GROUP BY status").all();
       const pendingSync=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND synced_at IS NULL").first();
-      const latest=await env.DB.prepare("SELECT discovered,ran_at FROM crawl_runs ORDER BY id DESC LIMIT 1").first();
-      return json({running:running?.value==="1",provider:"ko.wikipedia.org",pageCounts:counts.results||[],pendingSync:pendingSync?.count||0,latestRun:latest||null});
+      const latest=await env.DB.prepare("SELECT discovered,updated,synced,errors,ran_at FROM crawl_runs ORDER BY id DESC LIMIT 1").first();
+      const topics=await env.DB.prepare("SELECT COUNT(*) AS total,SUM(enabled) AS enabled FROM search_topics").first();
+      return json({running:running?.value==="1",provider:"ko.wikipedia.org",pageCounts:counts.results||[],pendingSync:pendingSync?.count||0,topics,latestRun:latest||null});
     }
-    if(request.method==="POST"&&url.pathname==="/start") {
+    if(request.method==="GET"&&url.pathname==="/pages"){
+      const status=String(url.searchParams.get("status")||"pending_review");
+      const limit=Math.min(50,Math.max(1,Number(url.searchParams.get("limit")||20)));
+      const cursor=String(url.searchParams.get("before")||"");
+      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at FROM pages WHERE status=? AND (?='' OR discovered_at<?) ORDER BY discovered_at DESC LIMIT ?").bind(status,cursor,cursor,limit).all();
+      return json({pages:rows.results||[]});
+    }
+    if(request.method==="GET"&&url.pathname==="/topics"){
+      const rows=await env.DB.prepare("SELECT query,enabled,last_searched_at,last_error FROM search_topics ORDER BY query").all();
+      return json({topics:rows.results||[]});
+    }
+    if(request.method==="POST"&&url.pathname==="/topics"){
+      let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
+      const query=String(body.query||"").trim().slice(0,160);
+      if(query.length<2)return json({error:"query_too_short"},400);
+      await env.DB.prepare("INSERT INTO search_topics(query,enabled) VALUES(?,1) ON CONFLICT(query) DO UPDATE SET enabled=1").bind(query).run();
+      return json({ok:true,query});
+    }
+    if(request.method==="POST"&&url.pathname==="/start"){
       await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
       return json({ok:true,running:true});
     }
-    if(request.method==="POST"&&url.pathname==="/pause") {
+    if(request.method==="POST"&&url.pathname==="/pause"){
       await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
       return json({ok:true,running:false});
     }
-    if(request.method==="POST"&&url.pathname==="/run-once") return json(await runCycle(env));
-    if(request.method==="POST"&&url.pathname==="/approve") return approvePage(request,env);
-    if(request.method==="POST"&&url.pathname==="/sync-approved") return syncApproved(env);
+    if(request.method==="POST"&&url.pathname==="/run-once")return json(await runCycle(env));
+    if(request.method==="POST"&&url.pathname==="/approve")return approvePage(request,env);
+    if(request.method==="POST"&&url.pathname==="/sync-approved")return json(await syncApproved(env));
     return json({error:"not_found"},404);
   },
-  async scheduled(_event,env,ctx) { ctx.waitUntil(runCycle(env)); }
+  async scheduled(_event,env,ctx){ctx.waitUntil(runCycle(env));}
 };
