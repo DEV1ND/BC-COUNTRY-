@@ -23,7 +23,7 @@ Place other individually reviewed UTF-8 `.txt` or `.md` files under this directo
 {"path":"corpus/validation/ko_holdout.txt","source_name":"Example validation corpus","source_url":"https://example.org/holdout","retrieved_at":"2026-11-21","license_id":"CC-BY-4.0","license_url":"https://creativecommons.org/licenses/by/4.0/","attribution":"Author / source attribution","split":"validation"}
 ```
 
-Only use material whose license and reuse terms have been checked. Do not use a blank, unknown, unverified, or incompatible license. Keep the original source URL, retrieval date, license text/version, and required attribution in your dataset records. The manifest fields are a minimum, not a substitute for a full provenance register.
+The training script conservatively accepts only `CC0-1.0` and `CC-BY-4.0` by default. Other licenses (including CC BY-SA) are blocked until a separate documented review is completed. Check the exact dataset/file terms; a provider-level label is not sufficient. See `DATA_SOURCES.md` for the source intake register. Keep the original source URL, retrieval date, license text/version, and required attribution in your dataset records. The manifest fields are a minimum, not a substitute for a full provenance register.
 
 Do not place private data, personal information, copyrighted books/articles without permission, or evaluation questions in the corpus. Do not reuse the existing `training_extra.json`, D1 `training_pairs`, or the fixed independent evaluation set as a pretraining corpus.
 
