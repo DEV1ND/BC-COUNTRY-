@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "status": "candidate_sources_reviewed_no_corpus_downloaded",
+  "schema_version": 3,
+  "status": "common_voice_archive_received_staging_audited_other_large_sources_candidates_only",
   "policy": "A dataset being publicly accessible does not automatically grant permission to use every document for model pretraining. Only dataset versions whose exact license is documented and compatible with the conservative trainer allowlist may be staged. Human review remains mandatory.",
   "candidate_sources": [
     {
@@ -25,10 +25,40 @@
         "ASR prompt sentences are not a balanced general-knowledge corpus",
         "short sentences must be grouped into documents",
         "only sentence column is retained; speaker IDs and demographic metadata are discarded",
-        "official train and dev splits are kept separate; official test split is never imported"
+        "official train and dev splits are kept separate; official test split is never imported",
+        "The archive was received and staged locally; the original download/retrieval date is not recorded in the provided metadata.",
+        "Automated first-pass checks do not replace full manual content and privacy review.",
+        "This small ASR prompt-text corpus is only a supplemental Korean source and is not sufficient for the planned 10,000-step general pretraining run."
       ],
-      "ingestion_status": "not_downloaded",
-      "approval_required": true
+      "ingestion_status": "downloaded_local_staged_pending_final_review",
+      "approval_required": true,
+      "exact_version": "cv-corpus-27.0-2026-09-11",
+      "archive": {
+        "filename": "1789491658662-cv-corpus-27.0-2026-09-11-ko.tar.gz",
+        "size_bytes": 218606550,
+        "sha256": "28fa978a9d48ba63b311760bb3eaf2db663c42da2287951f935bd92534990d07",
+        "bundled_readme_license_statement": "Creative Commons Zero (CC-0)"
+      },
+      "parsed_tsv_records": {
+        "train": 623,
+        "validation": 514,
+        "test_excluded": 579
+      },
+      "staged_documents": {
+        "train": 12,
+        "validation": 9,
+        "total": 21
+      },
+      "staging_checks": {
+        "normalized_duplicate_blocks": 0,
+        "cross_split_duplicate_blocks": 0,
+        "blocks_shorter_than_200_chars": 0,
+        "email_pattern_hits": 0,
+        "korean_mobile_phone_pattern_hits": 0,
+        "korean_resident_number_pattern_hits": 0,
+        "retrieved_at": "unknown_original_download_date",
+        "approval_flags": "false_pending_final_review"
+      }
     },
     {
       "name": "Korean Language Corpus 2025 (National Institute of Korean Language)",
@@ -77,6 +107,106 @@
         "inspect shard metadata, content fields, provenance and notices before any ingestion"
       ],
       "ingestion_status": "not_downloaded_candidate_pending_content_and_rights_audit",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceFW FineWeb-2 Korean kor_Hang",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "general web text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "60.9M rows; kor_Hang viewer listing",
+      "license_id": "ODC-By-1.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2",
+      "evidence": "Official dataset card describes a multilingual Common Crawl-derived pretraining corpus under ODC-By 1.0; the Korean kor_Hang subset is listed separately.",
+      "limitations": [
+        "ODC-By is not in the current trainer allowlist (CC0-1.0 and CC-BY-4.0 only).",
+        "The database license does not automatically grant rights to every underlying web page.",
+        "Common Crawl terms and source-page rights/privacy obligations require separate review.",
+        "Do not ingest or train until a documented project policy decision and filtering pipeline exist."
+      ],
+      "ingestion_status": "blocked_pending_database_and_underlying_content_rights_review",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceFW FineWeb English",
+      "languages": [
+        "en"
+      ],
+      "topics": [
+        "general web text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "25.9B rows; dataset card reports English web corpus",
+      "license_id": "ODC-By-1.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceFW/fineweb",
+      "evidence": "Official dataset card describes an English Common Crawl-derived corpus and ODC-By 1.0 database license.",
+      "limitations": [
+        "ODC-By is not in the current trainer allowlist.",
+        "Individual web-page rights remain separate from the database license.",
+        "Common Crawl terms and source-page rights/privacy obligations require separate review."
+      ],
+      "ingestion_status": "blocked_pending_database_and_underlying_content_rights_review",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceTB Cosmopedia v0.1",
+      "languages": [
+        "en"
+      ],
+      "topics": [
+        "synthetic educational text",
+        "textbooks",
+        "stories",
+        "blog posts",
+        "how-to content"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "31M samples; approximately 25B tokens per dataset card",
+      "license_id": "Apache-2.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceTB/cosmopedia",
+      "evidence": "Official dataset card labels the dataset Apache-2.0 and describes synthetic text generated by Mixtral-8x7B-Instruct-v0.1.",
+      "limitations": [
+        "Synthetic output may contain factual errors and must not be treated as verified ground truth.",
+        "Review the seed-source splits and any underlying content conditions before admission.",
+        "English-only coverage does not solve Korean language coverage.",
+        "No download, ingestion, or approval has occurred."
+      ],
+      "ingestion_status": "candidate_pending_seed_source_and_quality_review",
+      "approval_required": true
+    },
+    {
+      "name": "seongchaeae Sage Pretrain Corpus",
+      "languages": [
+        "ko",
+        "en"
+      ],
+      "topics": [
+        "mixed-source pretraining text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "142M rows shown by dataset viewer",
+      "license_id": "mixed-per-record",
+      "source": "https://huggingface.co/datasets/seongchaeae/sage-pretrain-corpus",
+      "evidence": "Dataset viewer exposes per-record source and license fields; repository card states mixed licenses.",
+      "limitations": [
+        "Dataset-level license is shown as other; records contain multiple license values.",
+        "Must filter and audit each record's source, license and metadata before any use.",
+        "Only records that can be traced to an explicitly accepted license and source can be considered.",
+        "No download, ingestion, or approval has occurred."
+      ],
+      "ingestion_status": "candidate_pending_record_level_provenance_audit",
       "approval_required": true
     }
   ],
