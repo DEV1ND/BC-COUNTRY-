@@ -46,7 +46,12 @@ legacy_run_columns = {row[1] for row in legacy.execute("PRAGMA table_info(crawl_
 assert {"updated", "synced"} <= legacy_run_columns
 legacy_topics = legacy.execute("SELECT COUNT(*) FROM search_topics").fetchone()[0]
 assert legacy_topics >= 15, legacy_topics
-legacy.execute("UPDATE pages SET content='기존 데이터 호환 테스트' WHERE id='legacy-missing'")
+legacy.execute("""INSERT INTO pages
+(id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,discovered_at)
+VALUES ('legacy1','wikipedia','이전 문서','https://ko.wikipedia.org/wiki/이전_문서',
+'ko.wikipedia.org','','legacy-hash','legacy/legacy.txt','pending_review','unknown',datetime('now'))""")
+legacy_content = legacy.execute("SELECT content FROM pages WHERE id='legacy1'").fetchone()[0]
+assert legacy_content == "", repr(legacy_content)
 print("Wikipedia explorer legacy migration smoke test passed.")
 
 
