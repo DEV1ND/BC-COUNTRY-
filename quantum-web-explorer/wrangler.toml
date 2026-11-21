@@ -11,8 +11,8 @@ database_id = "REPLACE_WITH_NEW_LAB_D1_ID"
 binding = "RAW_PAGES"
 bucket_name = "REPLACE_WITH_NEW_LAB_R2_BUCKET"
 [vars]
-NAVER_SEARCH_ENDPOINT = "https://openapi.naver.com/v1/search/webkr.json"
+NAVER_HUB_ENDPOINT = "https://naverapihub.apigw.ntruss.com/search/v1/webkr"
 # Store credentials with wrangler secret put; never commit API keys.
-# Google Custom Search JSON API is for existing customers only.
-# New Google integrations need a supported product such as Vertex AI Search.
+# NAVER_HUB_KEY_ID and NAVER_HUB_KEY are NAVER API HUB credentials.
+# Google Custom Search JSON API is for existing customers only; new Google integration needs a supported product.
 # Set ADMIN_TOKEN as a secret before deployment.
