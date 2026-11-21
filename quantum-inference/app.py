@@ -206,6 +206,17 @@ def knowledge_status(authorization: Optional[str] = Header(default=None)):
     finally: conn.close()
     return {"ok":True,"documents":count,"storage":"local-cache-rebuildable"}
 
+@app.get("/admin/knowledge/ids")
+def knowledge_ids(authorization: Optional[str] = Header(default=None)):
+    """Return exact page IDs present in this inference instance's rebuildable cache."""
+    require_admin(authorization)
+    conn=knowledge_db()
+    try:
+        ids=[row[0] for row in conn.execute("SELECT page_id FROM knowledge_docs ORDER BY page_id").fetchall()]
+    finally:
+        conn.close()
+    return {"ok":True,"page_ids":ids,"documents":len(ids),"storage":"local-cache-rebuildable"}
+
 @app.post("/admin/training/start")
 def training_start(authorization: Optional[str] = Header(default=None)):
     require_admin(authorization)
