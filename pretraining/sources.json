@@ -72,14 +72,33 @@
       "source": "https://kli.korean.go.kr/corpus/openapi/corpusList.do?lang=en",
       "license_id": null,
       "license_reference": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=en",
-      "evidence": "Official corpus portal describes individual corpus collections and per-corpus access requests; some listed 2025 resources describe copyright-cleared or commercially usable source materials, but exact terms are collection-specific.",
+      "evidence": "The official portal lists 2025 collections including Table Description Corpus 2025, Prose Corpus 2025 (10,293 copyright-cleared works), and others. The portal requires an application for access; the FAQ limits use to approved research/technology-development purposes and requires prior approval before publicly releasing derived outputs that contain corpus text.",
       "limitations": [
-        "must request access",
-        "verify the selected corpus's own terms and permitted model-training use",
-        "portal currently displays partial service maintenance notice"
+        "Access requires registration, an application, administrator approval, and acceptance of the corpus use agreement.",
+        "Official FAQ says use is limited to approved research and technology-development purposes.",
+        "Outputs released publicly must not contain corpus text excerpts and require prior NIKL approval.",
+        "Some collections are research-only; collection-specific conditions must be checked.",
+        "The official portal currently displays a partial service-maintenance notice.",
+        "No data has been downloaded or approved for Quantum training."
       ],
-      "ingestion_status": "blocked_pending_collection_specific_terms",
-      "approval_required": true
+      "ingestion_status": "blocked_pending_application_and_collection_specific_training_permission",
+      "approval_required": true,
+      "known_collections": [
+        {
+          "name": "Table Description Corpus 2025 v1.0",
+          "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+          "description": "2,037 Korean-language/culture table descriptions built from statistical materials selected from KOGL Type 1 and CC BY sources.",
+          "license_id": null,
+          "note": "The upstream source-material license description is not enough to establish the exact license or model-training permission for the delivered corpus; confirm the application agreement."
+        },
+        {
+          "name": "Prose Corpus 2025 v1.0",
+          "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+          "description": "Raw written corpus from 10,293 copyright-cleared works across literary and informational subjects.",
+          "license_id": null,
+          "note": "Copyright-cleared source material does not by itself specify the recipient's model-training rights; inspect the dataset-specific agreement."
+        }
+      ]
     },
     {
       "name": "OpenDataLab WanJuan-Korean",
@@ -207,6 +226,31 @@
         "No download, ingestion, or approval has occurred."
       ],
       "ingestion_status": "candidate_pending_record_level_provenance_audit",
+      "approval_required": true
+    },
+    {
+      "name": "National Institute of Korean Language Table Description Corpus 2025",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "Korean-language and culture",
+        "structured descriptions",
+        "statistics"
+      ],
+      "format": [
+        "corpus download via official portal"
+      ],
+      "approximate_scale": "2,037 table descriptions",
+      "license_id": null,
+      "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+      "evidence": "The official portal describes 2,037 table descriptions constructed from statistical materials selected from KOGL Type 1 and CC BY sources.",
+      "limitations": [
+        "The source-material terms do not establish the delivered corpus's exact license or model-training rights.",
+        "Access is application-based and subject to the official use agreement.",
+        "Official FAQ limits use to approved research and technology-development purposes and requires prior approval for public release of outputs containing corpus text."
+      ],
+      "ingestion_status": "blocked_pending_application_and_collection_specific_training_permission",
       "approval_required": true
     }
   ],
