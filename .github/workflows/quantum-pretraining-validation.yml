@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile training pipeline
-        run: python -m py_compile bpe_tokenizer.py pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py
+        run: python -m py_compile bpe_tokenizer.py pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py pretraining/prepare_common_voice.py
       - name: Validate manifest example JSONL shape
         run: |
           python - <<'PY'
@@ -79,4 +79,27 @@ jobs:
               if manifest.exists():
                   manifest.unlink()
               shutil.rmtree(fixture, ignore_errors=True)
+          PY
+
+      - name: Exercise Common Voice TSV staging without real corpus data
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import tempfile
+          from pathlib import Path
+          from pretraining.prepare_common_voice import read_sentences, group_sentences
+          with tempfile.TemporaryDirectory() as temp:
+              train = Path(temp) / "train.tsv"
+              with train.open("w", encoding="utf-8", newline="") as stream:
+                  writer = csv.DictWriter(stream, fieldnames=["client_id", "sentence", "age", "gender"], delimiter="\\t")
+                  writer.writeheader()
+                  for i in range(40):
+                      writer.writerow({"client_id": f"private-{i}", "sentence": f"한국어 테스트 문장 {i}번입니다. 자연스러운 문장 패턴을 확인하기 위한 합성 문장입니다.", "age": "hidden", "gender": "hidden"})
+              sentences = read_sentences(train)
+              docs = group_sentences(sentences, target_chars=500)
+              assert len(sentences) == 40
+              assert docs and all(len(doc) >= 200 for doc in docs)
+              assert "private-" not in "\\n".join(docs)
+              print("Common Voice TSV staging fixture: PASS")
           PY
