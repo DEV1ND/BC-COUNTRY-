@@ -18,3 +18,5 @@ jobs:
         run: node --check quantum-web-explorer/worker.js
       - name: Run data and retrieval smoke test
         run: python quantum_v2_smoke_test.py
+      - name: Validate Wikipedia explorer database schema
+        run: python quantum-web-explorer/test_schema.py
