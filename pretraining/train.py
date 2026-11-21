@@ -66,6 +66,8 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
             "source_url": row["source_url"], "retrieved_at": row["retrieved_at"],
             "license_id": row["license_id"], "license_url": row["license_url"],
             "attribution": row["attribution"],
+            "category": row.get("category", "unspecified"),
+            "reviewed_by": row.get("reviewed_by", "manifest-review"),
             "sha256": digest, "path": str(path.relative_to(ROOT)),
         })
     train = [r for r in records if r["split"] == "train"]
@@ -150,9 +152,12 @@ def main():
         raise ValueError("official 10K run requires --steps 10000; use a separate smoke-test script for short tests")
     if args.width <= 0 or args.heads <= 0 or args.width % args.heads:
         raise ValueError("width must be positive and divisible by heads")
-    if args.block_size < 8 or args.batch_size < 1 or args.eval_interval < 1:
+    if args.block_size < 8 or args.batch_size < 1 or args.eval_interval < 1 or args.eval_batches < 1:
         raise ValueError("invalid batch, block, or evaluation interval")
     output = args.output.resolve()
+    artifacts_root = (ROOT / "artifacts").resolve()
+    if artifacts_root not in output.parents or output.suffix.lower() != ".pt":
+        raise ValueError("candidate output must be a .pt file inside pretraining/artifacts; production paths are forbidden")
     if output.exists():
         raise FileExistsError(f"refusing to overwrite candidate artifact: {output}")
     args.manifest = args.manifest.resolve()
@@ -166,9 +171,11 @@ def main():
 
     train_rows, valid_rows = load_corpus(args.manifest)
     # BPE merge statistics are learned from training documents only.
+    train_texts = [r["text"] + "\\n" for r in train_rows]
+    validation_texts = [r["text"] + "\\n" for r in valid_rows]
     tokenizer = BPETokenizer.train(
-        [r["text"] for r in train_rows], vocab_size=args.vocab_size,
-        min_pair_frequency=3,
+        train_texts, vocab_size=args.vocab_size,
+        min_pair_frequency=3, extra_alphabet_texts=validation_texts,
     )
     train_tokens = pack_tokens([r["text"] for r in train_rows], tokenizer)
     valid_tokens = pack_tokens([r["text"] for r in valid_rows], tokenizer)
@@ -215,7 +222,7 @@ def main():
                         "training_tokens": len(train_tokens), "validation_tokens": len(valid_tokens),
                         "manifest": str(args.manifest),
                         "provenance": [
-                            {k: r[k] for k in ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "sha256")}
+                            {k: r[k] for k in ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "category", "reviewed_by", "sha256")}
                             for r in train_rows + valid_rows
                         ],
                         "live_model_modified": False,
