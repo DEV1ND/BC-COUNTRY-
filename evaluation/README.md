@@ -1,43 +1,42 @@
 # QUANTUM EVALUATION v1
 
-이 디렉터리는 JUCKEX Quantum의 독립 평가 전용 자료를 보관합니다. 어떤 파일도 사전학습, SFT, 토크나이저 병합 학습 또는 후보 모델의 gradient update에 사용하면 안 됩니다.
+운영 Quantum과 분리된 한국어 평가 전용 세트 및 실행기입니다.
 
-## 핵심 평가 데이터
-- `quantum_eval_v1.json`: 113개 한국어 평가 질문. 15개 분야, 답변 가능 98개, 정보 부족 시 무응답해야 하는 15개를 포함합니다.
-- `validate_quantum_eval.py`: 구조, 중복, 분야 수, 학습 데이터 및 기존 독립 평가 세트와의 질문 중복을 검사합니다.
-- `quantum_eval_v1.jsonl` 및 `run_eval.py`: 기존 QEV1-001 형식의 예측 결과 평가기입니다. 문자 키워드 포함률은 의미 정확도가 아닌 참고 지표입니다.
+## 정식 평가 데이터
+- `quantum_eval_v1.json`: 자체 작성 기준 질문 113개, 15개 분야
+- 답변 가능 98개 / 답변 불가 15개
+- `training_use: false`, 각 행 `split: held_out_eval_v1`
+- 현재 `training_extra.json`의 228개 질문과 중복 0건 확인
+- 데이터 구조 및 중복 검증: `validate_quantum_eval.py`
 
-## 데이터 검증
-저장소 루트에서 실행합니다.
+평가 데이터는 SFT, 사전학습, 토크나이저 병합, 후보 학습에 절대 사용하지 않습니다.
 
+## 평가 실행
+모델의 예측 결과를 JSONL로 준비합니다. 한 줄에 한 질문입니다.
+
+```json
+{"id":"QE-001","answer":"...","abstained":false,"citations":["source-id"]}
+```
+
+실행:
 ```bash
 python evaluation/validate_quantum_eval.py
-```
-
-## 기존 예측 평가기
-```bash
 python evaluation/run_eval.py --predictions /path/to/predictions.jsonl
 python evaluation/run_eval.py --predictions /path/to/predictions.jsonl --retrieval /path/to/retrieval.jsonl --output evaluation/report.json
+python -m unittest discover -s evaluation -p 'test_*.py' -v
 ```
 
-예측 JSONL 행:
+검색 결과 JSONL:
 ```json
-{"id":"QEV1-001","answer":"...","abstained":false,"citations":["source-id"]}
+{"id":"QE-001","retrieved_ids":["doc-a"],"relevant_ids":["doc-a"]}
 ```
 
-검색 JSONL 행:
-```json
-{"id":"QEV1-001","retrieved_ids":["doc-a"],"relevant_ids":["doc-a"]}
-```
+## 지표 해석
+- 필수 사실 포함률은 어휘 기반 proxy이며 의미적 정답률이 아닙니다.
+- 무응답 재현율은 답변 불가 질문에서 보류했는지 측정합니다.
+- 답변 가능 오거부율은 답변 가능한 질문을 불필요하게 거부한 비율입니다.
+- 인용 존재율은 출처의 정확성·라이선스·내용 일치를 증명하지 않습니다.
+- 검색 hit-rate/recall은 독립적으로 검수된 관련 문서 ID 정답표가 있어야 의미가 있습니다.
+- 최종 사실 정확도, 문맥 적절성, 인용 품질은 사람 검토가 필요합니다.
 
-## 평가 원칙
-- 검색 정확도와 답변 품질을 별도로 보고합니다.
-- 검색 결과가 존재한다고 정답으로 간주하지 않습니다.
-- 답변 가능 질문은 사실 정확성, 필수 사실 포함, 관련성, 완결성, 인용 근거를 사람이 검토해야 합니다.
-- 답변 불가능 질문은 정보 부족을 명확히 밝히고 사실을 지어내지 않아야 통과입니다.
-- 키워드 포함률, BPC, 검색 hit rate는 의미적 정답률이 아닙니다.
-- 평가 실행마다 모델/체크포인트 해시, API 버전, 디코딩 설정, 실행 시각, 원시 응답을 보존합니다.
-- 모델 승격이나 운영 배포는 이 평가 도구에서 수행하지 않습니다.
-
-## 출처와 라이선스
-`quantum_eval_v1.json`의 질문과 기준 답변은 프로젝트 평가용으로 자체 작성했습니다. 위키백과 등 외부 자료의 문장을 복사한 데이터가 아닙니다. 향후 외부 자료를 추가할 때는 출처와 라이선스를 별도로 확인하고 기록해야 합니다.
+이 평가기는 모델 학습, 승격, 배포를 수행하지 않습니다.
