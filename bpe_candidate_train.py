@@ -109,12 +109,14 @@ def augment_training_rows(rows):
     return augmented
 
 
-def make_batch(examples, batch_size=8):
-    # Keep the complete question as context; train loss only on answer tokens.
+def make_batch(rows, tokenizer, batch_size=4):
+    # Encode only the sampled rows, avoiding a multi-million-example token cache in RAM.
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
     for bi in range(batch_size):
-        seq, prompt_tokens = examples[np.random.randint(0, len(examples))]
+        row = rows[np.random.randint(0, len(rows))]
+        prompt = "질문:" + row["question"] + "\\n답변:"
+        seq, prompt_tokens = encode_prompt_answer(prompt, row["answer"], tokenizer)
         chunk = seq[:BLOCK + 1]
         if len(chunk) < 2:
             continue
@@ -260,7 +262,7 @@ def main():
     parser.add_argument("--heads", type=int, default=12)
     parser.add_argument("--layers", type=int, default=8)
     parser.add_argument("--target-parameters", type=int, default=0)
-    parser.add_argument("--data-path", default="training_extra.json")
+    parser.add_argument("--data-path", default="training_extra.jsonl")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--parameter-tolerance", type=float, default=0.02)
     args = parser.parse_args()
@@ -303,9 +305,6 @@ def main():
         min_pair_frequency=2,
         extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
     )
-    train_sequences = encode_rows(train_rows, tokenizer)
-    augmented_train_rows = augment_training_rows(train_rows)
-    train_examples = encode_training_examples(augmented_train_rows, tokenizer)
     valid_examples = encode_training_examples(valid_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
     valid_char = [live.encode_text(row["text"])[0] for row in valid_rows]
@@ -319,8 +318,8 @@ def main():
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
         "training_pairs": len(train_rows),
-        "augmented_training_examples": len(augmented_train_rows),
-        "augmentation_factor": len(augmented_train_rows) / max(1, len(train_rows)),
+        "training_examples": len(train_rows),
+        "augmentation_factor": 1,
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
         "roundtrip_passed": roundtrip_passed,
@@ -344,7 +343,7 @@ def main():
     total_steps = max(1, min(args.steps, 10000))
     eval_interval = 100
     for step in range(1, total_steps + 1):
-        x, y = make_batch(train_examples, batch_size=args.batch_size)
+        x, y = make_batch(train_rows, tokenizer, batch_size=args.batch_size)
         optimizer.zero_grad(set_to_none=True)
         logits = candidate(x)
         loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1), ignore_index=-100)
