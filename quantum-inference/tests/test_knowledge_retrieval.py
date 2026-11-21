@@ -19,6 +19,26 @@ class KnowledgeRetrievalTests(unittest.TestCase):
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
+    def test_single_syllable_nouns_survive_particle_removal(self):
+        terms = query_terms("별과 달은 무엇인가요?")
+        self.assertIn("별", terms)
+        self.assertIn("달", terms)
+        self.assertIn('"별"*', build_fts_query("별과 달은 무엇인가요?"))
+
+    def test_conservative_domain_alias_expansion(self):
+        self.assertIn("화학", query_terms("화학자에게 수여하는 상"))
+        self.assertIn("아날로그", query_terms("연속 신호를 다루는 전자 시스템"))
+        self.assertIn("미적분학", query_terms("함수의 변화율과 누적량"))
+        self.assertIn("입자물리학", query_terms("기본 입자와 물리학"))
+ 
+    def test_short_generic_title_does_not_receive_phrase_bonus(self):
+        score = score_document(
+            "물질을 이루는 기본 입자와 상호작용을 연구하는 물리학",
+            "물리학",
+            "물리학은 자연 현상을 연구하는 학문이다",
+        )
+        self.assertLess(score, 0.5)
+
     def test_fts5_finds_korean_words_with_attached_endings(self):
         conn = sqlite3.connect(":memory:")
         try:
