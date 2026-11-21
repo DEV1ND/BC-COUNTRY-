@@ -40,3 +40,43 @@ jobs:
 
       - name: Verify corpus audit CLI is available
         run: python pretraining/audit_corpus.py --help
+
+      - name: Exercise corpus audit with isolated synthetic fixtures
+        run: |
+          python - <<'PY'
+          import json
+          import shutil
+          from pathlib import Path
+          from pretraining.audit_corpus import audit, ROOT
+          fixture = ROOT / "corpus" / "ci-audit-fixture"
+          manifest = ROOT / "manifest.ci-audit-fixture.jsonl"
+          fixture.mkdir(parents=True, exist_ok=True)
+          try:
+              train_text = ("Quantum CI train fixture contains enough unique sample words and Korean text for tokenizer coverage. " * 4).strip()
+              valid_text = ("Quantum CI validation fixture is held out and includes 별도의 한국어 문자 범위 확인 문장. " * 4).strip()
+              (fixture / "train.txt").write_text(train_text, encoding="utf-8")
+              (fixture / "validation.txt").write_text(valid_text, encoding="utf-8")
+              rows = []
+              for filename, split in (("train.txt", "train"), ("validation.txt", "validation")):
+                  rows.append({
+                      "path": f"corpus/ci-audit-fixture/{filename}",
+                      "source_name": "CI synthetic fixture",
+                      "source_url": "https://example.org/fixture",
+                      "retrieved_at": "2026-11-21",
+                      "license_id": "CC0-1.0",
+                      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                      "attribution": "Synthetic CI-only fixture",
+                      "split": split,
+                      "review_status": "approved",
+                  })
+              manifest.write_text("".join(json.dumps(row) + "\\n" for row in rows), encoding="utf-8")
+              report = audit(manifest)
+              assert report["documents"] == {"total": 2, "train": 1, "validation": 1}
+              assert report["tokens_estimated_with_candidate_bpe"]["train"] > 0
+              assert report["tokens_estimated_with_candidate_bpe"]["validation"] > 0
+              print("corpus audit fixture: PASS")
+          finally:
+              if manifest.exists():
+                  manifest.unlink()
+              shutil.rmtree(fixture, ignore_errors=True)
+          PY
