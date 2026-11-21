@@ -17,7 +17,21 @@ Provide JSON or JSONL records with:
 ```
 Only approved records with source and license metadata are accepted. Do not fabricate a million examples by paraphrasing a small seed set. Check each source's license and permitted use before ingestion.
 
+## Candidate public Korean data source
+
+The first source candidate is [mkd-chanwoo/keural-rag-ko](https://huggingface.co/datasets/mkd-chanwoo/keural-rag-ko): its dataset card lists about 1.4 million Korean QA rows and CC BY 4.0. It is explicitly RAG-oriented and includes source passages/URLs, so it should be treated as a retrieval + context-grounded instruction source, not as proof of general knowledge accuracy. Preserve attribution and URLs, audit noisy/stale pages, and filter duplicates before training. The importer requires an explicit license-review confirmation flag. Dataset metadata and quality still need independent review. See the dataset card for current terms and schema.
+
 ## Prepare a dataset
+
+Install optional import dependencies with `pip install -r quantum_data_requirements.txt`, then:
+
+```bash
+python quantum_import_hf_keural.py --output keural_rag_ko.jsonl --confirm-license-reviewed
+python quantum_data_pipeline.py --input keural_rag_ko.jsonl --target 1000000 --output quantum_dataset
+python quantum_build_knowledge_index.py --input quantum_dataset/quantum_knowledge.jsonl --output quantum_knowledge.sqlite3
+```
+
+
 ```bash
 python quantum_data_pipeline.py --input reviewed-a.jsonl --input reviewed-b.jsonl --target 1000000 --output quantum_dataset
 ```
