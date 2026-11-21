@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
+from knowledge_index_status import build_index_status
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -231,9 +232,11 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
 def knowledge_status(authorization: Optional[str] = Header(default=None)):
     require_admin(authorization)
     conn=knowledge_db()
-    try: count=conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
-    finally: conn.close()
-    return {"ok":True,"documents":count,"storage":"local-cache-rebuildable"}
+    try:
+        status=build_index_status(conn, page_id_limit=5000)
+    finally:
+        conn.close()
+    return {"ok":True,**status,"storage":"local-cache-rebuildable"}
 
 @app.post("/admin/training/start")
 def training_start(authorization: Optional[str] = Header(default=None)):
