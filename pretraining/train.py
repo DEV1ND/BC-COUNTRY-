@@ -29,11 +29,11 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
         if not raw.strip():
             continue
         row = json.loads(raw)
-        required = ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split")
+        required = ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split", "review_status")
         missing = [key for key in required if not str(row.get(key, "")).strip()]
         if missing:
             raise ValueError(f"manifest line {line_no}: missing {', '.join(missing)}")
-        if row["split"] not in ("train", "validation"):
+        if row["review_status"] != "approved":\n            raise ValueError(f"manifest line {line_no}: document is not manually approved")\n        if row["split"] not in ("train", "validation"):
             raise ValueError(f"manifest line {line_no}: split must be train or validation")
         license_id = str(row["license_id"]).strip().lower()
         if license_id in ("unknown", "unverified", "none", "n/a"):
