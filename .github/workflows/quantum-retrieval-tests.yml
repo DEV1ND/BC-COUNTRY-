@@ -1,0 +1,31 @@
+name: JUCKEX Quantum retrieval regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'quantum_retrieval.py'
+      - 'test_quantum_retrieval.py'
+      - 'quantum_retrieval_benchmark.py'
+      - 'training_extra.json'
+      - 'bpe_independent_eval.json'
+      - '.github/workflows/quantum-retrieval-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run retrieval regression tests
+        run: python -m unittest test_quantum_retrieval.py
+      - name: Evaluate independent retrieval coverage
+        run: python quantum_retrieval_benchmark.py
