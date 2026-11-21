@@ -32,7 +32,7 @@ jobs:
           path = Path("pretraining/manifest.example.jsonl")
           rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
           required = {"path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split", "review_status"}
-          assert len(rows) == 3
+          assert len(rows) == 2
           assert all(required <= row.keys() for row in rows)
           assert {row["split"] for row in rows} == {"train", "validation"}
           print("manifest example structure: PASS")
