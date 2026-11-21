@@ -46,8 +46,8 @@ async function collectTopic(topic,env){
       updated++;
     }else{
       await env.DB.prepare(`INSERT INTO pages
-        (id,provider,title,url,domain,snippet,content_hash,content,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
-        VALUES (?,'wikipedia',?,?,?,?,?,?, 'pending_review','attribution_required','CC BY-SA 4.0',
+        (id,provider,title,url,domain,snippet,content_hash,content,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
+        VALUES (?,'wikipedia',?,?,?,?,?,?, '', 'pending_review','attribution_required','CC BY-SA 4.0',
         'Wikipedia contributors; retain page title, URL, license, and indicate modifications',?,datetime('now'),datetime('now'))`)
         .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,page.lastrevid||null).run();
       discovered++;
