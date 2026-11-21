@@ -284,7 +284,10 @@ def training_status(authorization: Optional[str] = Header(default=None)):
 @app.post("/v1/generate")
 @torch.inference_mode()
 def generate(req: GenerateRequest, authorization: Optional[str] = Header(default=None)):
-    if API_TOKEN and authorization != "Bearer " + API_TOKEN:
+    # Fail closed: never expose candidate inference when its service token is unset.
+    if not API_TOKEN:
+        raise HTTPException(503, "후보 추론 서버 인증 설정이 완료되지 않았습니다.")
+    if authorization != "Bearer " + API_TOKEN:
         raise HTTPException(401, "인증이 필요합니다.")
     # Prefer a high-confidence answer from Quantum's own reviewed dataset.
     # Intent and margin checks prevent a loose topic match from returning an unrelated answer.
