@@ -83,3 +83,72 @@ The current importer records the original dump retrieval date as unknown unless 
 Use Wikimedia's newer monthly `mediawiki_content_current` export for current page revisions. The legacy XML dump path is formally being replaced. Download all XML parts listed by the official `SHA256SUMS` file, verify each part, and pass all parts to the importer in one run. Avoid the full-history export for the initial corpus. The export uses a consistent first-of-month UTC cutoff and is published after a delay for revision suppression/deletion processing.
 
 Official technical documentation: https://wikitech.wikimedia.org/wiki/MediaWiki_Content_File_Exports
+
+
+## Formal CC BY-SA 4.0 assessment for Quantum (2026-11-22)
+
+**Review scope:** copyright-license analysis for text-only use of Wikipedia article revisions in JUCKEX Quantum next-token pretraining. This is an engineering/policy assessment, not a legal opinion from qualified counsel. It does not decide copyright exceptions under Korean, US, or other national law.
+
+### Executive decision
+
+**Decision: CONDITIONAL CANDIDATE — NOT APPROVED FOR THE TRAINING MANIFEST.**
+
+CC BY-SA 4.0 does not prohibit commercial reuse. It grants broad rights to reproduce, share, and adapt licensed material, subject to attribution and ShareAlike conditions when the relevant material or an adaptation is publicly shared. Creative Commons also states that CC-licensed material can be used in AI development where copyright permission is required, provided the applicable license conditions are respected.
+
+However, the license does not clearly answer whether trained neural-network weights are themselves an adaptation of the training texts. That question depends on the model, memorization/retention, output behavior, applicable law, and the facts of distribution. The project must not assume either that all model weights automatically inherit CC BY-SA or that weights are categorically outside it.
+
+For this reason, Wikipedia may be staged for audit, but the existing trainer allowlist remains unchanged and rejects `CC-BY-SA-4.0`. Do not start a run containing Wikipedia text until a qualified copyright review or a documented project policy decision resolves the model-weight and deployment questions.
+
+### Findings by use
+
+| Activity | Assessment | Project rule |
+|---|---|---|
+| Download and privately store official dump parts | Generally permitted under the license where permission is required, subject to applicable terms and source integrity | Keep exact dump, checksum, retrieval date, and access logs |
+| Extract text and privately preprocess for training | CC 4.0 expressly permits private reproduction, extraction, reuse, and creation of adapted databases for text/data mining where permission is required | May stage only; do not auto-approve |
+| Train a model privately | CC permits AI development uses where copyright permission is required, subject to conditions that become relevant to the use and sharing | Conditional; do not train until the project resolves model-weight treatment |
+| Keep model weights private and operate an inference service | No automatic conclusion that weights are adapted material; public outputs may raise separate questions if they reproduce protected expression | Require legal review of model design, memorization controls, outputs, and service model |
+| Publicly distribute raw Wikipedia text or a substantially copied/modified corpus | Attribution required; modified/adapted material and qualifying adapted databases can trigger ShareAlike | Do not distribute without compliant CC BY-SA notices and share-alike handling |
+| Publicly distribute trained weights/checkpoints | Unsettled whether weights are adapted material; cannot infer the answer from the dataset license alone | Block until written legal/policy decision |
+| Publish generated answers | Ordinary factual summaries are not automatically an adaptation; substantial or near-verbatim reproduction of a protected passage may be | Add output similarity/memorization tests and source attribution where source text is used |
+
+### License obligations that are clear
+
+1. **Attribution:** where the licensed text or an adaptation is shared, retain creator/attribution information supplied with it, copyright/license notices and a URI to the source where reasonably practicable. Wikimedia accepts attribution through a link/URL to the article, whose history lists contributors, or an equivalent stable copy / author list.
+2. **Modification notice:** state that text was modified and describe the transformations. Quantum's importer strips/normalizes wikitext; this must be recorded as a modification.
+3. **ShareAlike:** if an adaptation of CC BY-SA material is publicly shared, license that adaptation under CC BY-SA 4.0 or a compatible license and do not impose incompatible downstream restrictions.
+4. **Database rights:** CC BY-SA 4.0 also covers applicable sui generis database rights. If a substantial portion of a protected database is included in another publicly shared database, the adapted database may itself be subject to ShareAlike.
+5. **Third-party material:** Wikimedia pages can include imported text with additional attribution requirements or different license terms. Page footer, history, and discussion/source notices must be reviewed; do not assume every byte in a dump is uniformly CC BY-SA.
+6. **Non-text media:** this pipeline is text-only. Images, audio, and other media are excluded and must not be imported under the article text's license assumption.
+
+### AI-training and model-weight uncertainty
+
+Creative Commons' FAQ says CC-licensed works may be used in development of new technologies, including AI, where copyright permission is required, provided license conditions are respected. Its text/data-mining guidance distinguishes private mining from publicly sharing mining results or mined data; if a publicly shared result is an adaptation of SA material, the same/compatible SA license applies.
+
+That guidance does **not** expressly classify neural-network parameters, checkpoints, tokenizers, or model outputs as adaptations. Therefore:
+- Do not assert that CC BY-SA necessarily forces all Quantum weights to be open-licensed.
+- Do not assert that model weights are automatically exempt.
+- Treat weight distribution, hosted inference, and generated output as separate questions for counsel.
+- A license label on the model card cannot cure a rights issue if the artifact is in fact an adaptation; likewise, do not apply CC BY-SA to unrelated project code or independently created model components without a basis.
+
+### Required compliance controls before any training approval
+
+- Pin exact monthly Wikimedia export date, all filenames, per-file SHA-256 values, combined digest, and actual download timestamp.
+- Keep page ID, revision ID, canonical article URL, revision-history URL, title, language, and contributor attribution route.
+- Inspect article footer/history/discussion and imported-content notices; exclude pages with incompatible or unclear rights.
+- Exclude images, audio, files, and non-text media from this text-only pipeline.
+- Filter personal information, sensitive personal data, biographies of living persons where risk is elevated, spam, vandalism, redirects, and low-quality/short pages. Human review remains necessary.
+- Preserve a machine-readable per-document license and attribution manifest.
+- Keep source corpus, validation corpus, and fixed evaluation data separate.
+- Provide a public attribution page if source text or an adaptation is shared; link each article/revision and the CC BY-SA 4.0 license, describe text normalization, and provide a compliant copy/license notice for distributed adapted text.
+- Add memorization and near-verbatim output tests before exposing the candidate model to users.
+- Do not distribute the corpus or checkpoints until their applicable license terms are resolved.
+
+### Final engineering decision
+
+The current implementation is correct to keep `CC-BY-SA-4.0` outside `ALLOWED_LICENSES`. The Wikimedia importer is an intake/audit tool only. No change to the trainer allowlist is authorized by this review. A future enablement change must be a separate reviewed commit after qualified legal advice or an explicit documented risk decision by the project owner.
+
+### Primary sources
+
+- CC BY-SA 4.0 legal code: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+- Creative Commons FAQ — text/data mining and AI: https://creativecommons.org/faq/#can-i-conduct-textdata-mining-on-a-cc-licensed-database
+- Wikimedia Foundation Terms of Use, section 7 (licensing, attribution, imported text, reuse and modifications): https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
