@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
+from generation_sources import build_knowledge_context, serialize_knowledge_sources
 from knowledge_index_status import build_index_status
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
@@ -274,13 +275,10 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
     knowledge = retrieve_knowledge(req.prompt, limit=3)
-    knowledge_context = ""
-    if knowledge:
-        excerpts = []
-        for item in knowledge:
-            excerpt = item["text"][:420].replace("\n", " ")
-            excerpts.append(f'[{item["title"]}] {excerpt}')
-        knowledge_context = "참고 지식(출처 확인 필요):\n" + "\n".join(excerpts) + "\n"
+    # Only documents with a valid Wikipedia URL, CC BY-SA 4.0 label,
+    # and non-empty attribution are passed into generation or exposed as citations.
+    knowledge_context = build_knowledge_context(knowledge)
+    knowledge_sources = serialize_knowledge_sources(knowledge)
     prompt_ids = tokenizer.encode(knowledge_context + "질문:" + req.prompt.strip() + "\n답변:")
     generated = []
     for step in range(req.max_new_tokens):
@@ -312,5 +310,5 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     return {"answer": answer, "model": "quantum-bpe-10m-candidate",
             "is_live_inference": True,
-            "knowledge_sources": [{"title": x["title"], "url": x["url"], "license": x["license"], "attribution": x["attribution"]} for x in knowledge],
+            "knowledge_sources": knowledge_sources,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
