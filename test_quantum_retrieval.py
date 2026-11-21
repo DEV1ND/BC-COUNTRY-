@@ -19,6 +19,18 @@ class QuantumRetrievalTests(unittest.TestCase):
         self.assertTrue(result["matched"])
         self.assertEqual(result["answer"], self.rows[0]["answer"])
 
+    def test_recursive_korean_particle_stripping_matches_samgwonbunrip(self):
+        rows = self.rows + [
+            {"question": "삼권분립이란 무엇인가요?", "answer": "국가 권력을 나누는 원리입니다.", "approved": True}
+        ]
+        result = retrieve("삼권분립은 무엇인가요?", rows)
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["answer"], rows[-1]["answer"])
+
+    def test_attribute_question_does_not_match_definition_answer(self):
+        result = retrieve("파이썬의 특징은 무엇인가요?", self.rows)
+        self.assertFalse(result["matched"])
+
     def test_question_intent_must_match(self):
         result = retrieve("태양계에서 가장 큰 행성은?", self.rows)
         self.assertFalse(result["matched"])
