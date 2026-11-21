@@ -1,0 +1,40 @@
+name: Quantum knowledge retrieval tests
+
+on:
+  push:
+    branches:
+      - quantum-data-repair
+    paths:
+      - "quantum-inference/knowledge_retrieval.py"
+      - "quantum-inference/tests/test_knowledge_retrieval.py"
+      - ".github/workflows/quantum-knowledge-retrieval-tests.yml"
+  pull_request:
+    branches:
+      - quantum-live-inference
+    paths:
+      - "quantum-inference/knowledge_retrieval.py"
+      - "quantum-inference/tests/test_knowledge_retrieval.py"
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile retrieval module and tests
+        run: |
+          python -m py_compile quantum-inference/knowledge_retrieval.py
+          python -m py_compile quantum-inference/tests/test_knowledge_retrieval.py
+      - name: Run retrieval regression tests
+        run: |
+          python -m unittest discover \
+            -s quantum-inference/tests \
+            -p "test_knowledge_retrieval.py" \
+            -v
