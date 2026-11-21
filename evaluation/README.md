@@ -40,3 +40,25 @@ python -m unittest discover -s evaluation -p 'test_*.py' -v
 - 최종 사실 정확도, 문맥 적절성, 인용 품질은 사람 검토가 필요합니다.
 
 이 평가기는 모델 학습, 승격, 배포를 수행하지 않습니다.
+
+
+## 실제 Quantum 추론 서버 실행
+
+먼저 HTTPS inference endpoint에 대해 3개 질문만 스모크 테스트한 뒤 전체 평가를 실행합니다. 토큰은 코드나 저장소에 기록하지 말고 환경 변수로 전달합니다.
+
+```bash
+export QUANTUM_API_TOKEN="(필요한 경우에만 설정)"
+python evaluation/run_live_eval.py --limit 3 --out-dir evaluation/results-smoke
+```
+
+스모크 테스트 결과를 확인한 뒤 전체 113개를 실행합니다.
+
+```bash
+python evaluation/run_live_eval.py --out-dir evaluation/results
+```
+
+다른 Quantum endpoint를 검사하려면 `--endpoint https://호스트` 또는 `QUANTUM_EVAL_ENDPOINT`를 사용합니다. `--dry-run`은 네트워크 요청 없이 데이터셋과 인자만 확인합니다.
+
+실행기는 각 요청의 모델명, 응답 모드, HTTP 상태, 지연 시간과 원본 JSON 응답을 저장합니다. 연결 실패나 HTTP 오류가 있으면 해당 질문의 오류를 기록하고 비정상 종료합니다. 무응답 감지는 문구 기반 휴리스틱이므로 반드시 사람이 원문 응답을 확인한 후 점수를 확정해야 합니다.
+
+기본 endpoint의 health URL이 확인되더라도 실제 모델 로딩 및 체크포인트 상태를 보장하지 않습니다. 실행 전에 `GET /health`에서 `model_loaded`가 true인지 확인하고, false라면 생성 평가를 진행하지 마세요.
