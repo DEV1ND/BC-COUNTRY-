@@ -1,0 +1,29 @@
+name: Quantum evaluation v1
+
+on:
+  push:
+    branches: [quantum-eval-v1]
+    paths:
+      - 'evaluation/**'
+      - '.github/workflows/quantum-evaluation-v1.yml'
+  pull_request:
+    branches: [quantum-live-inference]
+    paths:
+      - 'evaluation/**'
+      - '.github/workflows/quantum-evaluation-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evaluation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate held-out evaluation dataset and training separation
+        run: python evaluation/validate_quantum_eval.py
+      - name: Run evaluator unit tests
+        run: python -m unittest discover -s evaluation -p 'test_*.py' -v
