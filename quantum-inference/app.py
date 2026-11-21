@@ -78,16 +78,28 @@ def import_korean_wikipedia_seed():
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
-        expected_titles = {
-            "인공지능": "인공지능",
-            "대한민국": "대한민국",
-            "태양계": "태양계",
-        }
-        for query, expected_title in expected_titles.items():
+        expected_topics = [
+            {"domain": "AI", "query": "인공지능", "expected_title": "인공지능"},
+            {"domain": "컴퓨터", "query": "컴퓨터", "expected_title": "컴퓨터"},
+            {"domain": "인터넷", "query": "인터넷", "expected_title": "인터넷"},
+            {"domain": "물리학", "query": "물리학", "expected_title": "물리학"},
+            {"domain": "화학", "query": "화학", "expected_title": "화학"},
+            {"domain": "생물학", "query": "생물학", "expected_title": "생물학"},
+            {"domain": "환경", "query": "기후 변화", "expected_title": "기후 변화"},
+            {"domain": "사회", "query": "민주주의", "expected_title": "민주주의"},
+            {"domain": "경제", "query": "경제학", "expected_title": "경제학"},
+            {"domain": "수학", "query": "수학", "expected_title": "수학"},
+            {"domain": "국가·지리", "query": "대한민국", "expected_title": "대한민국"},
+            {"domain": "천문학", "query": "태양계", "expected_title": "태양계"},
+        ]
+        for case in expected_topics:
+            query = case["query"]
+            expected_title = case["expected_title"]
             matches = retrieve_knowledge(query, limit=3)
             titles = [item["title"] for item in matches]
             exact_match = any(title.casefold() == expected_title.casefold() for title in titles)
             smoke_tests.append({
+                "domain": case["domain"],
                 "query": query,
                 "expected_title": expected_title,
                 "matched": exact_match,
