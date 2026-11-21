@@ -14,7 +14,7 @@ python pretraining/prepare_wikimedia_dump.py --dump /path/to/ko-part-1.xml.bz2 -
 
 For English, use `--language en` and pass every `enwiki` current-export part in the same way. The monthly export is available only after its official `SHA256SUMS` file exists. The script extracts plain text into `pretraining/corpus/pending/` and writes `pretraining/manifest.pending.jsonl`. It accepts multiple XML parts in one run, assigns a deterministic page-ID-based 95/5 train/validation split, and records article URL, revision URL, per-part and combined dump hashes, revision ID, processing date, and license metadata. The original dump download date remains explicitly unknown until recorded by the downloader. It is an offline dump processor, not a live crawler.
 
-**Every imported page is marked `review_status: pending_review`.** The training script rejects it until a person checks page-level notices, imported-content exceptions, source attribution, and content quality, then explicitly marks that manifest row `approved`. Do not bulk-approve the entire dump without review. A Wikipedia article's general licensing terms do not prove every imported passage has identical terms.
+**Binding JUCKEX policy: Wikipedia / CC BY-SA 4.0 is excluded from Quantum pretraining, SFT, tokenizer training, and every other weight-changing dataset.** Every imported page remains pending review. The importer is retained only for offline provenance inspection; marking a row approved does not make CC BY-SA eligible for training, and the trainer allowlist rejects it. A possible future use is a separate RAG-only store, but production RAG ingestion is disabled until page-level attribution, license, revision, third-party notice, citation, and removal controls are implemented and tested.
 
 Place other individually reviewed UTF-8 `.txt` or `.md` files under this directory and create a manifest with one JSON object per file:
 
@@ -23,7 +23,7 @@ Place other individually reviewed UTF-8 `.txt` or `.md` files under this directo
 {"path":"corpus/validation/ko_holdout.txt","source_name":"Example validation corpus","source_url":"https://example.org/holdout","retrieved_at":"2026-11-21","license_id":"CC-BY-4.0","license_url":"https://creativecommons.org/licenses/by/4.0/","attribution":"Author / source attribution","split":"validation"}
 ```
 
-The training script conservatively accepts only `CC0-1.0` and `CC-BY-4.0` by default. Other licenses (including CC BY-SA) are blocked until a separate documented review is completed. Check the exact dataset/file terms; a provider-level label is not sufficient. See `DATA_SOURCES.md` for the source intake register. Keep the original source URL, retrieval date, license text/version, and required attribution in your dataset records. The manifest fields are a minimum, not a substitute for a full provenance register.
+The training script accepts only `CC0-1.0` and `CC-BY-4.0`. CC BY-SA 4.0 (including Wikipedia) is excluded by binding project policy and is not eligible through routine page approval. Check the exact dataset/file terms; a provider-level label is not sufficient. See `DATA_SOURCES.md` for the source intake register. Keep the original source URL, retrieval date, license text/version, and required attribution in your dataset records. The manifest fields are a minimum, not a substitute for a full provenance register.
 
 Do not place private data, personal information, copyrighted books/articles without permission, or evaluation questions in the corpus. Do not reuse the existing `training_extra.json`, D1 `training_pairs`, or the fixed independent evaluation set as a pretraining corpus.
 
@@ -59,7 +59,7 @@ For a quick syntax/import check, use `python -m py_compile pretraining/train.py`
 
 ## Wikimedia license and attribution
 
-Wikimedia text contributions are generally offered under CC BY-SA 4.0 and GFDL, but imported material can have additional or different compatible terms. This pipeline records CC BY-SA 4.0 as the initial candidate license and deliberately keeps all pages pending manual review. Review the article footer, history, and any source notices before approval. Preserve attribution links to the article and revision history, include the license link, and make any distributed adaptations comply with the applicable ShareAlike terms. The training artifact retains provenance metadata; this is not a substitute for legal review.
+Wikimedia text contributions are generally offered under CC BY-SA 4.0 and GFDL, but imported material can have additional or different terms. Under the binding JUCKEX policy dated 2026-11-22, Wikimedia content is excluded from all Quantum training and weight-changing datasets. The offline importer is for provenance inspection only. Wikipedia may be reconsidered solely for a separate RAG-only store after tested page-level attribution, license, revision, third-party notice, citation, and removal controls exist. No production RAG ingestion is currently authorized.
 
 Official policy: https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
 CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
