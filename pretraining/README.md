@@ -7,8 +7,8 @@ This directory contains a separate next-token-prediction pretraining pipeline. I
 Place reviewed UTF-8 `.txt` or `.md` files under this directory, for example `corpus/train/` and `corpus/validation/`. Create `manifest.jsonl` with one JSON object per file:
 
 ```json
-{"path":"corpus/train/ko_sample.txt","source_name":"Example corpus","license_id":"CC-BY-4.0","attribution":"Author / source attribution","split":"train"}
-{"path":"corpus/validation/ko_holdout.txt","source_name":"Example validation corpus","license_id":"CC-BY-4.0","attribution":"Author / source attribution","split":"validation"}
+{"path":"corpus/train/ko_sample.txt","source_name":"Example corpus","source_url":"https://example.org/source","retrieved_at":"2026-11-21","license_id":"CC-BY-4.0","license_url":"https://creativecommons.org/licenses/by/4.0/","attribution":"Author / source attribution","split":"train"}
+{"path":"corpus/validation/ko_holdout.txt","source_name":"Example validation corpus","source_url":"https://example.org/holdout","retrieved_at":"2026-11-21","license_id":"CC-BY-4.0","license_url":"https://creativecommons.org/licenses/by/4.0/","attribution":"Author / source attribution","split":"validation"}
 ```
 
 Only use material whose license and reuse terms have been checked. Do not use a blank, unknown, unverified, or incompatible license. Keep the original source URL, retrieval date, license text/version, and required attribution in your dataset records. The manifest fields are a minimum, not a substitute for a full provenance register.
