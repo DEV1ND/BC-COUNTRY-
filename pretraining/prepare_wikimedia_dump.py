@@ -76,6 +76,9 @@ def main():
         raise ValueError("--max-pages must be positive")
     output = args.output.resolve()
     manifest = args.manifest.resolve()
+    root = ROOT.resolve()
+    if root not in output.parents or root not in manifest.parent.parents and manifest.parent != root:
+        raise ValueError("output and manifest must stay inside the pretraining directory")
     output.mkdir(parents=True, exist_ok=True)
     manifest.parent.mkdir(parents=True, exist_ok=True)
     if manifest.exists():
@@ -85,7 +88,7 @@ def main():
         for chunk in iter(lambda: raw.read(1024 * 1024), b""):
             dump_hash.update(chunk)
     dump_sha = dump_hash.hexdigest()
-    retrieved = datetime.now(timezone.utc).date().isoformat()
+    processed_at = datetime.now(timezone.utc).date().isoformat()
     seen_content = set()
     staged = 0
     skipped = 0
@@ -124,6 +127,8 @@ def main():
             split = "validation" if split_bucket < 5 else "train"
             filename = f"{args.language}_{page_id}_{revision_id}.txt"
             target = output / filename
+            if target.exists():
+                raise FileExistsError(f"refusing to overwrite existing corpus page: {target}")
             target.write_text(plain + "\n", encoding="utf-8")
             article_url = f"https://{args.language}.wikipedia.org/wiki/{urllib.parse.quote(title.replace(' ', '_'))}"
             revision_url = f"https://{args.language}.wikipedia.org/w/index.php?oldid={revision_id}"
@@ -132,17 +137,22 @@ def main():
                 "source_name": f"Wikipedia ({args.language}) — {title}",
                 "source_url": article_url,
                 "revision_url": revision_url,
-                "retrieved_at": retrieved,
+                "retrieved_at": "unknown_original_dump_download_date",
+                "processed_at": processed_at,
+                "dump_filename": dump.name,
+                "dump_source_url": "https://dumps.wikimedia.org/",
                 "license_id": LICENSE_ID,
                 "license_url": LICENSE_URL,
-                "attribution": f"Wikipedia contributors; article history: {revision_url}",
+                "attribution": f"Wikipedia contributors; title: {title}; article history: {revision_url}",
+                "changes_made": "Wikitext markup, templates, references, and formatting were normalized into plain text; inspect the staged file against the source revision.",
+                "license_review_status": "verify_revision_and_page_notices",
                 "split": split,
                 "review_status": "pending_review",
                 "page_id": page_id,
                 "revision_id": revision_id,
                 "dump_sha256": dump_sha,
                 "content_sha256": digest,
-                "notes": "Review page-level notices/imported content and license before approval; source dump is not a factual verification.",
+                "notes": "CC BY-SA 4.0 is a candidate label only. Review the exact revision, page footer, imported-content notices, and applicable license before approval; a dump is not factual verification and staging is not training approval.",
             })
             staged += 1
             page.clear()
