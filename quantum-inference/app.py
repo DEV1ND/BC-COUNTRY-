@@ -1,10 +1,10 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json
+import os, json, re, sqlite3
 from pathlib import Path
 from typing import Optional
 import torch
 import torch.nn as nn
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
@@ -55,6 +55,49 @@ app.add_middleware(CORSMiddleware, allow_origins=["https://juckex-quantum-lab.bc
                    allow_credentials=False, allow_methods=["GET", "POST"],
                    allow_headers=["Content-Type", "Authorization"])
 
+
+KNOWLEDGE_DB = Path(os.getenv("QUANTUM_KNOWLEDGE_DB", "quantum_knowledge.sqlite3"))
+def knowledge_db():
+    conn = sqlite3.connect(KNOWLEDGE_DB, timeout=15)
+    conn.row_factory = sqlite3.Row
+    conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_docs (
+        page_id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
+        text TEXT NOT NULL, license TEXT NOT NULL, attribution TEXT NOT NULL,
+        imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    try:
+        conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(page_id UNINDEXED,title,text, tokenize='unicode61')")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+    return conn
+
+def require_admin(authorization):
+    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
+        raise HTTPException(401, "관리자 인증이 필요합니다.")
+
+def retrieve_knowledge(question, limit=3):
+    terms = re.findall(r"[0-9A-Za-z가-힣]{2,}", question or "")[:8]
+    if not terms:
+        return []
+    conn = knowledge_db()
+    try:
+        match = " OR ".join('"' + t.replace('"', '""') + '"' for t in terms)
+        try:
+            rows = conn.execute("""SELECT d.title,d.url,d.text,d.attribution,d.license
+                FROM knowledge_fts f JOIN knowledge_docs d ON d.page_id=f.page_id
+                WHERE knowledge_fts MATCH ? ORDER BY bm25(knowledge_fts) LIMIT ?""",
+                (match, limit)).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        if not rows:
+            clauses = " OR ".join("title LIKE ? OR text LIKE ?" for _ in terms)
+            args = []
+            for term in terms: args.extend(["%"+term+"%", "%"+term+"%"])
+            rows = conn.execute("SELECT title,url,text,attribution,license FROM knowledge_docs WHERE "+clauses+" LIMIT ?", (*args,limit)).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
     max_new_tokens: int = Field(default=96, ge=8, le=160)
@@ -64,9 +107,72 @@ class GenerateRequest(BaseModel):
 
 @app.get("/health")
 def health():
+    conn = knowledge_db()
+    try: knowledge_count = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
+    finally: conn.close()
     return {"ok": True, "model_loaded": model is not None,
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
+            "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "production_model_touched": False}
+
+@app.post("/admin/knowledge/import")
+async def import_knowledge(request: Request, authorization: Optional[str] = Header(default=None)):
+    require_admin(authorization)
+    try: payload = await request.json()
+    except Exception: raise HTTPException(400, "JSON 본문이 필요합니다.")
+    docs = payload.get("documents") if isinstance(payload, dict) else None
+    if not isinstance(docs, list) or not docs or len(docs) > 10:
+        raise HTTPException(400, "documents는 1~10개여야 합니다.")
+    conn = knowledge_db()
+    imported = 0
+    try:
+        for doc in docs:
+            if not isinstance(doc, dict): raise HTTPException(400, "문서 형식이 올바르지 않습니다.")
+            page_id=str(doc.get("page_id","")).strip()
+            title=str(doc.get("title","")).strip()
+            url=str(doc.get("url","")).strip()
+            body=str(doc.get("text","")).strip()
+            license_name=str(doc.get("license","")).strip()
+            attribution=str(doc.get("attribution","")).strip()
+            if not page_id or not title or not body or len(body)<200 or len(body)>50000:
+                raise HTTPException(422, "문서 식별자·제목·본문 길이를 확인하세요.")
+            if not url.startswith("https://ko.wikipedia.org/wiki/") or license_name!="CC BY-SA 4.0" or not attribution:
+                raise HTTPException(422, "허용된 출처·라이선스·저작자 표시가 필요합니다.")
+            conn.execute("""INSERT INTO knowledge_docs(page_id,title,url,text,license,attribution)
+                VALUES(?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
+                title=excluded.title,url=excluded.url,text=excluded.text,
+                license=excluded.license,attribution=excluded.attribution,
+                imported_at=CURRENT_TIMESTAMP""",
+                (page_id,title,url,body,license_name,attribution))
+            try:
+                conn.execute("DELETE FROM knowledge_fts WHERE page_id=?",(page_id,))
+                conn.execute("INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",(page_id,title,body))
+            except sqlite3.OperationalError:
+                pass
+            imported += 1
+        conn.commit()
+    finally: conn.close()
+    return {"ok":True,"imported":imported,"storage":"local-cache-rebuildable","production_model_touched":False}
+
+@app.get("/admin/knowledge/status")
+def knowledge_status(authorization: Optional[str] = Header(default=None)):
+    require_admin(authorization)
+    conn=knowledge_db()
+    try: count=conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
+    finally: conn.close()
+    return {"ok":True,"documents":count,"storage":"local-cache-rebuildable"}
+
+@app.post("/admin/training/start")
+def training_start(authorization: Optional[str] = Header(default=None)):
+    require_admin(authorization)
+    return {"started":False,"reason":"training_requires_curated_export_and_explicit_candidate_run",
+            "automatic_training_disabled":True,"production_model_touched":False}
+
+@app.get("/admin/training/status")
+def training_status(authorization: Optional[str] = Header(default=None)):
+    require_admin(authorization)
+    return {"status":"not_started","reason":"no approved SFT training run has been launched",
+            "production_model_touched":False}
 
 @app.post("/v1/generate")
 @torch.inference_mode()
@@ -75,7 +181,15 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         raise HTTPException(401, "인증이 필요합니다.")
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
-    prompt_ids = tokenizer.encode("질문:" + req.prompt.strip() + "\n답변:")
+    knowledge = retrieve_knowledge(req.prompt, limit=3)
+    knowledge_context = ""
+    if knowledge:
+        excerpts = []
+        for item in knowledge:
+            excerpt = item["text"][:420].replace("\n", " ")
+            excerpts.append(f'[{item["title"]}] {excerpt}')
+        knowledge_context = "참고 지식(출처 확인 필요):\n" + "\n".join(excerpts) + "\n"
+    prompt_ids = tokenizer.encode(knowledge_context + "질문:" + req.prompt.strip() + "\n답변:")
     generated = []
     for step in range(req.max_new_tokens):
         context = (prompt_ids + generated)[-BLOCK:]
@@ -105,4 +219,6 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     return {"answer": answer, "model": "quantum-bpe-10m-candidate",
-            "is_live_inference": True, "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
+            "is_live_inference": True,
+            "knowledge_sources": [{"title": x["title"], "url": x["url"], "license": x["license"], "attribution": x["attribution"]} for x in knowledge],
+            "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
