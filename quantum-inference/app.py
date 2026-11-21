@@ -5,6 +5,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 from fastapi import FastAPI, Header, HTTPException, Request
+from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
@@ -284,11 +285,10 @@ def training_status(authorization: Optional[str] = Header(default=None)):
 @app.post("/v1/generate")
 @torch.inference_mode()
 def generate(req: GenerateRequest, authorization: Optional[str] = Header(default=None)):
-    # Fail closed: never expose candidate inference when its service token is unset.
-    if not API_TOKEN:
-        raise HTTPException(503, "후보 추론 서버 인증 설정이 완료되지 않았습니다.")
-    if authorization != "Bearer " + API_TOKEN:
-        raise HTTPException(401, "인증이 필요합니다.")
+    auth_error = generation_auth_error(API_TOKEN, authorization)
+    if auth_error is not None:
+        status_code, message = auth_error
+        raise HTTPException(status_code, message)
     # Prefer a high-confidence answer from Quantum's own reviewed dataset.
     # Intent and margin checks prevent a loose topic match from returning an unrelated answer.
     qa_match = retrieve_approved_qa(req.prompt, APPROVED_QA_ROWS)
