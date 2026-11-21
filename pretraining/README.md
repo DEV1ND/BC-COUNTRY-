@@ -33,7 +33,7 @@ Do not place private data, personal information, copyrighted books/articles with
 2. Remove duplicates and near-duplicates.
 3. Assign documents to train or validation before tokenization.
 4. Keep validation sources out of tokenizer BPE merge training and gradient updates.
-5. Run a corpus audit and inspect the manifest manually.
+5. Run `python pretraining/audit_corpus.py --manifest pretraining/manifest.jsonl` and inspect the JSON report and manifest manually. The audit reports document counts, candidate-BPE token counts, license/category/source distributions, hashes, and normalized exact-duplicate checks; it does not start training.
 
 ## Official 10K run
 
