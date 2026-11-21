@@ -13,8 +13,8 @@ run_columns = {row[1] for row in db.execute("PRAGMA table_info(crawl_runs)")}
 assert {"discovered", "updated", "synced", "errors", "ran_at"} <= run_columns
 
 db.execute("""INSERT INTO pages
-(id,provider,title,url,domain,snippet,content_hash,content,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
-VALUES ('p1','wikipedia','테스트','https://ko.wikipedia.org/wiki/테스트','ko.wikipedia.org','','hash1','테스트 본문',
+(id,provider,title,url,domain,snippet,content_hash,content,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
+VALUES ('p1','wikipedia','테스트','https://ko.wikipedia.org/wiki/테스트','ko.wikipedia.org','','hash1','테스트 본문','',
 'pending_review','attribution_required','CC BY-SA 4.0','Wikipedia contributors',123,datetime('now'),datetime('now'))""")
 db.execute("UPDATE pages SET content_hash='hash2', revision_id=124, status='pending_review', synced_at=NULL WHERE id='p1'")
 row = db.execute("SELECT content_hash,revision_id,status FROM pages WHERE id='p1'").fetchone()
