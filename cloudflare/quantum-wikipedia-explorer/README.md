@@ -1,6 +1,6 @@
 # Quantum Wikipedia sync reconciliation
 
-This directory contains the source mirror for the deployed `juckex-quantum-wikipedia-explorer` Worker.
+This directory contains the source mirror for the deployed `juckex-quantum-wikipedia-explorer` Worker, including its `auto_review.js` module dependency.
 
 ## Why this change exists
 
@@ -10,7 +10,7 @@ The old sync routine advanced through approved D1 pages using the inference cach
 
 1. The inference API exposes authenticated `GET /admin/knowledge/ids`, returning the exact page IDs currently in its local knowledge cache.
 2. The Worker compares those IDs with approved page IDs in D1.
-3. It imports the first five missing IDs and records the successful sync timestamp.
+3. It imports the first five missing IDs (200–50,000 characters each, matching the inference API limit) and records the successful sync timestamp.
 4. If the Render instance loses its local cache, its ID list becomes empty and the Worker repopulates it from D1 without relying on stale sync timestamps.
 
 D1 remains the canonical knowledge source. Render's SQLite database is treated only as a rebuildable retrieval cache.
@@ -27,4 +27,4 @@ Do not deploy this branch automatically. The Render service currently has a buil
 
 ## Licensing
 
-Every imported page must retain its title, source URL, CC BY-SA 4.0 license, and attribution metadata. Retrieval is not model-weight training.
+Every imported page must retain its title, source URL, CC BY-SA 4.0 license, and attribution metadata. The inference API currently accepts 200–50,000 characters per page; longer pages must be curated or chunked in a separate, traceable change rather than silently truncated. Retrieval is not model-weight training.
