@@ -162,7 +162,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         context_text = "\n참고 자료:\n" + "\n".join(
             "- 출처: " + row["source"] + " | URL: " + row["url"] +
             (" | 라이선스: " + row["license"] if row.get("license") else "") +
-            "\\n" + row["text"][:1200] for row in retrieved
+            "\n" + row["text"][:1200] for row in retrieved
         ) + "\n"
     prompt_text = "질문:" + req.prompt.strip() + context_text + "\n답변:"
     prompt_ids = tokenizer.encode(prompt_text)[-max(1, BLOCK - 1):]
