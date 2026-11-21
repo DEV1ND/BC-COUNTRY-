@@ -9,7 +9,7 @@ on:
       - ".github/workflows/quantum-pretraining-validation.yml"
   pull_request:
     branches:
-      - quantum-live-inference
+      - quantum-pretraining-review
     paths:
       - "pretraining/**"
       - ".github/workflows/quantum-pretraining-validation.yml"
