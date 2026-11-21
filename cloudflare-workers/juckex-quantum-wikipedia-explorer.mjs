@@ -1,4 +1,5 @@
 import { reviewCandidate } from "./auto_review.mjs";
+import { planMissingPageIds } from "./knowledge_sync_plan.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -90,7 +91,7 @@ async function syncApproved(env){
   const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND length(content)>=200").first();
   const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND length(content)>=200 ORDER BY id").all();
   const approvedIds=(approved.results||[]).map(row=>String(row.id));
-  const missingIds=approvedIds.filter(id=>!cachedIds.has(id)).slice(0,SYNC_BATCH);
+  const missingIds=planMissingPageIds(approvedIds,cachedIds,SYNC_BATCH);
   const rebuilding=cachedIds.size<Number(expected?.count||0);
   if(!missingIds.length) {
     return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
