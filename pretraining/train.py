@@ -33,7 +33,9 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
         missing = [key for key in required if not str(row.get(key, "")).strip()]
         if missing:
             raise ValueError(f"manifest line {line_no}: missing {', '.join(missing)}")
-        if row["review_status"] != "approved":\n            raise ValueError(f"manifest line {line_no}: document is not manually approved")\n        if row["split"] not in ("train", "validation"):
+        if row["review_status"] != "approved":
+            raise ValueError(f"manifest line {line_no}: document is not manually approved")
+        if row["split"] not in ("train", "validation"):
             raise ValueError(f"manifest line {line_no}: split must be train or validation")
         license_id = str(row["license_id"]).strip().lower()
         if license_id in ("unknown", "unverified", "none", "n/a"):
