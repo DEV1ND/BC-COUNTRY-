@@ -62,7 +62,7 @@ def main():
             "target":a.target,"target_reached":len(accepted)>=a.target,"rejected":rejected,
             "fabricated_examples":0,"split":"stable question-level 98/2",
             "warning":"A count target is not a quality guarantee. Review source terms, factual accuracy and duplicates before training."}
-    (out/"training_extra.json").write_text(json.dumps(accepted,ensure_ascii=False,indent=2),encoding="utf-8")
+    (out/"training_extra.jsonl").write_text("".join(json.dumps(x,ensure_ascii=False)+"\n" for x in accepted),encoding="utf-8")
     (out/"quantum_knowledge.jsonl").write_text("".join(json.dumps(x,ensure_ascii=False)+"\n" for x in accepted),encoding="utf-8")
     (out/"dataset_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(report,ensure_ascii=False,indent=2))
