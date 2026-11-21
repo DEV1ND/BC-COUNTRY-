@@ -1,18 +1,14 @@
-name = "juckex-quantum-web-explorer"
+name = "juckex-quantum-wikipedia-explorer"
 main = "worker.js"
 compatibility_date = "2026-11-21"
-
 [triggers]
 crons = ["*/5 * * * *"]
-
 [[d1_databases]]
 binding = "DB"
 database_name = "REPLACE_WITH_NEW_LAB_D1_DATABASE"
 database_id = "REPLACE_WITH_NEW_LAB_D1_ID"
-
 [[r2_buckets]]
 binding = "RAW_PAGES"
 bucket_name = "REPLACE_WITH_NEW_LAB_R2_BUCKET"
-
-# Set ADMIN_TOKEN using: wrangler secret put ADMIN_TOKEN
-# This worker searches Korean Wikipedia only; no Google or Naver API keys are needed.
+# Set ADMIN_TOKEN as a secret before deployment.
+# Update USER_AGENT in worker.js with a valid public contact URL or email.
