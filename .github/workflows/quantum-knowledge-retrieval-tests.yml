@@ -52,7 +52,7 @@ jobs:
         run: |
           node --check cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs
           node --check cloudflare-workers/auto_review.mjs
-          node --check quantum-lab-worker/worker.js
+          node --input-type=module --check < quantum-lab-worker/worker.js
       - name: Run Quantum Lab Worker contract tests
         run: node --test quantum-lab-worker/tests/worker_contract.test.mjs
       - name: Run retrieval regression tests
