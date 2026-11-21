@@ -1,4 +1,4 @@
-name: JUCKEX Quantum 10M architecture smoke test
+name: JUCKEX Quantum 10M extended training experiment
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ concurrency:
 jobs:
   architecture-smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
 
       - name: Verify and smoke-train Quantum 10M
         run: |
-          python bpe_candidate_train.py --steps 100 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
+          python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
           python - <<'PY'
           import json
           from pathlib import Path
@@ -49,7 +49,7 @@ jobs:
           print(json.dumps({
               "architecture": report["architecture"],
               "parameters": count,
-              "status": "architecture_smoke_test_only",
+              "status": "extended_training_experiment",
               "promotion": "not_promoted",
               "live_model_changed": False
           }, ensure_ascii=False, indent=2))
