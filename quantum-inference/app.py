@@ -76,7 +76,20 @@ def import_korean_wikipedia_seed():
     global wikipedia_seed_status
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
-        wikipedia_seed_status = {"status": "completed", **result}
+        smoke_tests = []
+        for query in ("인공지능", "대한민국", "태양계"):
+            matches = retrieve_knowledge(query, limit=3)
+            smoke_tests.append({
+                "query": query,
+                "matched": bool(matches),
+                "titles": [item["title"] for item in matches],
+            })
+        wikipedia_seed_status = {
+            "status": "completed",
+            **result,
+            "retrieval_smoke_tests": smoke_tests,
+            "retrieval_tests_passed": sum(1 for item in smoke_tests if item["matched"]),
+        }
     except Exception as exc:
         # Keep inference available even if Wikimedia is temporarily unavailable.
         wikipedia_seed_status = {"status": "failed", "error": str(exc)[:300], "imported_this_start": 0}
