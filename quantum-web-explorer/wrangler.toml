@@ -10,8 +10,4 @@ binding = "DB"
 database_name = "juckex-quantum-wiki-lab"
 database_id = "76fca6e4-2163-41fd-b49a-b2b6ad566da6"
 
-[[r2_buckets]]
-binding = "RAW_PAGES"
-bucket_name = "juckex-quantum-wiki-raw"
-
 # Set ADMIN_TOKEN, QUANTUM_INFERENCE_URL and QUANTUM_API_TOKEN as Worker secrets.
