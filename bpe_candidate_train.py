@@ -22,7 +22,7 @@ OUT = ROOT / "bpe_candidate_checkpoint.pt"
 REPORT = ROOT / "bpe_candidate_report.json"
 TOKENIZER_REPORT = ROOT / "bpe_candidate.json"
 BLOCK = 512
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class BPECandidate(nn.Module):
