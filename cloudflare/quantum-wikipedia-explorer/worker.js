@@ -86,8 +86,8 @@ async function syncApproved(env){
       return {ok:false,synced:0,error:"inference_ids_rejected",status:statusResponse.status,detail:cacheState};
   }catch(e){return {ok:false,synced:0,error:"inference_ids_unreachable",detail:String(e.message||e)};}
   const cachedIds=new Set(cacheState.page_ids.map(String));
-  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND length(content)>=200").first();
-  const candidates=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND length(content)>=200 ORDER BY id").all();
+  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND length(content) BETWEEN 200 AND 50000").first();
+  const candidates=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND length(content) BETWEEN 200 AND 50000 ORDER BY id").all();
   const missing=(candidates.results||[]).filter(row=>!cachedIds.has(String(row.id))).slice(0,SYNC_BATCH);
   if(!missing.length) return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
   const placeholders=missing.map(()=>"?").join(",");
