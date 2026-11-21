@@ -10,6 +10,7 @@ _STOP = {
     "뜻", "의미", "정의", "설명", "알려줘", "해주세요", "인가", "이란",
     "란", "은", "는", "이", "가", "을", "를", "의", "에", "에서",
     "으로", "로", "와", "과", "및", "대한", "관한", "관련",
+    "분야", "학문", "연구", "설명", "개념", "방법", "기본", "원리",
 }
 _SUFFIXES = (
     "무엇인가요", "무엇인가", "인가요", "인가", "이란", "에서", "으로",
@@ -19,22 +20,43 @@ _SUFFIXES = (
 
 def _norm(value):
     value = unicodedata.normalize("NFKC", str(value or "")).casefold()
-    return re.sub(r"\s+", " ", value).strip()
+    return re.sub(r"\\s+", " ", value).strip()
+
+
+def _expand_domain_terms(terms):
+    """Add conservative Korean concept aliases for common paraphrases."""
+    expanded = list(terms)
+    present = set(expanded)
+
+    def add(term):
+        if term not in present:
+            expanded.append(term)
+            present.add(term)
+
+    if "화학자" in present:
+        add("화학")
+    if "신호" in present and any(term.startswith("연속") for term in present):
+        add("아날로그")
+    if {"변화율", "누적량"}.issubset(present) or {"미분", "적분"}.issubset(present):
+        add("미적분학")
+    if {"입자", "물리학"}.issubset(present):
+        add("입자물리학")
+    return expanded
 
 
 def query_terms(value):
-    """Return deduplicated Korean/Latin terms with common Korean endings removed."""
-    raw = re.findall(r"[0-9a-z]+|[가-힣]{2,}", _norm(value))
+    """Return deduplicated Korean/Latin terms with particles and safe aliases."""
+    raw = re.findall(r"[0-9a-z]+|[가-힣]+", _norm(value))
     result = []
     for token in raw:
         stem = token
         for suffix in _SUFFIXES:
-            if stem.endswith(suffix) and len(stem) - len(suffix) >= 2:
+            if stem.endswith(suffix) and len(stem) - len(suffix) >= 1:
                 stem = stem[:-len(suffix)]
                 break
-        if stem not in _STOP and len(stem) >= 2 and stem not in result:
+        if stem not in _STOP and len(stem) >= 1 and stem not in result:
             result.append(stem)
-    return result
+    return _expand_domain_terms(result)
 
 
 def build_fts_query(question, max_terms=10):
@@ -59,10 +81,12 @@ def score_document(question, title, body):
     title_coverage = title_hits / len(terms)
     body_coverage = body_hits / len(terms)
 
-    compact_q = re.sub(r"\s+", "", q)
-    compact_title = re.sub(r"\s+", "", title_n)
+    compact_q = re.sub(r"\\s+", "", q)
+    compact_title = re.sub(r"\\s+", "", title_n)
     exact_title = bool(compact_q and compact_q == compact_title)
-    title_phrase = bool(compact_title and compact_title in compact_q)
+    # A short generic title such as "물리학" must not receive a phrase bonus
+    # merely because it appears at the end of a longer question.
+    title_phrase = bool(len(compact_title) >= 4 and compact_title in compact_q)
 
     score = 0.68 * title_coverage + 0.32 * body_coverage
     if exact_title:
