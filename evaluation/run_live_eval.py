@@ -33,6 +33,19 @@ def looks_like_abstention(answer):
     )
     return any(p in text for p in phrases)
 
+def check_health(endpoint, timeout=30):
+    request = urllib.request.Request(endpoint.rstrip("/") + "/health", method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"health check failed: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("ok") is not True:
+        raise RuntimeError("health endpoint did not report ok=true")
+    if payload.get("model_loaded") is not True:
+        raise RuntimeError("Quantum checkpoint is not loaded; evaluation stopped before generation")
+    return payload
+
 def request_answer(endpoint, prompt, token, timeout):
     body = json.dumps({"prompt": prompt, "max_new_tokens": 120, "temperature": 0.0},
                       ensure_ascii=False).encode("utf-8")
@@ -127,7 +140,12 @@ def main():
                           "network_requests": 0, "training_performed": False}, ensure_ascii=False))
         return
     token = os.getenv(args.token_env, "")
+    health = check_health(args.endpoint, min(args.timeout, 45))
+    print(json.dumps({"health_check": "passed", "model": health.get("model"),
+                      "checkpoint_steps": health.get("checkpoint_steps"),
+                      "knowledge_documents": health.get("knowledge_documents")}, ensure_ascii=False), flush=True)
     predictions, raw_rows, summary = run(rows, args.endpoint, token, args.timeout, args.delay, args.limit)
+    summary["health"] = health
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
