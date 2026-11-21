@@ -1,4 +1,7 @@
 """Build-time checks for model loading, retrieval, and the FastAPI routes."""
+import hashlib
+from pathlib import Path
+
 import app
 from fastapi.testclient import TestClient
 
@@ -7,6 +10,14 @@ assert app.tokenizer is not None
 assert app.PARAMS == 248576, f"Unexpected parameter count: {app.PARAMS}"
 assert app.MODEL_STEPS == 1700, f"Unexpected checkpoint step count: {app.MODEL_STEPS}"
 assert len(app.QA) >= 1, "No approved Q&A loaded"
+assert all(str(row.get("source", "")).strip() for row in app.QA), "Q&A source provenance is missing"
+
+checkpoint_path = Path(app.CHECKPOINT)
+checksum_file = checkpoint_path.parent / "SHA256SUMS"
+assert checksum_file.is_file(), "Checkpoint checksum manifest is missing"
+expected_hash = checksum_file.read_text(encoding="utf-8").split()[0]
+actual_hash = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+assert actual_hash == expected_hash, "Genesis checkpoint checksum mismatch"
 
 for sample in ("인공지능이란 무엇인가요?", "질문:알고리즘이란 무엇인가요?\n답변:"):
     ids = app.tokenizer.encode(sample)
