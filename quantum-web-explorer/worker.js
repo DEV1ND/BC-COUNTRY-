@@ -1,367 +1,98 @@
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
+const WIKI_API = "https://ko.wikipedia.org/w/api.php";
+const USER_AGENT = "QuantumWikiResearch/1.0 (configure a public contact URL or email)";
 const MAX_RESULTS = 10;
-const MAX_PAGE_BYTES = 1_000_000;
-const USER_AGENT = "QuantumResearchBot/1.0 (+contact: configure QUANTUM_CRAWLER_CONTACT)";
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), { status, headers: JSON_HEADERS });
-}
-function hostOf(value) {
-  try { return new URL(value).hostname.toLowerCase(); } catch { return ""; }
-}
-function allowedHost(host, domains) {
-  return domains.some(d => host === d || host.endsWith("." + d));
+function json(data, status=200) {
+  return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});
 }
 async function sha256(text) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
+  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");
 }
-async function getAllowedDomains(db) {
-  const { results = [] } = await db.prepare("SELECT domain FROM allowed_domains WHERE enabled = 1").all();
-  return results.map(x => String(x.domain).toLowerCase());
-}
-async function searchWikipedia(_env, query) {
-  // Wikimedia MediaWiki API: discover Korean Wikipedia articles.
-  const url = new URL("https://ko.wikipedia.org/w/api.php");
-  url.search = new URLSearchParams({
-    action: "query", list: "search", srsearch: query, srnamespace: "0",
-    srlimit: String(MAX_RESULTS), format: "json", origin: "*"
-  });
-  const res = await fetch(url, {
-    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
-    signal: AbortSignal.timeout(12000)
-  });
-  if (!res.ok) throw new Error("Wikipedia search HTTP " + res.status);
-  const data = await res.json();
-  return (data.query?.search || []).map(x => ({
-    provider: "wikipedia",
-    title: x.title || "",
-    url: "https://ko.wikipedia.org/wiki/" + encodeURIComponent(String(x.title || "").replace(/ /g, "_")),
-    snippet: "",
-    license: "CC BY-SA 4.0",
-    attribution: "Wikipedia contributors",
-    sourceTitle: x.title || ""
-  }));
-}
-async function fetchWikipediaArticle(item) {
-  const title = item.sourceTitle || item.title;
-  const url = new URL("https://ko.wikipedia.org/w/api.php");
-  url.search = new URLSearchParams({
-    action: "query", prop: "extracts|info", explaintext: "1",
-    explaintext: "1", inprop: "url", titles: title, format: "json",
-    redirects: "1", origin: "*"
-  });
-  const res = await fetch(url, {
-    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
-    signal: AbortSignal.timeout(15000)
-  });
-  if (!res.ok) throw new Error("Wikipedia article HTTP " + res.status);
-  const data = await res.json();
-  const page = Object.values(data.query?.pages || {})[0];
-  if (!page || page.missing !== undefined) return null;
-  return {
-    text: String(page.extract || "").slice(0, 300000),
-    title: page.title || title,
-    url: page.fullurl || item.url,
-    revisionId: page.lastrevid || null
-  };
-}
-async function robotsAllows(pageUrl) {
-  try {
-    const robotsUrl = new URL("/robots.txt", pageUrl).toString();
-    const res = await fetch(robotsUrl, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(7000) });
-    if (res.status === 404) return true;
-    if (!res.ok) return false;
-    const text = (await res.text()).slice(0, 100000);
-    let applies = false;
-    const disallow = [];
-    for (const raw of text.split(/\r?\n/)) {
-      const line = raw.split("#")[0].trim();
-      const i = line.indexOf(":");
-      if (i < 0) continue;
-      const key = line.slice(0, i).trim().toLowerCase();
-      const value = line.slice(i + 1).trim();
-      if (key === "user-agent") applies = value === "*" || /quantumresearchbot/i.test(value);
-      else if (applies && key === "disallow" && value) disallow.push(value);
-    }
-    const path = new URL(pageUrl).pathname;
-    return !disallow.some(rule => path.startsWith(rule));
-  } catch { return false; }
-}
-function extractText(html) {
-  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--([\s\S]*?)-->/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
-    .replace(/&#39;/g, "'").replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ").trim().slice(0, 300000);
-}
-async function crawlResult(item, domains, env) {
-  const host = hostOf(item.url);
-  if (!host || !allowedHost(host, domains)) return "skipped_domain";
-  let text, finalUrl = item.url, title = item.title, revisionId = null;
-  if (item.provider === "wikipedia") {
-    const article = await fetchWikipediaArticle(item);
-    if (!article) return "missing_article";
-    text = article.text;
-    finalUrl = article.url;
-    title = article.title;
-    revisionId = article.revisionId;
-  } else {
-    // Non-Wikipedia pages remain subject to robots.txt and per-domain allowlisting.
-    if (!(await robotsAllows(item.url))) return "skipped_robots";
-    const res = await fetch(item.url, {
-      headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
-      redirect: "manual", signal: AbortSignal.timeout(12000)
-    });
-    if (!res.ok) return "fetch_error_" + res.status;
-    const type = res.headers.get("content-type") || "";
-    if (!type.includes("text/html") && !type.includes("text/plain")) return "skipped_content_type";
-    const body = await res.text();
-    if (new TextEncoder().encode(body).byteLength > MAX_PAGE_BYTES) return "skipped_too_large";
-    text = extractText(body);
+async function wikiRequest(params) {
+  const url=new URL(WIKI_API);
+  url.search=new URLSearchParams({...params,format:"json",formatversion:"2",maxlag:"5"});
+  const res=await fetch(url,{headers:{"user-agent":USER_AGENT,"accept":"application/json"},signal:AbortSignal.timeout(15000)});
+  if(res.status===429||res.status===503) {
+    const wait=Number(res.headers.get("retry-after")||5);
+    throw new Error("Wikimedia throttled; retry after "+wait+" seconds");
   }
-  if (text.length < 500) return "skipped_short";
-  const hash = await sha256(text);
-  if (await env.DB.prepare("SELECT id FROM pages WHERE content_hash = ?").bind(hash).first()) return "duplicate";
-  const id = crypto.randomUUID();
-  const key = "pages/" + id + ".txt";
-  await env.RAW_PAGES.put(key, text, { httpMetadata: { contentType: "text/plain; charset=utf-8" } });
-  await env.DB.prepare(
-    "INSERT INTO pages (id, provider, title, url, domain, snippet, content_hash, r2_key, status, license_status, discovered_at, reviewer_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, datetime('now'), ?)"
-  ).bind(
-    id, item.provider, title.slice(0, 500), finalUrl, host, "", hash, key,
-    item.provider === "wikipedia" ? "cc-by-sa-4.0-review-required" : "unknown",
-    item.provider === "wikipedia"
-      ? JSON.stringify({ attribution: "Wikipedia contributors", license: "CC BY-SA 4.0", revisionId, notice: "Verify current page license and preserve attribution/share-alike terms before reuse." })
-      : "License not verified; do not train until reviewed."
-  ).run();
-  return "pending_review";
+  if(!res.ok) throw new Error("Wikipedia API HTTP "+res.status);
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.info||data.error.code);
+  return data;
+}
+async function collectTopic(topic,env) {
+  const search=await wikiRequest({
+    action:"query",list:"search",srsearch:topic.query,srnamespace:"0",
+    srlimit:String(MAX_RESULTS),srprop:"snippet|timestamp"
+  });
+  let discovered=0;
+  for(const hit of (search.query?.search||[])) {
+    const detail=await wikiRequest({
+      action:"query",prop:"extracts|info",explaintext:"1",exsectionformat:"plain",
+      inprop:"url",pageids:String(hit.pageid)
+    });
+    const page=detail.query?.pages?.[0];
+    const text=String(page?.extract||"").trim();
+    if(!page||text.length<400) continue;
+    const hash=await sha256(text);
+    const exists=await env.DB.prepare("SELECT id FROM pages WHERE content_hash=?").bind(hash).first();
+    if(exists) continue;
+    const id=crypto.randomUUID();
+    const key="pages/"+id+".txt";
+    const sourceUrl=page.fullurl||("https://ko.wikipedia.org/wiki/"+encodeURIComponent(page.title.replace(/ /g,"_")));
+    await env.RAW_PAGES.put(key,text,{httpMetadata:{contentType:"text/plain; charset=utf-8"}});
+    await env.DB.prepare(
+      "INSERT INTO pages (id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,license_name,attribution,discovered_at) VALUES (?,'wikipedia',?,?,?,?,?,?, 'pending_review','attribution_required','CC BY-SA 4.0','Wikipedia contributors; retain page title, URL, license, and indicate modifications',datetime('now'))"
+    ).bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key).run();
+    discovered++;
+  }
+  await env.DB.prepare("UPDATE search_topics SET last_searched_at=datetime('now') WHERE query=?").bind(topic.query).run();
+  return discovered;
 }
 async function runCycle(env) {
-  const state = await env.DB.prepare("SELECT value FROM settings WHERE key = 'running'").first();
-  if (!state || state.value !== "1") return { running: false, discovered: 0, message: "paused" };
-  const domains = await getAllowedDomains(env.DB);
-  if (!domains.length) return { running: true, discovered: 0, message: "no_allowed_domains" };
-  const { results: topics = [] } = await env.DB.prepare(
-    "SELECT query FROM search_topics WHERE enabled = 1 ORDER BY last_searched_at IS NOT NULL, last_searched_at LIMIT 4"
+  const state=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
+  if(!state||state.value!=="1") return {running:false,discovered:0,message:"paused"};
+  const {results:topics=[]}=await env.DB.prepare(
+    "SELECT query FROM search_topics WHERE enabled=1 ORDER BY last_searched_at IS NOT NULL,last_searched_at LIMIT 2"
   ).all();
-  let discovered = 0;
-  const errors = [];
-  for (const row of topics) {
-    for (const provider of [searchWikipedia]) {
-      try {
-        for (const item of await provider(env, row.query)) {
-          if (await crawlResult(item, domains, env) === "pending_review") discovered++;
-        }
-      } catch (e) { errors.push(String(e.message || e)); }
-    }
-    await env.DB.prepare("UPDATE search_topics SET last_searched_at = datetime('now') WHERE query = ?").bind(row.query).run();
+  let discovered=0; const errors=[];
+  // Sequential requests, low concurrency, and maxlag protect Wikimedia infrastructure.
+  for(const topic of topics) {
+    try { discovered+=await collectTopic(topic,env); }
+    catch(e) { errors.push(String(e.message||e)); }
   }
-  await env.DB.prepare("INSERT INTO crawl_runs (discovered, errors, ran_at) VALUES (?, ?, datetime('now'))")
-    .bind(discovered, JSON.stringify(errors.slice(0, 10))).run();
-  return { running: true, discovered, topics: topics.length, errors };
+  await env.DB.prepare("INSERT INTO crawl_runs(discovered,errors,ran_at) VALUES(?,?,datetime('now'))")
+    .bind(discovered,JSON.stringify(errors.slice(0,5))).run();
+  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,errors};
 }
-function authorized(request, env) {
-  return !!env.ADMIN_TOKEN && request.headers.get("authorization") === "Bearer " + env.ADMIN_TOKEN;
+function authorized(request,env) {
+  return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;
 }
 export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/health")
-      return json({ ok: true, service: "quantum-web-explorer", isolated: true });
-    if (!authorized(request, env)) return json({ error: "unauthorized" }, 401);
-    if (request.method === "GET" && url.pathname === "/status") {
-      const running = await env.DB.prepare("SELECT value FROM settings WHERE key = 'running'").first();
-      const counts = await env.DB.prepare("SELECT status, COUNT(*) AS count FROM pages GROUP BY status").all();
-      const latest = await env.DB.prepare("SELECT discovered, ran_at FROM crawl_runs ORDER BY id DESC LIMIT 1").first();
-      return json({ running: running?.value === "1", pageCounts: counts.results || [], latestRun: latest || null });
+  async fetch(request,env) {
+    const url=new URL(request.url);
+    if(request.method==="GET"&&url.pathname==="/health")
+      return json({ok:true,service:"quantum-wikipedia-explorer",isolated:true,provider:"ko.wikipedia.org"});
+    if(!authorized(request,env)) return json({error:"unauthorized"},401);
+    if(request.method==="GET"&&url.pathname==="/status") {
+      const running=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
+      const counts=await env.DB.prepare("SELECT status,COUNT(*) AS count FROM pages GROUP BY status").all();
+      const latest=await env.DB.prepare("SELECT discovered,ran_at FROM crawl_runs ORDER BY id DESC LIMIT 1").first();
+      return json({running:running?.value==="1",provider:"ko.wikipedia.org",pageCounts:counts.results||[],latestRun:latest||null});
     }
-    if (request.method === "POST" && url.pathname === "/start") {
+    if(request.method==="POST"&&url.pathname==="/start") {
       await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
-      return json({ ok: true, running: true });
+      return json({ok:true,running:true});
     }
-    if (request.method === "POST" && url.pathname === "/pause") {
+    if(request.method==="POST"&&url.pathname==="/pause") {
       await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
-      return json({ ok: true, running: false });
+      return json({ok:true,running:false});
     }
-    if (request.method === "POST" && url.pathname === "/run-once") return json(await runCycle(env));
-    return json({ error: "not_found" }, 404);
+    if(request.method==="POST"&&url.pathname==="/run-once") return json(await runCycle(env));
+    return json({error:"not_found"},404);
   },
-  async scheduled(_event, env, ctx) { ctx.waitUntil(runCycle(env)); }
-}async function searchWikipedia(_env, query) {
-  // Wikimedia MediaWiki API: discover Korean Wikipedia articles.
-  const url = new URL("https://ko.wikipedia.org/w/api.php");
-  url.search = new URLSearchParams({
-    action: "query", list: "search", srsearch: query, srnamespace: "0",
-    srlimit: String(MAX_RESULTS), format: "json", origin: "*"
-  });
-  const res = await fetch(url, {
-    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
-    signal: AbortSignal.timeout(12000)
-  });
-  if (!res.ok) throw new Error("Wikipedia search HTTP " + res.status);
-  const data = await res.json();
-  return (data.query?.search || []).map(x => ({
-    provider: "wikipedia",
-    title: x.title || "",
-    url: "https://ko.wikipedia.org/wiki/" + encodeURIComponent(String(x.title || "").replace(/ /g, "_")),
-    snippet: "",
-    license: "CC BY-SA 4.0",
-    attribution: "Wikipedia contributors",
-    sourceTitle: x.title || ""
-  }));
-}
-async function fetchWikipediaArticle(item) {
-  const title = item.sourceTitle || item.title;
-  const url = new URL("https://ko.wikipedia.org/w/api.php");
-  url.search = new URLSearchParams({
-    action: "query", prop: "extracts|info", explaintext: "1",
-    explaintext: "1", inprop: "url", titles: title, format: "json",
-    redirects: "1", origin: "*"
-  });
-  const res = await fetch(url, {
-    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
-    signal: AbortSignal.timeout(15000)
-  });
-  if (!res.ok) throw new Error("Wikipedia article HTTP " + res.status);
-  const data = await res.json();
-  const page = Object.values(data.query?.pages || {})[0];
-  if (!page || page.missing !== undefined) return null;
-  return {
-    text: String(page.extract || "").slice(0, 300000),
-    title: page.title || title,
-    url: page.fullurl || item.url,
-    revisionId: page.lastrevid || null
-  };
-}
-async function robotsAllows(pageUrl) {
-  try {
-    const robotsUrl = new URL("/robots.txt", pageUrl).toString();
-    const res = await fetch(robotsUrl, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(7000) });
-    if (res.status === 404) return true;
-    if (!res.ok) return false;
-    const text = (await res.text()).slice(0, 100000);
-    let applies = false;
-    const disallow = [];
-    for (const raw of text.split(/\r?\n/)) {
-      const line = raw.split("#")[0].trim();
-      const i = line.indexOf(":");
-      if (i < 0) continue;
-      const key = line.slice(0, i).trim().toLowerCase();
-      const value = line.slice(i + 1).trim();
-      if (key === "user-agent") applies = value === "*" || /quantumresearchbot/i.test(value);
-      else if (applies && key === "disallow" && value) disallow.push(value);
-    }
-    const path = new URL(pageUrl).pathname;
-    return !disallow.some(rule => path.startsWith(rule));
-  } catch { return false; }
-}
-function extractText(html) {
-  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--([\s\S]*?)-->/g, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
-    .replace(/&#39;/g, "'").replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ").trim().slice(0, 300000);
-}
-async function crawlResult(item, domains, env) {
-  const host = hostOf(item.url);
-  if (!host || !allowedHost(host, domains)) return "skipped_domain";
-  let text, finalUrl = item.url, title = item.title, revisionId = null;
-  if (item.provider === "wikipedia") {
-    const article = await fetchWikipediaArticle(item);
-    if (!article) return "missing_article";
-    text = article.text;
-    finalUrl = article.url;
-    title = article.title;
-    revisionId = article.revisionId;
-  } else {
-    // Non-Wikipedia pages remain subject to robots.txt and per-domain allowlisting.
-    if (!(await robotsAllows(item.url))) return "skipped_robots";
-    const res = await fetch(item.url, {
-      headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
-      redirect: "manual", signal: AbortSignal.timeout(12000)
-    });
-    if (!res.ok) return "fetch_error_" + res.status;
-    const type = res.headers.get("content-type") || "";
-    if (!type.includes("text/html") && !type.includes("text/plain")) return "skipped_content_type";
-    const body = await res.text();
-    if (new TextEncoder().encode(body).byteLength > MAX_PAGE_BYTES) return "skipped_too_large";
-    text = extractText(body);
-  }
-  if (text.length < 500) return "skipped_short";
-  const hash = await sha256(text);
-  if (await env.DB.prepare("SELECT id FROM pages WHERE content_hash = ?").bind(hash).first()) return "duplicate";
-  const id = crypto.randomUUID();
-  const key = "pages/" + id + ".txt";
-  await env.RAW_PAGES.put(key, text, { httpMetadata: { contentType: "text/plain; charset=utf-8" } });
-  await env.DB.prepare(
-    "INSERT INTO pages (id, provider, title, url, domain, snippet, content_hash, r2_key, status, license_status, discovered_at, reviewer_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, datetime('now'), ?)"
-  ).bind(
-    id, item.provider, title.slice(0, 500), finalUrl, host, "", hash, key,
-    item.provider === "wikipedia" ? "cc-by-sa-4.0-review-required" : "unknown",
-    item.provider === "wikipedia"
-      ? JSON.stringify({ attribution: "Wikipedia contributors", license: "CC BY-SA 4.0", revisionId, notice: "Verify current page license and preserve attribution/share-alike terms before reuse." })
-      : "License not verified; do not train until reviewed."
-  ).run();
-  return "pending_review";
-}
-async function runCycle(env) {
-  const state = await env.DB.prepare("SELECT value FROM settings WHERE key = 'running'").first();
-  if (!state || state.value !== "1") return { running: false, discovered: 0, message: "paused" };
-  const domains = await getAllowedDomains(env.DB);
-  if (!domains.length) return { running: true, discovered: 0, message: "no_allowed_domains" };
-  const { results: topics = [] } = await env.DB.prepare(
-    "SELECT query FROM search_topics WHERE enabled = 1 ORDER BY last_searched_at IS NOT NULL, last_searched_at LIMIT 4"
-  ).all();
-  let discovered = 0;
-  const errors = [];
-  for (const row of topics) {
-    for (const provider of [searchWikipedia]) {
-      try {
-        for (const item of await provider(env, row.query)) {
-          if (await crawlResult(item, domains, env) === "pending_review") discovered++;
-        }
-      } catch (e) { errors.push(String(e.message || e)); }
-    }
-    await env.DB.prepare("UPDATE search_topics SET last_searched_at = datetime('now') WHERE query = ?").bind(row.query).run();
-  }
-  await env.DB.prepare("INSERT INTO crawl_runs (discovered, errors, ran_at) VALUES (?, ?, datetime('now'))")
-    .bind(discovered, JSON.stringify(errors.slice(0, 10))).run();
-  return { running: true, discovered, topics: topics.length, errors };
-}
-function authorized(request, env) {
-  return !!env.ADMIN_TOKEN && request.headers.get("authorization") === "Bearer " + env.ADMIN_TOKEN;
-}
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/health")
-      return json({ ok: true, service: "quantum-web-explorer", isolated: true });
-    if (!authorized(request, env)) return json({ error: "unauthorized" }, 401);
-    if (request.method === "GET" && url.pathname === "/status") {
-      const running = await env.DB.prepare("SELECT value FROM settings WHERE key = 'running'").first();
-      const counts = await env.DB.prepare("SELECT status, COUNT(*) AS count FROM pages GROUP BY status").all();
-      const latest = await env.DB.prepare("SELECT discovered, ran_at FROM crawl_runs ORDER BY id DESC LIMIT 1").first();
-      return json({ running: running?.value === "1", pageCounts: counts.results || [], latestRun: latest || null });
-    }
-    if (request.method === "POST" && url.pathname === "/start") {
-      await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','1') ON CONFLICT(key) DO UPDATE SET value='1'").run();
-      return json({ ok: true, running: true });
-    }
-    if (request.method === "POST" && url.pathname === "/pause") {
-      await env.DB.prepare("INSERT INTO settings(key,value) VALUES('running','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
-      return json({ ok: true, running: false });
-    }
-    if (request.method === "POST" && url.pathname === "/run-once") return json(await runCycle(env));
-    return json({ error: "not_found" }, 404);
-  },
-  async scheduled(_event, env, ctx) { ctx.waitUntil(runCycle(env)); }
+  async scheduled(_event,env,ctx) { ctx.waitUntil(runCycle(env)); }
 };
