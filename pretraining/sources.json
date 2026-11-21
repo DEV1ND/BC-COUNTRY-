@@ -50,6 +50,34 @@
       ],
       "ingestion_status": "blocked_pending_collection_specific_terms",
       "approval_required": true
+    },
+    {
+      "name": "OpenDataLab WanJuan-Korean",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "history",
+        "politics",
+        "culture",
+        "general web text",
+        "professional knowledge"
+      ],
+      "format": [
+        "Parquet dataset shards"
+      ],
+      "license_id": "CC-BY-4.0",
+      "source": "https://huggingface.co/datasets/opendatalab/WanJuan-Korean",
+      "license_reference": "https://creativecommons.org/licenses/by/4.0/",
+      "evidence": "The Hugging Face dataset card labels the dataset CC-BY-4.0 and describes a Korean corpus exceeding 280GB across 7 broad categories and 34 subcategories. The card requires attribution and no additional restrictions.",
+      "limitations": [
+        "dataset viewer currently fails because Parquet shards expose inconsistent schemas",
+        "the visible sample includes spam-like promotional text and personal-data-like content, so substantial quality and privacy filtering is required",
+        "the dataset card license label is not a substitute for auditing upstream source rights, attribution, and exceptions in the actual files",
+        "inspect shard metadata, content fields, provenance and notices before any ingestion"
+      ],
+      "ingestion_status": "not_downloaded_candidate_pending_content_and_rights_audit",
+      "approval_required": true
     }
   ],
   "excluded_sources": [
@@ -79,6 +107,12 @@
       "name": "Stack Exchange public data",
       "source": "https://archive.org/details/stackexchange",
       "reason": "Version-dependent CC BY-SA terms require post/revision-level attribution and ShareAlike review; not admitted by current trainer allowlist."
+    },
+    {
+      "name": "pathcosmos Korean HPLT2 pretraining derivative",
+      "source": "https://huggingface.co/datasets/pathcosmos/korean-pretrain-hplt2",
+      "upstream_license_claim": "CC0-1.0",
+      "reason": "The derivative dataset card reports 27.4M Korean documents and an upstream CC0 claim, but explicitly says document URLs/provenance have not been restored and that CC0 packaging does not grant blanket rights to individual texts. Not approved for training until per-document provenance and rights can be verified."
     }
   ],
   "excluded_by_default": [
