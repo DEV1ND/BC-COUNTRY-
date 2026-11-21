@@ -83,7 +83,7 @@ tokenizer = None
 model = None
 MODEL_ERROR = None
 try:
-    checkpoint = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
+    checkpoint = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=True)
     arch = checkpoint.get("architecture", {})
     tokenizer = BPETokenizer(checkpoint["tokenizer"])
     model = BPECandidate(len(tokenizer.vocab), int(arch.get("width",64)),
@@ -98,7 +98,19 @@ except Exception as exc:
 
 app = FastAPI(title="JUCKEX Genesis Beta", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False,
-                   allow_methods=["GET","POST"], allow_headers=["Content-Type"])
+                   allow_methods=["GET","POST","OPTIONS"], allow_headers=["Content-Type"])
+
+@app.get("/")
+def root():
+    return {"service":"JUCKEX Genesis Beta","status":"ok" if model is not None else "degraded",
+            "health":"/health","readiness":"/ready","model_info":"/v1/model"}
+
+@app.get("/ready")
+def readiness():
+    ready = model is not None and tokenizer is not None and CHECKPOINT.is_file()
+    return {"ready":ready,"model_loaded":model is not None,
+            "checkpoint_exists":CHECKPOINT.is_file(),"approved_qa_count":len(QA),
+            "external_llm_api":False}
 
 class GenerateRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1200)
@@ -147,7 +159,7 @@ def health():
     return {"status":"ok" if model is not None else "degraded", "service":"genesis-beta",
             "model":"JUCKEX Genesis", "model_loaded":model is not None,
             "model_error":MODEL_ERROR, "parameters":PARAMS, "training_steps":MODEL_STEPS,
-            "approved_qa_count":len(QA), "external_llm_api":False}
+            "approved_qa_count":len(QA), "external_llm_api":False, "checkpoint_exists":CHECKPOINT.is_file()}
 
 @app.get("/v1/model")
 def model_info():
