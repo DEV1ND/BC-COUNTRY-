@@ -1,41 +1,64 @@
-"""Small, dependency-free retrieval experiment for Quantum.
-This is an isolated, local-data-only helper; it does not call external AI APIs.
-"""
-from collections import Counter
-import math
+"""Conservative, local-only retrieval for approved Quantum examples."""
 import re
 
 
-def normalize(text):
-    return re.sub(r"[^0-9a-z가-힣]+", "", str(text).lower())
+_STOP_WORDS = {
+    "무엇", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
+    "뜻", "의미", "정의", "설명", "설명해줘", "알려줘", "해주세요",
+    "주요", "기본", "대략", "가장", "큰", "작은", "세가지", "세", "가지",
+    "무엇인가요", "무엇인가", "인가요", "인가", "이란", "란",
+    "언어", "차이", "차이는", "역할", "기능", "방법", "과정", "원리",
+    "특징", "사용", "사용되나요", "어디에", "어떻게",
+}
+_SUFFIXES = ("인가요", "인가", "에서", "으로", "에게", "은", "는", "이", "가",
+             "을", "를", "의", "와", "과", "에", "로", "란", "은요", "는요")
 
 
-def char_ngrams(text, min_n=2, max_n=4):
-    value = normalize(text)
-    grams = []
-    for n in range(min_n, max_n + 1):
-        grams.extend(value[i:i+n] for i in range(max(0, len(value)-n+1)))
-    return Counter(grams)
+def content_tokens(text):
+    """Extract conservative topic terms; strip common Korean particles."""
+    raw = re.findall(r"[0-9a-z]+|[가-힣]+", str(text).lower())
+    result = []
+    for token in raw:
+        changed = True
+        while changed:
+            changed = False
+            for suffix in _SUFFIXES:
+                if len(token) > len(suffix) + 1 and token.endswith(suffix):
+                    token = token[:-len(suffix)]
+                    changed = True
+                    break
+        if len(token) >= 2 and token not in _STOP_WORDS:
+            result.append(token)
+    return result
 
 
-def cosine_similarity(left, right):
-    a, b = char_ngrams(left), char_ngrams(right)
+def intent_signature(question):
+    q = str(question).lower()
+    if re.search(r"차이|비교|공통점|다른 점", q):
+        return "comparison"
+    if re.search(r"어떻게|방법|과정|원리|왜", q):
+        return "how"
+    if re.search(r"역할|기능|사용|쓰이|어디에", q):
+        return "function"
+    if re.search(r"가장|얼마|몇|누구|언제|어느", q):
+        return "fact"
+    if re.search(r"무엇|이란|란|뜻|의미|정의|어떤", q):
+        return "definition"
+    return "general"
+
+
+def token_similarity(left, right):
+    a, b = set(content_tokens(left)), set(content_tokens(right))
     if not a or not b:
         return 0.0
-    dot = sum(count * b.get(term, 0) for term, count in a.items())
-    norm_a = math.sqrt(sum(v*v for v in a.values()))
-    norm_b = math.sqrt(sum(v*v for v in b.values()))
-    return dot / max(1e-12, norm_a * norm_b)
+    return len(a & b) / len(a | b)
 
 
-def retrieve(question, approved_rows, threshold=0.42, min_margin=0.035):
-    """Return a stored answer only when lexical similarity is sufficiently clear.
-
-    Rows must already be filtered to approved training examples. The function
-    never uses validation or independent evaluation answers as its index.
-    """
+def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
+    """Return a stored answer only for a clear topic AND question-intent match."""
     ranked = []
     seen = set()
+    query_intent = intent_signature(question)
     for row in approved_rows:
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
@@ -45,17 +68,22 @@ def retrieve(question, approved_rows, threshold=0.42, min_margin=0.035):
         if not candidate_q or not answer or key in seen:
             continue
         seen.add(key)
-        ranked.append((cosine_similarity(question, candidate_q), candidate_q, answer))
+        if intent_signature(candidate_q) != query_intent:
+            continue
+        score = token_similarity(question, candidate_q)
+        ranked.append((score, candidate_q, answer))
     ranked.sort(key=lambda item: item[0], reverse=True)
     if not ranked:
-        return {"matched": False, "score": 0.0, "question": None, "answer": None}
+        return {"matched": False, "score": 0.0, "margin": 0.0,
+                "question": None, "answer": None}
     score, matched_q, answer = ranked[0]
     second = ranked[1][0] if len(ranked) > 1 else 0.0
-    accepted = score >= threshold and (score - second) >= min_margin
+    margin = score - second
+    accepted = score >= threshold and margin >= min_margin
     return {
         "matched": accepted,
         "score": round(score, 6),
-        "margin": round(score-second, 6),
+        "margin": round(margin, 6),
         "question": matched_q,
         "answer": answer if accepted else None,
     }
