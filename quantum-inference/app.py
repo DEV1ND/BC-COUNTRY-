@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3
+import os, json, re, sqlite3, subprocess, sys, time
 from pathlib import Path
 from typing import Optional
 import torch
@@ -13,6 +13,8 @@ BLOCK = 512
 DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
 CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
+ROOT = Path(__file__).resolve().parent
+REPORT_PATH = Path(os.getenv("QUANTUM_TRAINING_REPORT", str(ROOT / "quantum_training_report.json")))
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
 KNOWLEDGE_DB = Path(os.getenv("QUANTUM_KNOWLEDGE_DB", "quantum_knowledge.sqlite3"))
 
@@ -131,16 +133,96 @@ def import_wiki_knowledge(req: WikiKnowledgeImport, authorization: Optional[str]
                 text, source UNINDEXED, url UNINDEXED, license UNINDEXED,
                 attribution UNINDEXED, page_id UNINDEXED, tokenize='unicode61'
             )""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS wiki_training_documents (
+                page_id TEXT PRIMARY KEY, source TEXT NOT NULL, url TEXT NOT NULL,
+                license TEXT NOT NULL, attribution TEXT NOT NULL, text TEXT NOT NULL,
+                approved INTEGER NOT NULL DEFAULT 1, imported_at TEXT NOT NULL
+            )""")
             for doc in req.documents:
                 conn.execute("DELETE FROM wiki_knowledge WHERE page_id=?", (doc.page_id,))
                 conn.execute("INSERT INTO wiki_knowledge(text,source,url,license,attribution,page_id) VALUES(?,?,?,?,?,?)",
                     (doc.text, "Wikipedia: " + doc.title, doc.url, doc.license, doc.attribution, doc.page_id))
+                conn.execute("""INSERT INTO wiki_training_documents
+                    (page_id,source,url,license,attribution,text,approved,imported_at)
+                    VALUES(?,?,?,?,?,?,1,datetime('now'))
+                    ON CONFLICT(page_id) DO UPDATE SET source=excluded.source,url=excluded.url,
+                    license=excluded.license,attribution=excluded.attribution,text=excluded.text,
+                    approved=1,imported_at=datetime('now')""",
+                    (doc.page_id, "Wikipedia: " + doc.title, doc.url, doc.license, doc.attribution, doc.text))
             conn.commit()
         return {"ok": True, "imported": len(req.documents),
                 "total_retrieval_documents": retrieval_document_count(),
                 "license_policy": "Attribution and share-alike obligations remain applicable."}
     except sqlite3.Error as exc:
         raise HTTPException(500, "지식 색인 저장 실패: " + str(exc))
+
+TRAINING_PID = Path(os.getenv("QUANTUM_TRAINING_PID", str(ROOT / "quantum_training.pid")))
+TRAINING_LOG = Path(os.getenv("QUANTUM_TRAINING_LOG", str(ROOT / "quantum_training.log")))
+
+def training_process_status():
+    if not TRAINING_PID.exists():
+        return {"running": False}
+    try:
+        pid = int(TRAINING_PID.read_text(encoding="utf-8").strip())
+        os.kill(pid, 0)
+        return {"running": True, "pid": pid}
+    except (ValueError, ProcessLookupError, PermissionError, OSError):
+        try:
+            TRAINING_PID.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return {"running": False}
+
+@app.get("/admin/training/status")
+def training_status(authorization: Optional[str] = Header(default=None)):
+    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
+        raise HTTPException(401, "인증이 필요합니다.")
+    status = training_process_status()
+    report = {}
+    if REPORT_PATH.exists():
+        try:
+            report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            report = {"status": "report_unreadable"}
+    with sqlite3.connect(KNOWLEDGE_DB) as conn:
+        try:
+            count = conn.execute("SELECT count(*) FROM wiki_training_documents WHERE approved=1").fetchone()[0]
+        except sqlite3.Error:
+            count = 0
+    return {"process": status, "approved_training_documents": count, "latest_report": report}
+
+@app.post("/admin/training/start")
+def start_incremental_training(authorization: Optional[str] = Header(default=None)):
+    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
+        raise HTTPException(401, "인증이 필요합니다.")
+    if training_process_status()["running"]:
+        return {"ok": True, "started": False, "reason": "already_running"}
+    if not CHECKPOINT.exists():
+        raise HTTPException(409, "기준 Quantum 체크포인트가 없습니다.")
+    with sqlite3.connect(KNOWLEDGE_DB) as conn:
+        try:
+            count = conn.execute("SELECT count(*) FROM wiki_training_documents WHERE approved=1").fetchone()[0]
+        except sqlite3.Error:
+            count = 0
+    if count < 10:
+        raise HTTPException(409, "승인된 학습 문서가 10개 미만입니다.")
+    TRAINING_PID.parent.mkdir(parents=True, exist_ok=True)
+    TRAINING_LOG.parent.mkdir(parents=True, exist_ok=True)
+    log_handle = open(TRAINING_LOG, "a", encoding="utf-8")
+    try:
+        process = subprocess.Popen(
+            [sys.executable, str(ROOT / "quantum_incremental_train.py")],
+            cwd=str(ROOT), stdout=log_handle, stderr=subprocess.STDOUT,
+            start_new_session=True, close_fds=True
+        )
+    except Exception:
+        log_handle.close()
+        raise HTTPException(500, "학습 프로세스를 시작하지 못했습니다.")
+    log_handle.close()
+    TRAINING_PID.write_text(str(process.pid), encoding="utf-8")
+    return {"ok": True, "started": True, "pid": process.pid,
+            "approved_training_documents": count,
+            "note": "후보 가중치만 생성합니다. 서비스 모델은 자동 교체되지 않습니다."}
 
 @app.get("/health")
 def health():
