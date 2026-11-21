@@ -14,7 +14,7 @@ _STOP = {
 
 def _norm(value):
     value = unicodedata.normalize("NFKC", str(value or "")).casefold()
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 def _terms(value):
     raw = re.findall(r"[0-9a-z]+|[가-힣]{2,}", _norm(value))
@@ -46,8 +46,8 @@ def score_document(question, title, body):
     body_coverage = body_hits / len(terms)
 
     # Exact/near-exact title matches are strong evidence; body-only OR matches are not.
-    compact_q = re.sub(r"\\s+", "", q)
-    compact_title = re.sub(r"\\s+", "", title_n)
+    compact_q = re.sub(r"\s+", "", q)
+    compact_title = re.sub(r"\s+", "", title_n)
     exact_title = bool(compact_q and compact_q == compact_title)
     title_phrase = bool(compact_title and compact_title in compact_q)
     score = 0.68 * title_coverage + 0.32 * body_coverage
