@@ -1,0 +1,67 @@
+name: Vendor Genesis Beta model artifact
+
+on:
+  push:
+    branches:
+      - genesis-beta-release
+    paths:
+      - "genesis-beta/app.py"
+      - "genesis-beta/requirements.txt"
+      - "genesis-beta/smoke_test.py"
+      - ".github/workflows/genesis-beta-vendor-model.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: genesis-beta-model-vendor
+  cancel-in-progress: false
+
+jobs:
+  vendor-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated beta branch
+        uses: actions/checkout@v4
+        with:
+          ref: genesis-beta-release
+          fetch-depth: 0
+
+      - name: Download evaluated candidate artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/genesis-artifact genesis-beta/model
+          gh run download 44847898426 --repo "$GITHUB_REPOSITORY" --name juckex-bpe-three-seed-candidates --dir /tmp/genesis-artifact
+          test -s /tmp/genesis-artifact/bpe_candidate_checkpoint.pt
+          cp /tmp/genesis-artifact/bpe_candidate_checkpoint.pt genesis-beta/model/
+          cp /tmp/genesis-artifact/bpe_candidate_report.json genesis-beta/model/
+          cp /tmp/genesis-artifact/bpe_candidate.json genesis-beta/model/
+          sha256sum genesis-beta/model/bpe_candidate_checkpoint.pt > genesis-beta/model/SHA256SUMS
+          cat > genesis-beta/model/PROVENANCE.md <<'EOF'
+          # Genesis Beta model provenance
+
+          - Source: existing JUCKEX compact BPE candidate evaluation artifact
+          - GitHub Actions run: 44847898426
+          - Artifact ID: 14683633057
+          - Candidate parameters: 248,576
+          - Architecture: width 64, 4 attention heads, 2 Transformer layers, context 256
+          - Candidate training steps: 1,700 (best validation step 1,200)
+          - Training pairs: 205; validation pairs: 23; independent evaluation questions: 20
+          - Promotion status: evaluated, not promoted
+          - Live production model changed: no
+          - Note: language-generation quality remains experimental; token-level metrics are not a factual-accuracy score.
+          EOF
+
+      - name: Commit durable candidate checkpoint
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add genesis-beta/model
+          if git diff --cached --quiet; then
+            echo "Model artifact already vendored."
+          else
+            git commit -m "Vendor evaluated Genesis Beta checkpoint [skip ci]"
+            git push origin HEAD:genesis-beta-release
+          fi
