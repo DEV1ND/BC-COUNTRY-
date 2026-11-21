@@ -7,6 +7,7 @@ on:
     paths:
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
+      - "quantum-inference/tests/test_knowledge_retrieval_benchmark.py"
       - ".github/workflows/quantum-knowledge-retrieval-tests.yml"
   pull_request:
     branches:
@@ -32,9 +33,10 @@ jobs:
         run: |
           python -m py_compile quantum-inference/knowledge_retrieval.py
           python -m py_compile quantum-inference/tests/test_knowledge_retrieval.py
+          python -m py_compile quantum-inference/tests/test_knowledge_retrieval_benchmark.py
       - name: Run retrieval regression tests
         run: |
           python -m unittest discover \
             -s quantum-inference/tests \
-            -p "test_knowledge_retrieval.py" \
+            -p "test_knowledge_retrieval*.py" \
             -v
