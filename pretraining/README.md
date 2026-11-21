@@ -6,13 +6,13 @@ This directory contains a separate next-token-prediction pretraining pipeline. I
 
 ### Wikimedia dump staging (recommended first corpus)
 
-Use an official Wikimedia database dump rather than crawling article pages. Download the relevant language's pages-articles XML dump separately, then stage a limited sample:
+Use Wikimedia's newer monthly `mediawiki_content_current` XML export rather than relying on the deprecated legacy XML dump path. Download every XML part listed in that language/date `SHA256SUMS`, verify each part, then pass every part as a repeated `--dump` argument:
 
 ```bash
-python pretraining/prepare_wikimedia_dump.py --dump /path/to/kowiki-pages-articles.xml.bz2 --language ko --max-pages 3000
+python pretraining/prepare_wikimedia_dump.py --dump /path/to/ko-part-1.xml.bz2 --dump /path/to/ko-part-2.xml.bz2 --language ko --max-pages 3000
 ```
 
-For English, use `--language en` and the matching English dump. The script extracts plain text into `pretraining/corpus/pending/` and writes `pretraining/manifest.pending.jsonl`. It assigns a deterministic page-ID-based 95/5 train/validation split and records article URL, revision URL, dump hash, revision ID, retrieval date, and license metadata. It is an offline dump processor, not a live crawler.
+For English, use `--language en` and pass every `enwiki` current-export part in the same way. The monthly export is available only after its official `SHA256SUMS` file exists. The script extracts plain text into `pretraining/corpus/pending/` and writes `pretraining/manifest.pending.jsonl`. It accepts multiple XML parts in one run, assigns a deterministic page-ID-based 95/5 train/validation split, and records article URL, revision URL, per-part and combined dump hashes, revision ID, processing date, and license metadata. The original dump download date remains explicitly unknown until recorded by the downloader. It is an offline dump processor, not a live crawler.
 
 **Every imported page is marked `review_status: pending_review`.** The training script rejects it until a person checks page-level notices, imported-content exceptions, source attribution, and content quality, then explicitly marks that manifest row `approved`. Do not bulk-approve the entire dump without review. A Wikipedia article's general licensing terms do not prove every imported passage has identical terms.
 
@@ -151,3 +151,16 @@ The importer writes plain-text pages and a JSONL manifest under `pretraining/`. 
 **Important:** CC BY-SA 4.0 is a candidate license label, not blanket approval for every page or imported passage. Check the exact revision, page footer, history, and imported-content notices. Keep attribution, the license link, revision history, and a description of modifications. The legal treatment of model weights trained on ShareAlike material is not settled by this repository; the trainer therefore continues to reject CC BY-SA until a project-level legal and technical policy is documented and approved. Do not manually change the trainer allowlist just to force a run.
 
 The XML importer is a staging tool, not a fact checker, and Wikipedia alone does not provide the breadth needed for a strong general-purpose model. Add other reviewed Korean and English corpora for dialogue, code, mathematics, and varied prose. Keep validation documents out of BPE merge fitting and gradient updates.
+
+
+### Current monthly export format
+
+The legacy XML dump pipeline is formally being replaced. Prefer the newer monthly `mediawiki_content_current` export, which contains current page revisions and is divided into XML parts. Download every part listed by `SHA256SUMS`, verify each part against that checksum file, and process them together. Do not use the full-history export for this initial pretraining corpus.
+
+Official technical documentation: https://wikitech.wikimedia.org/wiki/MediaWiki_Content_File_Exports
+
+- Korean wiki ID: `kowiki`
+- English wiki ID: `enwiki`
+- Export path pattern: `https://dumps.wikimedia.org/other/mediawiki_content_current/{wiki_id}/{YYYY-MM-01}/xml/bzip2/SHA256SUMS`
+
+Exports use a consistent first-of-month UTC cutoff and are published after a delay so revision deletions/suppressions can be applied. The checksum file is the signal that all parts for that export are ready.
