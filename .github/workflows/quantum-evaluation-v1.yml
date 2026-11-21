@@ -5,6 +5,8 @@ on:
     branches: [quantum-eval-v1]
     paths:
       - 'evaluation/**'
+      - 'training_extra.json'
+      - 'bpe_independent_eval.json'
       - '.github/workflows/quantum-evaluation-v1.yml'
   pull_request:
     branches: [quantum-live-inference]
@@ -36,5 +38,7 @@ jobs:
           assert sum(not r['answerable'] for r in rows) >= 10
           print(f'Validated {len(rows)} held-out evaluation cases')
           PY
+      - name: Validate expanded JSON evaluation set and leakage
+        run: python evaluation/validate_quantum_eval.py
       - name: Run evaluator unit tests
         run: python -m unittest discover -s evaluation -p 'test_*.py' -v
