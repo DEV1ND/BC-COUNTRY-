@@ -1,0 +1,333 @@
+{
+  "schema_version": 3,
+  "status": "wikimedia_official_dump_candidate_registered_processor_hardened_training_not_approved",
+  "policy": "Public accessibility does not automatically grant permission to use every document for model pretraining. Wikimedia is now an explicit candidate source, but all pages remain review-only and CC BY-SA stays outside the trainer allowlist until a documented legal and technical policy decision is approved.",
+  "candidate_sources": [
+    {
+      "name": "Mozilla Common Voice Scripted Speech 27.0 - Korean",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "conversational sentence patterns",
+        "spoken Korean",
+        "short-form language"
+      ],
+      "format": [
+        "TSV sentence text",
+        "MP3 audio (not used by this text-only pipeline)"
+      ],
+      "license_id": "CC0-1.0",
+      "source": "https://commonvoice.mozilla.org/ko/datasets",
+      "license_reference": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "evidence": "Mozilla Data Collective dataset listing identifies Common Voice Scripted Speech 27.0 - Korean, locale ko, license CC0-1.0, dataset size 208.48 MB at time of review.",
+      "limitations": [
+        "ASR prompt sentences are not a balanced general-knowledge corpus",
+        "short sentences must be grouped into documents",
+        "only sentence column is retained; speaker IDs and demographic metadata are discarded",
+        "official train and dev splits are kept separate; official test split is never imported",
+        "The archive was received and staged locally; the original download/retrieval date is not recorded in the provided metadata.",
+        "Automated first-pass checks do not replace full manual content and privacy review.",
+        "This small ASR prompt-text corpus is only a supplemental Korean source and is not sufficient for the planned 10,000-step general pretraining run."
+      ],
+      "ingestion_status": "downloaded_local_staged_pending_final_review",
+      "approval_required": true,
+      "exact_version": "cv-corpus-27.0-2026-09-11",
+      "archive": {
+        "filename": "1789491658662-cv-corpus-27.0-2026-09-11-ko.tar.gz",
+        "size_bytes": 218606550,
+        "sha256": "28fa978a9d48ba63b311760bb3eaf2db663c42da2287951f935bd92534990d07",
+        "bundled_readme_license_statement": "Creative Commons Zero (CC-0)"
+      },
+      "parsed_tsv_records": {
+        "train": 623,
+        "validation": 514,
+        "test_excluded": 579
+      },
+      "staged_documents": {
+        "train": 12,
+        "validation": 9,
+        "total": 21
+      },
+      "staging_checks": {
+        "normalized_duplicate_blocks": 0,
+        "cross_split_duplicate_blocks": 0,
+        "blocks_shorter_than_200_chars": 0,
+        "email_pattern_hits": 0,
+        "korean_mobile_phone_pattern_hits": 0,
+        "korean_resident_number_pattern_hits": 0,
+        "retrieved_at": "unknown_original_download_date",
+        "approval_flags": "false_pending_final_review"
+      }
+    },
+    {
+      "name": "Korean Language Corpus 2025 (National Institute of Korean Language)",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "written Korean",
+        "Korean language and culture"
+      ],
+      "source": "https://kli.korean.go.kr/corpus/openapi/corpusList.do?lang=en",
+      "license_id": null,
+      "license_reference": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=en",
+      "evidence": "The official portal lists 2025 collections including Table Description Corpus 2025, Prose Corpus 2025 (10,293 copyright-cleared works), and others. The portal requires an application for access; the FAQ limits use to approved research/technology-development purposes and requires prior approval before publicly releasing derived outputs that contain corpus text.",
+      "limitations": [
+        "Access requires registration, an application, administrator approval, and acceptance of the corpus use agreement.",
+        "Official FAQ says use is limited to approved research and technology-development purposes.",
+        "Outputs released publicly must not contain corpus text excerpts and require prior NIKL approval.",
+        "Some collections are research-only; collection-specific conditions must be checked.",
+        "The official portal currently displays a partial service-maintenance notice.",
+        "No data has been downloaded or approved for Quantum training."
+      ],
+      "ingestion_status": "blocked_pending_application_and_collection_specific_training_permission",
+      "approval_required": true,
+      "known_collections": [
+        {
+          "name": "Table Description Corpus 2025 v1.0",
+          "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+          "description": "2,037 Korean-language/culture table descriptions built from statistical materials selected from KOGL Type 1 and CC BY sources.",
+          "license_id": null,
+          "note": "The upstream source-material license description is not enough to establish the exact license or model-training permission for the delivered corpus; confirm the application agreement."
+        },
+        {
+          "name": "Prose Corpus 2025 v1.0",
+          "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+          "description": "Raw written corpus from 10,293 copyright-cleared works across literary and informational subjects.",
+          "license_id": null,
+          "note": "Copyright-cleared source material does not by itself specify the recipient's model-training rights; inspect the dataset-specific agreement."
+        }
+      ]
+    },
+    {
+      "name": "OpenDataLab WanJuan-Korean",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "history",
+        "politics",
+        "culture",
+        "general web text",
+        "professional knowledge"
+      ],
+      "format": [
+        "Parquet dataset shards"
+      ],
+      "license_id": "CC-BY-4.0",
+      "source": "https://huggingface.co/datasets/opendatalab/WanJuan-Korean",
+      "license_reference": "https://creativecommons.org/licenses/by/4.0/",
+      "evidence": "The Hugging Face dataset card labels the dataset CC-BY-4.0 and describes a Korean corpus exceeding 280GB across 7 broad categories and 34 subcategories. The card requires attribution and no additional restrictions.",
+      "limitations": [
+        "dataset viewer currently fails because Parquet shards expose inconsistent schemas",
+        "the visible sample includes spam-like promotional text and personal-data-like content, so substantial quality and privacy filtering is required",
+        "the dataset card license label is not a substitute for auditing upstream source rights, attribution, and exceptions in the actual files",
+        "inspect shard metadata, content fields, provenance and notices before any ingestion"
+      ],
+      "ingestion_status": "not_downloaded_candidate_pending_content_and_rights_audit",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceFW FineWeb-2 Korean kor_Hang",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "general web text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "60.9M rows; kor_Hang viewer listing",
+      "license_id": "ODC-By-1.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2",
+      "evidence": "Official dataset card describes a multilingual Common Crawl-derived pretraining corpus under ODC-By 1.0; the Korean kor_Hang subset is listed separately.",
+      "limitations": [
+        "ODC-By is not in the current trainer allowlist (CC0-1.0 and CC-BY-4.0 only).",
+        "The database license does not automatically grant rights to every underlying web page.",
+        "Common Crawl terms and source-page rights/privacy obligations require separate review.",
+        "Do not ingest or train until a documented project policy decision and filtering pipeline exist."
+      ],
+      "ingestion_status": "blocked_pending_database_and_underlying_content_rights_review",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceFW FineWeb English",
+      "languages": [
+        "en"
+      ],
+      "topics": [
+        "general web text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "25.9B rows; dataset card reports English web corpus",
+      "license_id": "ODC-By-1.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceFW/fineweb",
+      "evidence": "Official dataset card describes an English Common Crawl-derived corpus and ODC-By 1.0 database license.",
+      "limitations": [
+        "ODC-By is not in the current trainer allowlist.",
+        "Individual web-page rights remain separate from the database license.",
+        "Common Crawl terms and source-page rights/privacy obligations require separate review."
+      ],
+      "ingestion_status": "blocked_pending_database_and_underlying_content_rights_review",
+      "approval_required": true
+    },
+    {
+      "name": "HuggingFaceTB Cosmopedia v0.1",
+      "languages": [
+        "en"
+      ],
+      "topics": [
+        "synthetic educational text",
+        "textbooks",
+        "stories",
+        "blog posts",
+        "how-to content"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "31M samples; approximately 25B tokens per dataset card",
+      "license_id": "Apache-2.0",
+      "source": "https://huggingface.co/datasets/HuggingFaceTB/cosmopedia",
+      "evidence": "Official dataset card labels the dataset Apache-2.0 and describes synthetic text generated by Mixtral-8x7B-Instruct-v0.1.",
+      "limitations": [
+        "Synthetic output may contain factual errors and must not be treated as verified ground truth.",
+        "Review the seed-source splits and any underlying content conditions before admission.",
+        "English-only coverage does not solve Korean language coverage.",
+        "No download, ingestion, or approval has occurred."
+      ],
+      "ingestion_status": "candidate_pending_seed_source_and_quality_review",
+      "approval_required": true
+    },
+    {
+      "name": "seongchaeae Sage Pretrain Corpus",
+      "languages": [
+        "ko",
+        "en"
+      ],
+      "topics": [
+        "mixed-source pretraining text"
+      ],
+      "format": [
+        "Parquet"
+      ],
+      "approximate_scale": "142M rows shown by dataset viewer",
+      "license_id": "mixed-per-record",
+      "source": "https://huggingface.co/datasets/seongchaeae/sage-pretrain-corpus",
+      "evidence": "Dataset viewer exposes per-record source and license fields; repository card states mixed licenses.",
+      "limitations": [
+        "Dataset-level license is shown as other; records contain multiple license values.",
+        "Must filter and audit each record's source, license and metadata before any use.",
+        "Only records that can be traced to an explicitly accepted license and source can be considered.",
+        "No download, ingestion, or approval has occurred."
+      ],
+      "ingestion_status": "candidate_pending_record_level_provenance_audit",
+      "approval_required": true
+    },
+    {
+      "name": "National Institute of Korean Language Table Description Corpus 2025",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "Korean-language and culture",
+        "structured descriptions",
+        "statistics"
+      ],
+      "format": [
+        "corpus download via official portal"
+      ],
+      "approximate_scale": "2,037 table descriptions",
+      "license_id": null,
+      "source": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko",
+      "evidence": "The official portal describes 2,037 table descriptions constructed from statistical materials selected from KOGL Type 1 and CC BY sources.",
+      "limitations": [
+        "The source-material terms do not establish the delivered corpus's exact license or model-training rights.",
+        "Access is application-based and subject to the official use agreement.",
+        "Official FAQ limits use to approved research and technology-development purposes and requires prior approval for public release of outputs containing corpus text."
+      ],
+      "ingestion_status": "blocked_pending_application_and_collection_specific_training_permission",
+      "approval_required": true
+    },
+    {
+      "name": "Wikimedia Wikipedia XML dumps (Korean + English)",
+      "languages": [
+        "ko",
+        "en"
+      ],
+      "topics": [
+        "encyclopedic knowledge",
+        "history",
+        "science",
+        "geography",
+        "culture",
+        "technology"
+      ],
+      "format": [
+        "official pages-articles XML dump (.bz2)"
+      ],
+      "license_id": "CC-BY-SA-4.0 (candidate; verify per revision and page notices)",
+      "source": "https://dumps.wikimedia.org/",
+      "license_reference": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "evidence": "Wikimedia Terms of Use and article reuse guidance identify CC BY-SA 4.0 as the current general text license, while imported material and page-level notices may carry additional terms. The dump processor records article and revision URLs, dump SHA-256, and pending review metadata.",
+      "limitations": [
+        "Only official Wikimedia XML dumps are used; this pipeline does not crawl article pages.",
+        "Every page remains pending review; the default license label is not proof that every passage is CC BY-SA 4.0.",
+        "Article history and page notices must be checked for imported or differently licensed material.",
+        "Attribution, license link, revision history, and a description of text normalization must be preserved.",
+        "Whether model weights trained on CC BY-SA text are an adaptation and what ShareAlike obligations would apply is a separate unresolved policy/legal question; do not infer an answer.",
+        "The trainer intentionally continues to reject CC-BY-SA-4.0 until a documented project-level decision and technical compliance policy are approved.",
+        "Wikipedia dumps support knowledge coverage but are not a substitute for broad conversational, code, mathematical, and reasoning corpora."
+      ],
+      "ingestion_status": "official_dump_processor_available_pending_real_dump_and_page_review",
+      "approval_required": true,
+      "training_allowlist_enabled": false,
+      "processor": "pretraining/prepare_wikimedia_dump.py",
+      "command_examples": [
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/kowiki-latest-pages-articles.xml.bz2 --language ko --max-pages 3000",
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/enwiki-latest-pages-articles.xml.bz2 --language en --max-pages 3000"
+      ]
+    }
+  ],
+  "excluded_sources": [
+    {
+      "name": "Open Korean Historical Corpus Hugging Face dataset",
+      "source": "https://huggingface.co/datasets/anonymous-1501/Open-Korean-Historical-Corpus",
+      "actual_dataset_card_license": "CC-BY-NC-4.0",
+      "reason": "NonCommercial license is not accepted by this project's conservative training allowlist; excluded even though the dataset description discusses public-domain source materials."
+    },
+    {
+      "name": "Korpora package repository",
+      "source": "https://github.com/ko-nlp/Korpora",
+      "repository_license": "CC-BY-4.0",
+      "reason": "Repository license applies to the package and its accompanying materials; individual corpora have separate licenses. No corpus is approved based on the repository license alone."
+    },
+    {
+      "name": "AI-Hub collections",
+      "source": "https://aihub.or.kr/intrcn/guid/usagepolicy.do",
+      "reason": "AI-Hub has collection-specific access agreements, attribution, no-redistribution and other conditions. Not admitted under the current generic CC0/CC-BY manifest policy without collection-specific legal and policy review."
+    },
+    {
+      "name": "Stack Exchange public data",
+      "source": "https://archive.org/details/stackexchange",
+      "reason": "Version-dependent CC BY-SA terms require post/revision-level attribution and ShareAlike review; not admitted by current trainer allowlist."
+    },
+    {
+      "name": "pathcosmos Korean HPLT2 pretraining derivative",
+      "source": "https://huggingface.co/datasets/pathcosmos/korean-pretrain-hplt2",
+      "upstream_license_claim": "CC0-1.0",
+      "reason": "The derivative dataset card reports 27.4M Korean documents and an upstream CC0 claim, but explicitly says document URLs/provenance have not been restored and that CC0 packaging does not grant blanket rights to individual texts. Not approved for training until per-document provenance and rights can be verified."
+    }
+  ],
+  "excluded_by_default": [
+    "arbitrary web crawls with unclear rights",
+    "copyrighted books/articles without permission",
+    "private or personal data",
+    "evaluation and benchmark questions",
+    "unreviewed synthetic text presented as factual source material"
+  ]
+}

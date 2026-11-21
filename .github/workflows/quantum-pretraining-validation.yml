@@ -1,0 +1,105 @@
+name: Quantum pretraining pipeline validation
+
+on:
+  push:
+    branches:
+      - quantum-pretraining-10k
+    paths:
+      - "pretraining/**"
+      - ".github/workflows/quantum-pretraining-validation.yml"
+  pull_request:
+    branches:
+      - quantum-live-inference
+    paths:
+      - "pretraining/**"
+      - ".github/workflows/quantum-pretraining-validation.yml"
+
+jobs:
+  syntax-and-manifest-example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile training pipeline
+        run: python -m py_compile bpe_tokenizer.py pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py pretraining/prepare_common_voice.py
+      - name: Validate manifest example JSONL shape
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("pretraining/manifest.example.jsonl")
+          rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+          required = {"path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split", "review_status"}
+          assert len(rows) == 2
+          assert all(required <= row.keys() for row in rows)
+          assert {row["split"] for row in rows} == {"train", "validation"}
+          print("manifest example structure: PASS")
+          PY
+
+      - name: Verify corpus audit CLI is available
+        run: PYTHONPATH="$GITHUB_WORKSPACE" python pretraining/audit_corpus.py --help
+
+      - name: Exercise corpus audit with isolated synthetic fixtures
+        run: |
+          python - <<'PY'
+          import json
+          import shutil
+          from pathlib import Path
+          from pretraining.audit_corpus import audit, ROOT
+          fixture = ROOT / "corpus" / "ci-audit-fixture"
+          manifest = ROOT / "manifest.ci-audit-fixture.jsonl"
+          fixture.mkdir(parents=True, exist_ok=True)
+          try:
+              train_text = ("Quantum CI train fixture contains enough unique sample words and Korean text for tokenizer coverage. " * 4).strip()
+              valid_text = ("Quantum CI validation fixture is held out and includes 별도의 한국어 문자 범위 확인 문장. " * 4).strip()
+              (fixture / "train.txt").write_text(train_text, encoding="utf-8")
+              (fixture / "validation.txt").write_text(valid_text, encoding="utf-8")
+              rows = []
+              for filename, split in (("train.txt", "train"), ("validation.txt", "validation")):
+                  rows.append({
+                      "path": f"corpus/ci-audit-fixture/{filename}",
+                      "source_name": "CI synthetic fixture",
+                      "source_url": "https://example.org/fixture",
+                      "retrieved_at": "2026-11-21",
+                      "license_id": "CC0-1.0",
+                      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                      "attribution": "Synthetic CI-only fixture",
+                      "split": split,
+                      "review_status": "approved",
+                  })
+              manifest.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+              report = audit(manifest)
+              assert report["documents"] == {"total": 2, "train": 1, "validation": 1}
+              assert report["tokens_estimated_with_candidate_bpe"]["train"] > 0
+              assert report["tokens_estimated_with_candidate_bpe"]["validation"] > 0
+              print("corpus audit fixture: PASS")
+          finally:
+              if manifest.exists():
+                  manifest.unlink()
+              shutil.rmtree(fixture, ignore_errors=True)
+          PY
+
+      - name: Exercise Common Voice TSV staging without real corpus data
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import tempfile
+          from pathlib import Path
+          from pretraining.prepare_common_voice import read_sentences, group_sentences
+          with tempfile.TemporaryDirectory() as temp:
+              train = Path(temp) / "train.tsv"
+              with train.open("w", encoding="utf-8", newline="") as stream:
+                  writer = csv.DictWriter(stream, fieldnames=["client_id", "sentence", "age", "gender"], delimiter="\t")
+                  writer.writeheader()
+                  for i in range(40):
+                      writer.writerow({"client_id": f"private-{i}", "sentence": f"한국어 테스트 문장 {i}번입니다. 자연스러운 문장 패턴을 확인하기 위한 합성 문장입니다.", "age": "hidden", "gender": "hidden"})
+              sentences = read_sentences(train)
+              docs = group_sentences(sentences, target_chars=500)
+              assert len(sentences) == 40
+              assert docs and all(len(doc) >= 200 for doc in docs)
+              assert "private-" not in "\n".join(docs)
+              print("Common Voice TSV staging fixture: PASS")
+          PY
