@@ -1,0 +1,28 @@
+name: Quantum Wikipedia sync source validation
+
+on:
+  pull_request:
+    paths:
+      - 'quantum-inference/app.py'
+      - 'cloudflare/quantum-wikipedia-explorer/**'
+      - '.github/workflows/quantum-wiki-sync-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check inference API Python syntax
+        run: python -m py_compile quantum-inference/app.py
+      - name: Check Cloudflare Worker JavaScript module syntax
+        run: node --input-type=module --check < cloudflare/quantum-wikipedia-explorer/worker.js
