@@ -98,7 +98,7 @@ class GenerateRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"ok": True, "model_loaded": model is not None,
-            "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
+            "model": "Quantum BPE v2 candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "production_model_touched": False, "retrieval_documents": retrieval_document_count()}
 
 @app.post("/v1/generate")
