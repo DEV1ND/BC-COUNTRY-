@@ -25,4 +25,6 @@ jobs:
       - name: Check inference API Python syntax
         run: python -m py_compile quantum-inference/app.py
       - name: Check Cloudflare Worker JavaScript module syntax
+        run: node --input-type=module --check < cloudflare/quantum-wikipedia-explorer/auto_review.js
+      - name: Check Cloudflare Worker JavaScript module syntax
         run: node --input-type=module --check < cloudflare/quantum-wikipedia-explorer/worker.js
