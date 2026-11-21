@@ -21,16 +21,16 @@ SOURCE_URL = "https://commonvoice.mozilla.org/ko/datasets"
 LICENSE_URL = "https://creativecommons.org/publicdomain/zero/1.0/"
 DATASET_NAME = "Mozilla Common Voice Scripted Speech 27.0 - Korean"
 SENSITIVE_PATTERNS = [
-    re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", re.I),
-    re.compile(r"(?<!\\d)\\d{6}[- ]?[1-4]\\d{6}(?!\\d)"),
-    re.compile(r"(?<!\\d)01[016789][- ]?\\d{3,4}[- ]?\\d{4}(?!\\d)"),
+    re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I),
+    re.compile(r"(?<!\d)\d{6}[- ]?[1-4]\d{6}(?!\d)"),
+    re.compile(r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)"),
 ]
 
 
 def read_sentences(path: Path) -> list[str]:
     sentences = []
     with path.open("r", encoding="utf-8", newline="") as stream:
-        reader = csv.DictReader(stream, delimiter="\\t")
+        reader = csv.DictReader(stream, delimiter="\t")
         if not reader.fieldnames or "sentence" not in reader.fieldnames:
             raise ValueError(f"{path}: TSV must contain a sentence column")
         for row in reader:
@@ -52,14 +52,14 @@ def group_sentences(sentences: list[str], target_chars: int = 1800) -> list[str]
             continue
         seen.add(digest)
         if current and length + len(sentence) + 1 > target_chars:
-            block = "\\n".join(current).strip()
+            block = "\n".join(current).strip()
             if len(block) >= 200:
                 documents.append(block)
             current, length = [], 0
         current.append(sentence)
         length += len(sentence) + 1
     if current:
-        block = "\\n".join(current).strip()
+        block = "\n".join(current).strip()
         if len(block) >= 200:
             documents.append(block)
     return documents
@@ -110,7 +110,7 @@ def main():
             })
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text("".join(json.dumps(row, ensure_ascii=False) + "\\n" for row in rows), encoding="utf-8")
+    output.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
     print(json.dumps({
         "status": "staged_pending_human_review_not_trainable",
         "dataset": DATASET_NAME,
