@@ -124,3 +124,14 @@ Larger sources have been added to `sources.json` as candidates only:
 - Sage Pretrain Corpus: mixed per-record licenses; record-level provenance and license filtering are required.
 
 **No 10,000-step run has started.** The Common Voice text is too small and too narrow to justify a general pretraining run. No candidate checkpoint, production checkpoint, Render service, or live model was changed.
+
+## Korean corpus access candidate: National Institute of Korean Language
+
+The official `모두의 말뭉치` portal currently lists several 2025 collections, including:
+- **문어 말뭉치 2025 v1.0**: raw written text from 10,293 copyright-cleared works.
+- **표 설명 말뭉치 2025 v1.0**: 2,037 descriptions based on statistical materials selected from KOGL Type 1 and CC BY sources.
+
+These are promising Korean-language candidates, but they are **not approved training data**. The portal requires registration, an application, administrator approval, and acceptance of a collection use agreement. Its official FAQ limits use to approved research and technology-development purposes; publicly released outputs containing corpus text require prior NIKL approval and may not include corpus excerpts. Check the exact agreement for each collection before deciding whether Quantum model pretraining is permitted. The portal currently shows a partial service-maintenance notice.
+
+Official portal: https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko
+Official FAQ: https://kli.korean.go.kr/boards/faqList.do
