@@ -7,7 +7,7 @@ import argparse, hashlib, json, re, unicodedata
 from pathlib import Path
 
 def norm(s):
-    return re.sub(r"\\s+", " ", unicodedata.normalize("NFKC", s)).strip().casefold()
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", s)).strip().casefold()
 
 def read_rows(path):
     raw=Path(path).read_text(encoding="utf-8")
@@ -57,11 +57,13 @@ def main():
     valid=[r for k in keys[cut:] for r in groups[k]]
     out=Path(a.output); out.mkdir(parents=True,exist_ok=True)
     for name,rows in (("train.jsonl",train),("validation.jsonl",valid)):
-        (out/name).write_text("".join(json.dumps(x,ensure_ascii=False)+"\\n" for x in rows),encoding="utf-8")
+        (out/name).write_text("".join(json.dumps(x,ensure_ascii=False)+"\n" for x in rows),encoding="utf-8")
     report={"accepted":len(accepted),"train":len(train),"validation":len(valid),"unique_questions":len(keys),
             "target":a.target,"target_reached":len(accepted)>=a.target,"rejected":rejected,
             "fabricated_examples":0,"split":"stable question-level 98/2",
             "warning":"A count target is not a quality guarantee. Review source terms, factual accuracy and duplicates before training."}
+    (out/"training_extra.json").write_text(json.dumps(accepted,ensure_ascii=False,indent=2),encoding="utf-8")
+    (out/"quantum_knowledge.jsonl").write_text("".join(json.dumps(x,ensure_ascii=False)+"\n" for x in accepted),encoding="utf-8")
     (out/"dataset_report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(report,ensure_ascii=False,indent=2))
 if __name__=="__main__": main()
