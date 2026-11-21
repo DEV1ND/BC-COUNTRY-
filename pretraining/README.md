@@ -63,3 +63,21 @@ Wikimedia text contributions are generally offered under CC BY-SA 4.0 and GFDL, 
 
 Official policy: https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
 CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+
+
+## Building the corpus safely
+
+The source registry in `sources.json` lists candidate collections only; none is downloaded or approved automatically. Public accessibility is not the same as permission to use every document. Wikimedia article text is commonly CC BY-SA 4.0 and requires attribution plus applicable ShareAlike handling. Stack Exchange contributions have version-dependent CC BY-SA terms. PleIAs Common Corpus provides document-level provenance, but individual rights metadata still needs filtering.
+
+Prepare a reviewed `incoming/documents.jsonl` file. Each line must include:
+`document_id`, `text`, `source_name`, `source_url`, `retrieved_at`, `license_id`, `license_url`, `attribution`, `category`, `split`, `license_reviewed`, `approved_for_training`, and `reviewed_by`.
+
+Set both review booleans to true only after a human has checked the source terms and approved its use. Assign `split` before building the corpus; never copy evaluation questions into either split. Then run:
+
+```bash
+python pretraining/prepare_corpus.py --input pretraining/incoming/documents.jsonl
+```
+
+The preparation script rejects missing provenance, unreviewed rights, unsupported split labels, short documents, exact normalized duplicates, and common email/phone/Korean resident-number patterns. This is a conservative first-pass filter, not comprehensive PII detection or legal advice. Inspect every rejection and the generated manifest manually. Raw corpora, manifests, and checkpoints are git-ignored.
+
+Only after the dataset has passed review should the 10,000-step trainer be run. No source collection is considered ingested merely because it appears in `sources.json`.
