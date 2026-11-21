@@ -59,7 +59,7 @@ async function collectTopic(topic,env){
 }
 
 async function autoReviewPending(env, limit = 15) {
-  const { results = [] } = await env.DB.prepare("SELECT id,title,url,domain,content,license_status,license_name,attribution,revision_id FROM pages WHERE status='pending_review' AND (reviewer_note IS NULL OR reviewer_note LIKE 'AUTO_REVIEW:%') ORDER BY discovered_at LIMIT ?").bind(limit).all();
+  const { results = [] } = await env.DB.prepare("SELECT id,title,url,domain,content,license_status,license_name,attribution,revision_id FROM pages WHERE status='pending_review' AND reviewer_note IS NULL ORDER BY discovered_at LIMIT ?").bind(limit).all();
   const counts = { approved: 0, excluded: 0, pending: 0, checked: results.length };
   for (const row of results) {
     const decision = reviewCandidate(row);
