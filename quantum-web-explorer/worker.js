@@ -1,6 +1,6 @@
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
-const USER_AGENT = "QuantumWikiResearch/1.0 (configure a public contact URL or email)";
+const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
 const MAX_RESULTS = 8;
 const SYNC_BATCH = 10;
 
