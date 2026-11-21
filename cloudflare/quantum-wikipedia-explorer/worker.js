@@ -145,7 +145,7 @@ async function runCycle(env){
   }
   const review=await autoReviewPending(env,15);
   const sync=await syncApproved(env);
-  const training=await maybeStartIncrementalTraining(env);
+  const training={started:false,reason:"manual_candidate_training_only",automatic_training_disabled:true};
   await env.DB.prepare("INSERT INTO crawl_runs(discovered,updated,synced,errors,ran_at) VALUES(?,?,?,?,datetime('now'))")
     .bind(discovered,updated,sync.synced||0,JSON.stringify({crawl:errors,sync:sync.error||null})).run();
   return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,review,sync,training,errors};
