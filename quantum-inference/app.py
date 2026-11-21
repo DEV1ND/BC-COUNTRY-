@@ -21,7 +21,12 @@ def retrieval_document_count():
         return 0
     try:
         with sqlite3.connect(KNOWLEDGE_DB) as conn:
-            return int(conn.execute("SELECT count(*) FROM knowledge").fetchone()[0])
+            base = conn.execute("SELECT count(*) FROM knowledge").fetchone()[0]
+            try:
+                wiki = conn.execute("SELECT count(*) FROM wiki_knowledge").fetchone()[0]
+            except sqlite3.Error:
+                wiki = 0
+            return int(base + wiki)
     except sqlite3.Error:
         return 0
 
@@ -39,7 +44,16 @@ def retrieve_context(query, limit=3):
                 "SELECT text, source, url FROM knowledge WHERE knowledge MATCH ? ORDER BY rank LIMIT ?",
                 (match_query, limit)
             ).fetchall()
-        return [{"text": row[0], "source": row[1], "url": row[2]} for row in rows]
+            try:
+                wiki_rows = conn.execute(
+                    "SELECT text, source, url, license, attribution FROM wiki_knowledge WHERE wiki_knowledge MATCH ? ORDER BY rank LIMIT ?",
+                    (match_query, limit)
+                ).fetchall()
+            except sqlite3.Error:
+                wiki_rows = []
+        base = [{"text": r[0], "source": r[1], "url": r[2], "license": None, "attribution": None} for r in rows]
+        wiki = [{"text": r[0], "source": r[1], "url": r[2], "license": r[3], "attribution": r[4]} for r in wiki_rows]
+        return sorted(base + wiki, key=lambda r: 0 if r["license"] else 1)[:limit]
     except sqlite3.Error:
         return []
 
@@ -95,6 +109,40 @@ class GenerateRequest(BaseModel):
     top_k: int = Field(default=20, ge=0, le=100)
     repetition_penalty: float = Field(default=1.08, ge=1.0, le=1.5)
 
+
+class WikiKnowledgeDocument(BaseModel):
+    page_id: str = Field(min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=500)
+    url: str = Field(min_length=1, max_length=2000)
+    text: str = Field(min_length=200, max_length=120000)
+    license: str = Field(min_length=1, max_length=100)
+    attribution: str = Field(min_length=1, max_length=1000)
+
+class WikiKnowledgeImport(BaseModel):
+    documents: list[WikiKnowledgeDocument] = Field(min_length=1, max_length=10)
+
+@app.post("/admin/knowledge/import")
+def import_wiki_knowledge(req: WikiKnowledgeImport, authorization: Optional[str] = Header(default=None)):
+    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
+        raise HTTPException(401, "인증이 필요합니다.")
+    KNOWLEDGE_DB.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with sqlite3.connect(KNOWLEDGE_DB, timeout=20) as conn:
+            conn.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS wiki_knowledge USING fts5(
+                text, source UNINDEXED, url UNINDEXED, license UNINDEXED,
+                attribution UNINDEXED, page_id UNINDEXED, tokenize='unicode61'
+            )""")
+            for doc in req.documents:
+                conn.execute("DELETE FROM wiki_knowledge WHERE page_id=?", (doc.page_id,))
+                conn.execute("INSERT INTO wiki_knowledge(text,source,url,license,attribution,page_id) VALUES(?,?,?,?,?,?)",
+                    (doc.text, "Wikipedia: " + doc.title, doc.url, doc.license, doc.attribution, doc.page_id))
+            conn.commit()
+        return {"ok": True, "imported": len(req.documents),
+                "total_retrieval_documents": retrieval_document_count(),
+                "license_policy": "Attribution and share-alike obligations remain applicable."}
+    except sqlite3.Error as exc:
+        raise HTTPException(500, "지식 색인 저장 실패: " + str(exc))
+
 @app.get("/health")
 def health():
     return {"ok": True, "model_loaded": model is not None,
@@ -144,5 +192,5 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     return {"answer": answer, "model": "quantum-bpe-v2-candidate",
             "is_live_inference": True, "retrieval_count": len(retrieved),
-            "retrieved_sources": [{"source": row["source"], "url": row["url"]} for row in retrieved],
+            "retrieved_sources": [{"source": row["source"], "url": row["url"], "license": row.get("license"), "attribution": row.get("attribution")} for row in retrieved],
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다. 참고 자료가 없으면 모델 단독 생성입니다."}
