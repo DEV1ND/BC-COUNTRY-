@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS pages (
   domain TEXT NOT NULL,
   snippet TEXT NOT NULL DEFAULT '',
   content_hash TEXT NOT NULL UNIQUE,
-  r2_key TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'pending_review',
   license_status TEXT NOT NULL DEFAULT 'unknown',
   license_name TEXT,
