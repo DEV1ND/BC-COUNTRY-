@@ -14,5 +14,7 @@ jobs:
           python-version: "3.11"
       - name: Compile Python sources
         run: python -m compileall -q quantum_data_pipeline.py quantum_build_knowledge_index.py quantum_import_hf_keural.py bpe_candidate_train.py quantum-inference
+      - name: Check web explorer JavaScript syntax
+        run: node --check quantum-web-explorer/worker.js
       - name: Run data and retrieval smoke test
         run: python quantum_v2_smoke_test.py
