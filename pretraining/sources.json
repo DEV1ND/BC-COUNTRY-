@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
-  "status": "common_voice_archive_received_staging_audited_other_large_sources_candidates_only",
-  "policy": "A dataset being publicly accessible does not automatically grant permission to use every document for model pretraining. Only dataset versions whose exact license is documented and compatible with the conservative trainer allowlist may be staged. Human review remains mandatory.",
+  "status": "wikimedia_official_dump_candidate_registered_processor_hardened_training_not_approved",
+  "policy": "Public accessibility does not automatically grant permission to use every document for model pretraining. Wikimedia is now an explicit candidate source, but all pages remain review-only and CC BY-SA stays outside the trainer allowlist until a documented legal and technical policy decision is approved.",
   "candidate_sources": [
     {
       "name": "Mozilla Common Voice Scripted Speech 27.0 - Korean",
@@ -252,6 +252,45 @@
       ],
       "ingestion_status": "blocked_pending_application_and_collection_specific_training_permission",
       "approval_required": true
+    },
+    {
+      "name": "Wikimedia Wikipedia XML dumps (Korean + English)",
+      "languages": [
+        "ko",
+        "en"
+      ],
+      "topics": [
+        "encyclopedic knowledge",
+        "history",
+        "science",
+        "geography",
+        "culture",
+        "technology"
+      ],
+      "format": [
+        "official pages-articles XML dump (.bz2)"
+      ],
+      "license_id": "CC-BY-SA-4.0 (candidate; verify per revision and page notices)",
+      "source": "https://dumps.wikimedia.org/",
+      "license_reference": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "evidence": "Wikimedia Terms of Use and article reuse guidance identify CC BY-SA 4.0 as the current general text license, while imported material and page-level notices may carry additional terms. The dump processor records article and revision URLs, dump SHA-256, and pending review metadata.",
+      "limitations": [
+        "Only official Wikimedia XML dumps are used; this pipeline does not crawl article pages.",
+        "Every page remains pending review; the default license label is not proof that every passage is CC BY-SA 4.0.",
+        "Article history and page notices must be checked for imported or differently licensed material.",
+        "Attribution, license link, revision history, and a description of text normalization must be preserved.",
+        "Whether model weights trained on CC BY-SA text are an adaptation and what ShareAlike obligations would apply is a separate unresolved policy/legal question; do not infer an answer.",
+        "The trainer intentionally continues to reject CC-BY-SA-4.0 until a documented project-level decision and technical compliance policy are approved.",
+        "Wikipedia dumps support knowledge coverage but are not a substitute for broad conversational, code, mathematical, and reasoning corpora."
+      ],
+      "ingestion_status": "official_dump_processor_available_pending_real_dump_and_page_review",
+      "approval_required": true,
+      "training_allowlist_enabled": false,
+      "processor": "pretraining/prepare_wikimedia_dump.py",
+      "command_examples": [
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/kowiki-latest-pages-articles.xml.bz2 --language ko --max-pages 3000",
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/enwiki-latest-pages-articles.xml.bz2 --language en --max-pages 3000"
+      ]
     }
   ],
   "excluded_sources": [
@@ -271,11 +310,6 @@
       "name": "AI-Hub collections",
       "source": "https://aihub.or.kr/intrcn/guid/usagepolicy.do",
       "reason": "AI-Hub has collection-specific access agreements, attribution, no-redistribution and other conditions. Not admitted under the current generic CC0/CC-BY manifest policy without collection-specific legal and policy review."
-    },
-    {
-      "name": "Wikimedia Wikipedia dumps",
-      "source": "https://dumps.wikimedia.org/",
-      "reason": "Wikipedia text is generally CC BY-SA; current trainer allowlist excludes ShareAlike pending separate legal and technical policy review."
     },
     {
       "name": "Stack Exchange public data",
