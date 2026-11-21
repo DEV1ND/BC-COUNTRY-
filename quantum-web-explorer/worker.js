@@ -20,37 +20,51 @@ async function getAllowedDomains(db) {
   const { results = [] } = await db.prepare("SELECT domain FROM allowed_domains WHERE enabled = 1").all();
   return results.map(x => String(x.domain).toLowerCase());
 }
-async function searchGoogle(env, query) {
-  // Existing Google Custom Search JSON API customers only; closed to new customers.
-  if (!env.GOOGLE_CSE_API_KEY || !env.GOOGLE_CSE_CX) return [];
-  const url = new URL("https://www.googleapis.com/customsearch/v1");
-  url.search = new URLSearchParams({ key: env.GOOGLE_CSE_API_KEY, cx: env.GOOGLE_CSE_CX, q: query, num: String(MAX_RESULTS) });
-  const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
-  if (!res.ok) throw new Error("Google search HTTP " + res.status);
-  const data = await res.json();
-  return (data.items || []).map(x => ({ provider: "google", title: x.title || "", url: x.link || "", snippet: x.snippet || "" }));
-}
-async function searchNaver(env, query) {
-  // Current NAVER API HUB Search API. API output is used only to discover original pages;
-  // snippets are deliberately not retained as training material.
-  if (!env.NAVER_HUB_KEY_ID || !env.NAVER_HUB_KEY) return [];
-  const url = new URL(env.NAVER_HUB_ENDPOINT || "https://naverapihub.apigw.ntruss.com/search/v1/webkr");
-  url.search = new URLSearchParams({ query, display: String(MAX_RESULTS), start: "1", format: "json" });
+async function searchWikipedia(_env, query) {
+  // Wikimedia MediaWiki API: discover Korean Wikipedia articles.
+  const url = new URL("https://ko.wikipedia.org/w/api.php");
+  url.search = new URLSearchParams({
+    action: "query", list: "search", srsearch: query, srnamespace: "0",
+    srlimit: String(MAX_RESULTS), format: "json", origin: "*"
+  });
   const res = await fetch(url, {
-    headers: {
-      "X-NCP-APIGW-API-KEY-ID": env.NAVER_HUB_KEY_ID,
-      "X-NCP-APIGW-API-KEY": env.NAVER_HUB_KEY
-    },
+    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
     signal: AbortSignal.timeout(12000)
   });
-  if (!res.ok) throw new Error("Naver API HUB search HTTP " + res.status);
+  if (!res.ok) throw new Error("Wikipedia search HTTP " + res.status);
   const data = await res.json();
-  return (data.items || []).map(x => ({
-    provider: "naver",
-    title: "Discovered page",
-    url: x.link || "",
-    snippet: ""
+  return (data.query?.search || []).map(x => ({
+    provider: "wikipedia",
+    title: x.title || "",
+    url: "https://ko.wikipedia.org/wiki/" + encodeURIComponent(String(x.title || "").replace(/ /g, "_")),
+    snippet: "",
+    license: "CC BY-SA 4.0",
+    attribution: "Wikipedia contributors",
+    sourceTitle: x.title || ""
   }));
+}
+async function fetchWikipediaArticle(item) {
+  const title = item.sourceTitle || item.title;
+  const url = new URL("https://ko.wikipedia.org/w/api.php");
+  url.search = new URLSearchParams({
+    action: "query", prop: "extracts|info", explaintext: "1",
+    explaintext: "1", inprop: "url", titles: title, format: "json",
+    redirects: "1", origin: "*"
+  });
+  const res = await fetch(url, {
+    headers: { "user-agent": USER_AGENT, "accept": "application/json" },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!res.ok) throw new Error("Wikipedia article HTTP " + res.status);
+  const data = await res.json();
+  const page = Object.values(data.query?.pages || {})[0];
+  if (!page || page.missing !== undefined) return null;
+  return {
+    text: String(page.extract || "").slice(0, 300000),
+    title: page.title || title,
+    url: page.fullurl || item.url,
+    revisionId: page.lastrevid || null
+  };
 }
 async function robotsAllows(pageUrl) {
   try {
@@ -86,40 +100,45 @@ function extractText(html) {
     .replace(/\s+/g, " ").trim().slice(0, 300000);
 }
 async function crawlResult(item, domains, env) {
-  let currentUrl = item.url;
-  let res;
-  // Validate every redirect hop; never let a permitted URL redirect the crawler off the allowlist.
-  for (let hop = 0; hop <= 4; hop++) {
-    const host = hostOf(currentUrl);
-    if (!host || !allowedHost(host, domains)) return "skipped_domain";
-    const parsed = new URL(currentUrl);
-    if (!["http:", "https:"].includes(parsed.protocol)) return "skipped_scheme";
-    if (!(await robotsAllows(currentUrl))) return "skipped_robots";
-    res = await fetch(currentUrl, {
+  const host = hostOf(item.url);
+  if (!host || !allowedHost(host, domains)) return "skipped_domain";
+  let text, finalUrl = item.url, title = item.title, revisionId = null;
+  if (item.provider === "wikipedia") {
+    const article = await fetchWikipediaArticle(item);
+    if (!article) return "missing_article";
+    text = article.text;
+    finalUrl = article.url;
+    title = article.title;
+    revisionId = article.revisionId;
+  } else {
+    // Non-Wikipedia pages remain subject to robots.txt and per-domain allowlisting.
+    if (!(await robotsAllows(item.url))) return "skipped_robots";
+    const res = await fetch(item.url, {
       headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
       redirect: "manual", signal: AbortSignal.timeout(12000)
     });
-    if (![301, 302, 303, 307, 308].includes(res.status)) break;
-    const location = res.headers.get("location");
-    if (!location || hop === 4) return "skipped_redirect";
-    currentUrl = new URL(location, currentUrl).toString();
+    if (!res.ok) return "fetch_error_" + res.status;
+    const type = res.headers.get("content-type") || "";
+    if (!type.includes("text/html") && !type.includes("text/plain")) return "skipped_content_type";
+    const body = await res.text();
+    if (new TextEncoder().encode(body).byteLength > MAX_PAGE_BYTES) return "skipped_too_large";
+    text = extractText(body);
   }
-  if (!res || !res.ok) return "fetch_error_" + (res?.status || "unknown");
-  const type = res.headers.get("content-type") || "";
-  if (!type.includes("text/html") && !type.includes("text/plain")) return "skipped_content_type";
-  const body = await res.text();
-  if (new TextEncoder().encode(body).byteLength > MAX_PAGE_BYTES) return "skipped_too_large";
-  const text = extractText(body);
   if (text.length < 500) return "skipped_short";
   const hash = await sha256(text);
   if (await env.DB.prepare("SELECT id FROM pages WHERE content_hash = ?").bind(hash).first()) return "duplicate";
   const id = crypto.randomUUID();
-  const finalUrl = currentUrl;
   const key = "pages/" + id + ".txt";
   await env.RAW_PAGES.put(key, text, { httpMetadata: { contentType: "text/plain; charset=utf-8" } });
   await env.DB.prepare(
-    "INSERT INTO pages (id, provider, title, url, domain, snippet, content_hash, r2_key, status, license_status, discovered_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', 'unknown', datetime('now'))"
-  ).bind(id, item.provider, item.title.slice(0, 500), finalUrl, hostOf(finalUrl), item.snippet.slice(0, 1500), hash, key).run();
+    "INSERT INTO pages (id, provider, title, url, domain, snippet, content_hash, r2_key, status, license_status, discovered_at, reviewer_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', ?, datetime('now'), ?)"
+  ).bind(
+    id, item.provider, title.slice(0, 500), finalUrl, host, "", hash, key,
+    item.provider === "wikipedia" ? "cc-by-sa-4.0-review-required" : "unknown",
+    item.provider === "wikipedia"
+      ? JSON.stringify({ attribution: "Wikipedia contributors", license: "CC BY-SA 4.0", revisionId, notice: "Verify current page license and preserve attribution/share-alike terms before reuse." })
+      : "License not verified; do not train until reviewed."
+  ).run();
   return "pending_review";
 }
 async function runCycle(env) {
@@ -133,7 +152,7 @@ async function runCycle(env) {
   let discovered = 0;
   const errors = [];
   for (const row of topics) {
-    for (const provider of [searchGoogle, searchNaver]) {
+    for (const provider of [searchWikipedia]) {
       try {
         for (const item of await provider(env, row.query)) {
           if (await crawlResult(item, domains, env) === "pending_review") discovered++;
