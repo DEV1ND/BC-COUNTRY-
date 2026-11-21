@@ -26,8 +26,15 @@ def _token_variants(token):
 def content_tokens(text):
     """Keep original Korean terms while also considering one particle-stripped form."""
     raw = re.findall(r"[0-9a-z]+|[가-힣]+", str(text).lower())
-    return [_token_variants(token) for token in raw
-            if len(token) >= 2 and token not in _STOP_WORDS]
+    result = []
+    for token in raw:
+        if len(token) < 2 or token in _STOP_WORDS:
+            continue
+        if any(token.endswith(suffix) and token[:-len(suffix)] in _STOP_WORDS
+               for suffix in _SUFFIXES):
+            continue
+        result.append(_token_variants(token))
+    return result
 
 
 def intent_signature(question):
