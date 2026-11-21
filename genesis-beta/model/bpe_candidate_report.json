@@ -1,0 +1,110 @@
+{
+  "created_at": 1795223333,
+  "status": "evaluated_not_promoted",
+  "live_model_changed": false,
+  "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
+  "validation_scope": "deterministic_holdout_from_approved_training_extra",
+  "independent_evaluation_scope": "fixed_20_question_set_never_used_for_gradient_updates_or_bpe_merge_counts",
+  "independent_evaluation_pairs": 20,
+  "independent_bpe_bits_per_character": 4.97155,
+  "independent_live_char_bits_per_character": 9.46464,
+  "validation_answer_only_bpc": 4.48961,
+  "validation_live_answer_only_bpc": 9.47486,
+  "independent_answer_only_bpc": 5.27619,
+  "independent_live_answer_only_bpc": 9.50611,
+  "candidate_better_on_independent_set": true,
+  "training_pairs": 205,
+  "validation_pairs": 23,
+  "bpe_vocab_size": 1024,
+  "bpe_merge_count": 468,
+  "steps": 1700,
+  "best_step": 1200,
+  "seed": 20261122,
+  "validation_curve": [
+    {
+      "step": 100,
+      "bits_per_character": 4.914138
+    },
+    {
+      "step": 200,
+      "bits_per_character": 4.758495
+    },
+    {
+      "step": 300,
+      "bits_per_character": 4.742977
+    },
+    {
+      "step": 400,
+      "bits_per_character": 4.744529
+    },
+    {
+      "step": 500,
+      "bits_per_character": 4.721903
+    },
+    {
+      "step": 600,
+      "bits_per_character": 4.672792
+    },
+    {
+      "step": 700,
+      "bits_per_character": 4.617103
+    },
+    {
+      "step": 800,
+      "bits_per_character": 4.580204
+    },
+    {
+      "step": 900,
+      "bits_per_character": 4.547749
+    },
+    {
+      "step": 1000,
+      "bits_per_character": 4.520263
+    },
+    {
+      "step": 1100,
+      "bits_per_character": 4.505405
+    },
+    {
+      "step": 1200,
+      "bits_per_character": 4.489606
+    },
+    {
+      "step": 1300,
+      "bits_per_character": 4.496383
+    },
+    {
+      "step": 1400,
+      "bits_per_character": 4.499966
+    },
+    {
+      "step": 1500,
+      "bits_per_character": 4.498771
+    },
+    {
+      "step": 1600,
+      "bits_per_character": 4.493176
+    },
+    {
+      "step": 1700,
+      "bits_per_character": 4.513034
+    }
+  ],
+  "early_stopped": true,
+  "candidate_parameters": 248576,
+  "architecture": {
+    "width": 64,
+    "heads": 4,
+    "layers": 2,
+    "block": 256
+  },
+  "final_training_loss": 3.16216,
+  "live_char_model_bits_per_character": 9.4347,
+  "bpe_candidate_bits_per_character": 4.1514,
+  "candidate_better_on_this_split": true,
+  "best_checkpoint_metric": "validation_answer_only_bpc",
+  "training_objective": "question_context_preserved_answer_tokens_only",
+  "promotion": "보류: 실제 생성 품질의 사람 검토와 독립 평가가 완료되기 전 자동 승격하지 않음",
+  "candidate_checkpoint": "bpe_candidate_checkpoint.pt",
+  "tokenizer_report": "bpe_candidate.json"
+}
