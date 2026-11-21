@@ -111,7 +111,20 @@ def main():
     docs = load_docs()
     if len(docs) < 10:
         raise RuntimeError(f"독립 검증을 위해 승인된 위키 문서가 최소 10개 필요합니다: {len(docs)}")
-    payload = torch.load(BASE, map_location="cpu", weights_only=False)
+    base_payload = torch.load(BASE, map_location="cpu", weights_only=False)
+    payload = base_payload
+    starting_checkpoint = BASE
+    # Continue from the previous candidate only when its tokenizer and architecture
+    # exactly match the fixed base. Otherwise safely restart from the base weights.
+    if CANDIDATE.exists():
+        try:
+            prior = torch.load(CANDIDATE, map_location="cpu", weights_only=False)
+            if (prior.get("architecture") == base_payload.get("architecture")
+                    and prior.get("tokenizer") == base_payload.get("tokenizer")):
+                payload = prior
+                starting_checkpoint = CANDIDATE
+        except Exception:
+            payload = base_payload
     arch = payload["architecture"]
     block = int(arch.get("block", 256))
     tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
@@ -173,7 +186,7 @@ def main():
         "relative_validation_improvement": round((baseline-best_loss)/max(baseline,1e-12), 6),
         "final_training_loss": round(losses[-1], 6),
         "candidate_checkpoint": str(CANDIDATE.name) if improved else None,
-        "base_checkpoint": str(BASE.name),
+        "base_checkpoint": str(BASE.name), "starting_checkpoint": str(starting_checkpoint.name),
         "license_notice": "Retain attribution and review CC BY-SA share-alike obligations before redistribution.",
         "quality_warning": "Next-token loss is not semantic accuracy. Human review and separate factual evaluation remain required.",
         "serving_checkpoint_changed": False
