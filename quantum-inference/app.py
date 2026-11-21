@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json
+import os, json, re
 from pathlib import Path
 from typing import Optional
 import torch
@@ -14,6 +14,40 @@ DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
 CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
+KNOWLEDGE_PATH = Path(os.getenv("QUANTUM_KNOWLEDGE_PATH", "quantum_knowledge.jsonl"))
+
+def load_knowledge():
+    if not KNOWLEDGE_PATH.exists():
+        return []
+    rows = []
+    for line in KNOWLEDGE_PATH.read_text(encoding="utf-8").splitlines():
+        try:
+            row = json.loads(line)
+            text = str(row.get("text") or (str(row.get("question", "")) + " " + str(row.get("answer", "")))).strip()
+            if text:
+                rows.append({"text": text, "source": str(row.get("source", "")), "url": str(row.get("source_url", ""))})
+        except (ValueError, TypeError):
+            continue
+    return rows
+
+knowledge = load_knowledge()
+
+def retrieve_context(query, limit=3):
+    def terms(value):
+        words = re.findall(r"[가-힣]{2,}|[a-zA-Z0-9_]{2,}", value.casefold())
+        compact = re.sub(r"\\s+", "", value)
+        grams = [compact[i:i+2] for i in range(max(0, len(compact)-1))]
+        return set(words + grams)
+    qterms = terms(query)
+    scored = []
+    for row in knowledge:
+        doc_terms = terms(row["text"])
+        overlap = len(qterms & doc_terms)
+        if overlap:
+            scored.append((overlap / max(1, len(qterms)), row))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [row for score, row in scored[:limit] if score > 0.04]
+
 
 class BPECandidate(nn.Module):
     def __init__(self, vocab_size, width=64, heads=4, layers=2, block=512):
@@ -70,7 +104,7 @@ class GenerateRequest(BaseModel):
 def health():
     return {"ok": True, "model_loaded": model is not None,
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
-            "production_model_touched": False}
+            "production_model_touched": False, "retrieval_documents": len(knowledge)}
 
 @app.post("/v1/generate")
 @torch.inference_mode()
@@ -79,7 +113,12 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         raise HTTPException(401, "인증이 필요합니다.")
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
-    prompt_ids = tokenizer.encode("질문:" + req.prompt.strip() + "\n답변:")
+    retrieved = retrieve_context(req.prompt)
+    context_text = ""
+    if retrieved:
+        context_text = "\n참고 자료:\n" + "\n".join("- " + row["text"][:1200] for row in retrieved) + "\n"
+    prompt_text = "질문:" + req.prompt.strip() + context_text + "\n답변:"
+    prompt_ids = tokenizer.encode(prompt_text)[-max(1, BLOCK - 1):]
     generated = []
     for step in range(req.max_new_tokens):
         context = (prompt_ids + generated)[-BLOCK:]
@@ -108,5 +147,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         if step >= 5 and "\n\n" in decoded:
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
-    return {"answer": answer, "model": "quantum-bpe-10m-candidate",
-            "is_live_inference": True, "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
+    return {"answer": answer, "model": "quantum-bpe-v2-candidate",
+            "is_live_inference": True, "retrieval_count": len(retrieved),
+            "retrieved_sources": [{"source": row["source"], "url": row["url"]} for row in retrieved],
+            "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다. 참고 자료가 없으면 모델 단독 생성입니다."}
