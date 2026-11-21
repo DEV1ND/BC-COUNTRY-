@@ -15,11 +15,15 @@ _SUFFIXES = ("인가요", "인가", "에서", "으로", "에게", "은", "는", 
 
 def _token_variants(token):
     variants = {token}
-    for suffix in _SUFFIXES:
-        if token.endswith(suffix):
-            stem = token[:-len(suffix)]
-            if len(stem) >= 2 and stem not in _STOP_WORDS:
-                variants.add(stem)
+    frontier = [token]
+    while frontier:
+        current = frontier.pop()
+        for suffix in _SUFFIXES:
+            if current.endswith(suffix):
+                stem = current[:-len(suffix)]
+                if len(stem) >= 2 and stem not in _STOP_WORDS and stem not in variants:
+                    variants.add(stem)
+                    frontier.append(stem)
     return variants
 
 
@@ -47,6 +51,8 @@ def intent_signature(question):
         return "function"
     if re.search(r"가장|얼마|몇|누구|언제|어느", q):
         return "fact"
+    if re.search(r"특징|성질|속성|구성|종류", q):
+        return "attribute"
     if re.search(r"무엇|이란|란|뜻|의미|정의|어떤", q):
         return "definition"
     return "general"
