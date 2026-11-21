@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile training pipeline
-        run: python -m py_compile pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py
+        run: python -m py_compile bpe_tokenizer.py pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py
       - name: Validate manifest example JSONL shape
         run: |
           python - <<'PY'
@@ -69,7 +69,7 @@ jobs:
                       "split": split,
                       "review_status": "approved",
                   })
-              manifest.write_text("".join(json.dumps(row) + "\\n" for row in rows), encoding="utf-8")
+              manifest.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
               report = audit(manifest)
               assert report["documents"] == {"total": 2, "train": 1, "validation": 1}
               assert report["tokens_estimated_with_candidate_bpe"]["train"] > 0
