@@ -8,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
+from wikipedia_seed import seed_wikipedia
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
@@ -68,6 +69,17 @@ def load_model():
 
 model, tokenizer, checkpoint_meta = load_model()
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
+wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
+
+@app.on_event("startup")
+def import_korean_wikipedia_seed():
+    global wikipedia_seed_status
+    try:
+        result = seed_wikipedia(KNOWLEDGE_DB)
+        wikipedia_seed_status = {"status": "completed", **result}
+    except Exception as exc:
+        # Keep inference available even if Wikimedia is temporarily unavailable.
+        wikipedia_seed_status = {"status": "failed", "error": str(exc)[:300], "imported_this_start": 0}
 app.add_middleware(CORSMiddleware, allow_origins=["https://juckex-quantum-lab.bcsite.workers.dev"],
                    allow_credentials=False, allow_methods=["GET", "POST"],
                    allow_headers=["Content-Type", "Authorization"])
@@ -131,6 +143,7 @@ def health():
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
+            "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 
 @app.post("/admin/knowledge/import")
