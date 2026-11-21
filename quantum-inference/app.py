@@ -13,7 +13,10 @@ from wikipedia_seed import seed_wikipedia
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
+from generation_sources import build_knowledge_context, serialize_knowledge_sources
+from knowledge_index_status import build_index_status
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -77,12 +80,33 @@ def import_korean_wikipedia_seed():
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
-        for query in ("인공지능", "대한민국", "태양계"):
+        expected_topics = [
+            {"domain": "AI", "query": "인공지능", "expected_title": "인공지능"},
+            {"domain": "컴퓨터", "query": "컴퓨터", "expected_title": "컴퓨터"},
+            {"domain": "인터넷", "query": "인터넷", "expected_title": "인터넷"},
+            {"domain": "물리학", "query": "물리학", "expected_title": "물리학"},
+            {"domain": "화학", "query": "화학", "expected_title": "화학"},
+            {"domain": "생물학", "query": "생물학", "expected_title": "생물학"},
+            {"domain": "환경", "query": "기후 변화", "expected_title": "기후 변화"},
+            {"domain": "사회", "query": "민주주의", "expected_title": "민주주의"},
+            {"domain": "경제", "query": "경제학", "expected_title": "경제학"},
+            {"domain": "수학", "query": "수학", "expected_title": "수학"},
+            {"domain": "국가·지리", "query": "대한민국", "expected_title": "대한민국"},
+            {"domain": "천문학", "query": "태양계", "expected_title": "태양계"},
+        ]
+        for case in expected_topics:
+            query = case["query"]
+            expected_title = case["expected_title"]
             matches = retrieve_knowledge(query, limit=3)
+            titles = [item["title"] for item in matches]
+            exact_match = any(title.casefold() == expected_title.casefold() for title in titles)
             smoke_tests.append({
+                "domain": case["domain"],
                 "query": query,
-                "matched": bool(matches),
-                "titles": [item["title"] for item in matches],
+                "expected_title": expected_title,
+                "matched": exact_match,
+                "titles": titles,
+                "retrieved_anything": bool(matches),
             })
         wikipedia_seed_status = {
             "status": "completed",
@@ -118,27 +142,34 @@ def require_admin(authorization):
         raise HTTPException(401, "관리자 인증이 필요합니다.")
 
 def retrieve_knowledge(question, limit=3):
-    terms = re.findall(r"[0-9A-Za-z가-힣]{2,}", question or "")[:8]
-    if not terms:
+    # FTS5 discovers broad candidates; title-weighted reranking filters weak OR matches.
+    terms = query_terms(question)[:10]
+    match = build_fts_query(question, max_terms=10)
+    if not terms or not match:
         return []
     conn = knowledge_db()
     try:
-        match = " OR ".join('"' + t.replace('"', '""') + '"' for t in terms)
+        rows = []
         try:
             rows = conn.execute("""SELECT d.title,d.url,d.text,d.attribution,d.license
                 FROM knowledge_fts f JOIN knowledge_docs d ON d.page_id=f.page_id
-                WHERE knowledge_fts MATCH ? ORDER BY bm25(knowledge_fts) LIMIT ?""",
-                (match, limit)).fetchall()
+                WHERE knowledge_fts MATCH ?
+                ORDER BY bm25(knowledge_fts) LIMIT 50""", (match,)).fetchall()
         except sqlite3.OperationalError:
             rows = []
         if not rows:
             clauses = " OR ".join("title LIKE ? OR text LIKE ?" for _ in terms)
             args = []
-            for term in terms: args.extend(["%"+term+"%", "%"+term+"%"])
-            rows = conn.execute("SELECT title,url,text,attribution,license FROM knowledge_docs WHERE "+clauses+" LIMIT ?", (*args,limit)).fetchall()
-        return [dict(row) for row in rows]
+            for term in terms:
+                args.extend(["%" + term + "%", "%" + term + "%"])
+            rows = conn.execute(
+                "SELECT title,url,text,attribution,license FROM knowledge_docs WHERE " +
+                clauses + " LIMIT 100", args
+            ).fetchall()
+        return rank_documents(question, rows, limit=limit, min_score=0.18)
     finally:
         conn.close()
+
 
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
@@ -158,6 +189,36 @@ def health():
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
+
+@app.post("/admin/knowledge/search")
+async def knowledge_search(request: Request, authorization: Optional[str] = Header(default=None)):
+    """Authenticated retrieval diagnostic; does not invoke or train the language model."""
+    require_admin(authorization)
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON 본문이 필요합니다.")
+    question = str(payload.get("question", "")).strip() if isinstance(payload, dict) else ""
+    if not question or len(question) > 1000:
+        raise HTTPException(422, "question은 1~1000자여야 합니다.")
+    matches = retrieve_knowledge(question, limit=5)
+    return {
+        "ok": True,
+        "question": question,
+        "count": len(matches),
+        "results": [{
+            "title": str(item.get("title", "")),
+            "url": str(item.get("url", "")),
+            "license": str(item.get("license", "")),
+            "attribution": str(item.get("attribution", "")),
+            "relevance_score": float(item.get("relevance_score", 0)),
+            "excerpt": " ".join(str(item.get("text", "")).split())[:500],
+        } for item in matches],
+        "model_invoked": False,
+        "model_training": False,
+        "production_model_touched": False,
+    }
+
 
 @app.post("/admin/knowledge/import")
 async def import_knowledge(request: Request, authorization: Optional[str] = Header(default=None)):
@@ -202,9 +263,11 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
 def knowledge_status(authorization: Optional[str] = Header(default=None)):
     require_admin(authorization)
     conn=knowledge_db()
-    try: count=conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
-    finally: conn.close()
-    return {"ok":True,"documents":count,"storage":"local-cache-rebuildable"}
+    try:
+        status=build_index_status(conn, page_id_limit=5000)
+    finally:
+        conn.close()
+    return {"ok":True,**status,"storage":"local-cache-rebuildable"}
 
 @app.post("/admin/training/start")
 def training_start(authorization: Optional[str] = Header(default=None)):
@@ -242,13 +305,10 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
     knowledge = retrieve_knowledge(req.prompt, limit=3)
-    knowledge_context = ""
-    if knowledge:
-        excerpts = []
-        for item in knowledge:
-            excerpt = item["text"][:420].replace("\n", " ")
-            excerpts.append(f'[{item["title"]}] {excerpt}')
-        knowledge_context = "참고 지식(출처 확인 필요):\n" + "\n".join(excerpts) + "\n"
+    # Only documents with a valid Wikipedia URL, CC BY-SA 4.0 label,
+    # and non-empty attribution are passed into generation or exposed as citations.
+    knowledge_context = build_knowledge_context(knowledge)
+    knowledge_sources = serialize_knowledge_sources(knowledge)
     prompt_ids = tokenizer.encode(knowledge_context + "질문:" + req.prompt.strip() + "\n답변:")
     generated = []
     for step in range(req.max_new_tokens):
@@ -280,5 +340,5 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     return {"answer": answer, "model": "quantum-bpe-10m-candidate",
             "is_live_inference": True,
-            "knowledge_sources": [{"title": x["title"], "url": x["url"], "license": x["license"], "attribution": x["attribution"]} for x in knowledge],
+            "knowledge_sources": knowledge_sources,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}

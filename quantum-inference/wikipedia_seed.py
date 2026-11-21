@@ -1,8 +1,7 @@
-"""Small, reproducible Korean Wikipedia knowledge seed for Quantum's local RAG index.
+"""Diagnostic Korean Wikipedia seed importer for Quantum's local retrieval index.
 
-This imports article extracts for retrieval only. It does not turn encyclopedia prose
-into synthetic SFT conversations. Attribution and the CC BY-SA 4.0 license are stored
-with every page.
+Wikipedia extracts are imported for retrieval only, never converted into SFT pairs.
+Each accepted page stores its source URL, CC BY-SA 4.0 license, and attribution.
 """
 import json
 import os
@@ -17,6 +16,7 @@ DEFAULT_TITLES = [
 ]
 LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+
 
 def seed_wikipedia(db_path):
     titles = [x.strip() for x in os.getenv(
@@ -34,13 +34,27 @@ def seed_wikipedia(db_path):
     })
     request = urllib.request.Request(
         "https://ko.wikipedia.org/w/api.php?" + params,
-        headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.0 (https://juckex-ai.bcsite.workers.dev)"},
+        headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.1 (https://juckex-ai.bcsite.workers.dev)"},
     )
-    with urllib.request.urlopen(request, timeout=25) as response:
+    with urllib.request.urlopen(request, timeout=30) as response:
         payload = json.loads(response.read().decode("utf-8"))
+
     pages = payload.get("query", {}).get("pages", [])
     imported = 0
     skipped = 0
+    skip_reasons = {}
+    page_diagnostics = []
+
+    def skip(reason, title, page_id="", url="", body_length=0):
+        nonlocal skipped
+        skipped += 1
+        skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+        page_diagnostics.append({
+            "title": title, "page_id": page_id or None,
+            "reason": reason, "url_present": bool(url),
+            "extract_characters": body_length,
+        })
+
     with sqlite3.connect(db_path, timeout=20) as conn:
         conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_docs (
             page_id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
@@ -48,14 +62,26 @@ def seed_wikipedia(db_path):
             imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
         conn.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
             page_id UNINDEXED,title,text,tokenize='unicode61')""")
+
         for page in pages:
             page_id = str(page.get("pageid", "")).strip()
             title = str(page.get("title", "")).strip()
             url = str(page.get("fullurl", "")).strip()
             body = str(page.get("extract", "")).strip()[:50000]
-            if not page_id or not title or not url.startswith("https://ko.wikipedia.org/wiki/") or len(body) < 200:
-                skipped += 1
+
+            if page.get("missing") or not page_id:
+                skip("missing_or_no_page_id", title, page_id, url, len(body))
                 continue
+            if not title:
+                skip("missing_title", title, page_id, url, len(body))
+                continue
+            if not url.startswith("https://ko.wikipedia.org/wiki/"):
+                skip("invalid_or_missing_url", title, page_id, url, len(body))
+                continue
+            if len(body) < 200:
+                skip("extract_too_short", title, page_id, url, len(body))
+                continue
+
             attribution = (
                 "Wikipedia contributors, " + title + ", " + url +
                 "; licensed under CC BY-SA 4.0 (" + LICENSE_URL + ")."
@@ -66,18 +92,30 @@ def seed_wikipedia(db_path):
                 title=excluded.title,url=excluded.url,text=excluded.text,
                 license=excluded.license,attribution=excluded.attribution,
                 imported_at=CURRENT_TIMESTAMP""",
-                (page_id,title,url,body,LICENSE,attribution))
+                (page_id, title, url, body, LICENSE, attribution))
             conn.execute("DELETE FROM knowledge_fts WHERE page_id=?", (page_id,))
-            conn.execute("INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",
-                         (page_id,title,body))
+            conn.execute(
+                "INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",
+                (page_id, title, body),
+            )
             imported += 1
+            page_diagnostics.append({
+                "title": title, "page_id": page_id, "reason": "imported",
+                "url_present": True, "extract_characters": len(body),
+            })
+
         conn.commit()
         total = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
+
     return {
         "source": "Korean Wikipedia",
         "requested": len(titles),
+        "requested_titles": titles,
+        "returned_pages": len(pages),
         "imported_this_start": imported,
         "skipped": skipped,
+        "skip_reasons": skip_reasons,
+        "page_diagnostics": page_diagnostics,
         "total_documents": int(total),
         "license": LICENSE,
         "attribution_saved": True,
