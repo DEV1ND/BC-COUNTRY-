@@ -39,7 +39,7 @@ jobs:
           PY
 
       - name: Verify corpus audit CLI is available
-        run: python pretraining/audit_corpus.py --help
+        run: PYTHONPATH="$GITHUB_WORKSPACE" python pretraining/audit_corpus.py --help
 
       - name: Exercise corpus audit with isolated synthetic fixtures
         run: |
