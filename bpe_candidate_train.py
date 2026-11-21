@@ -1,4 +1,5 @@
 """Train an isolated BPE Transformer candidate and compare it with the live char model.
+The 10M profile is evaluated separately and is never promoted automatically.
 This script never writes to or promotes the production model.
 Run: python bpe_candidate_train.py --steps 120
 """
