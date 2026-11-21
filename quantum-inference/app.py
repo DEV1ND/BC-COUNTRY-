@@ -77,12 +77,21 @@ def import_korean_wikipedia_seed():
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
-        for query in ("인공지능", "대한민국", "태양계"):
+        expected_titles = {
+            "인공지능": "인공지능",
+            "대한민국": "대한민국",
+            "태양계": "태양계",
+        }
+        for query, expected_title in expected_titles.items():
             matches = retrieve_knowledge(query, limit=3)
+            titles = [item["title"] for item in matches]
+            exact_match = any(title.casefold() == expected_title.casefold() for title in titles)
             smoke_tests.append({
                 "query": query,
-                "matched": bool(matches),
-                "titles": [item["title"] for item in matches],
+                "expected_title": expected_title,
+                "matched": exact_match,
+                "titles": titles,
+                "retrieved_anything": bool(matches),
             })
         wikipedia_seed_status = {
             "status": "completed",
