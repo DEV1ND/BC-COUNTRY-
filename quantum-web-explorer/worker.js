@@ -161,6 +161,16 @@ export default {
       const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at FROM pages WHERE status=? AND (?='' OR discovered_at<?) ORDER BY discovered_at DESC LIMIT ?").bind(status,cursor,cursor,limit).all();
       return json({pages:rows.results||[]});
     }
+    if(request.method==="GET"&&url.pathname==="/export-approved"){
+      const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
+      const after=String(url.searchParams.get("after")||"");
+      const rows=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const documents=(rows.results||[]).map(row=>({
+        page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
+        license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"
+      })).filter(row=>row.text.length>=200);
+      return json({documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
+    }
     if(request.method==="GET"&&url.pathname==="/topics"){
       const rows=await env.DB.prepare("SELECT query,enabled,last_searched_at,last_error FROM search_topics ORDER BY query").all();
       return json({topics:rows.results||[]});
