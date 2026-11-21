@@ -23,9 +23,12 @@ CREATE TABLE IF NOT EXISTS pages (
   attribution TEXT,
   discovered_at TEXT NOT NULL,
   reviewed_at TEXT,
-  reviewer_note TEXT
+  reviewer_note TEXT,
+  synced_at TEXT,
+  sync_error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pages_status ON pages(status,discovered_at);
+CREATE INDEX IF NOT EXISTS idx_pages_sync ON pages(status,synced_at);
 CREATE TABLE IF NOT EXISTS crawl_runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   discovered INTEGER NOT NULL,
