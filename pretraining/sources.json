@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "status": "candidate_sources_not_yet_ingested",
+  "policy": "A dataset or website being public does not automatically grant permission to use every document for model pretraining. Each document/source collection requires license review and explicit approval before ingestion.",
+  "candidate_sources": [
+    {
+      "name": "Wikimedia Wikipedia dumps",
+      "languages": ["ko", "en", "many"],
+      "topics": ["general knowledge", "history", "science", "geography"],
+      "license": "Usually CC BY-SA 4.0 for Wikipedia article text; verify project/page exceptions and preserve attribution and ShareAlike obligations.",
+      "source": "https://dumps.wikimedia.org/",
+      "license_reference": "https://www.mediawiki.org/wiki/Wikimedia_APIs/Content_reuse",
+      "ingestion_status": "not_ingested",
+      "approval_required": true
+    },
+    {
+      "name": "PleIAs Common Corpus",
+      "languages": ["multilingual"],
+      "topics": ["books", "scientific articles", "government and legal documents", "code", "cultural heritage"],
+      "license": "Dataset reports document-level provenance and open-licensed/public-domain material. Inspect the dataset card and per-document rights metadata; do not assume one blanket license.",
+      "source": "https://huggingface.co/datasets/PleIAs/common_corpus",
+      "license_reference": "https://huggingface.co/datasets/PleIAs/common_corpus",
+      "ingestion_status": "not_ingested",
+      "approval_required": true
+    },
+    {
+      "name": "Stack Exchange public data",
+      "languages": ["primarily English; individual communities vary"],
+      "topics": ["programming", "mathematics", "science"],
+      "license": "Contributions have version-dependent CC BY-SA terms; determine the applicable license for each post/revision and preserve attribution/share-alike requirements.",
+      "source": "https://archive.org/details/stackexchange",
+      "license_reference": "https://opendata.stackexchange.com/help/licensing",
+      "ingestion_status": "not_ingested",
+      "approval_required": true
+    }
+  ],
+  "excluded_by_default": [
+    "arbitrary web crawls with unclear rights",
+    "copyrighted books/articles without permission",
+    "private or personal data",
+    "evaluation and benchmark questions",
+    "unreviewed synthetic text presented as factual source material"
+  ]
+}
