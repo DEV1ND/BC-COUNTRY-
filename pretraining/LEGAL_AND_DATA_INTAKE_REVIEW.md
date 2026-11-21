@@ -76,3 +76,10 @@ Official references:
 - CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
 
 The current importer records the original dump retrieval date as unknown unless supplied by a later reviewed manifest update; it records the processing date separately. The training engine still rejects `CC-BY-SA-4.0`.
+
+
+## Current Wikimedia dump format
+
+Use Wikimedia's newer monthly `mediawiki_content_current` export for current page revisions. The legacy XML dump path is formally being replaced. Download all XML parts listed by the official `SHA256SUMS` file, verify each part, and pass all parts to the importer in one run. Avoid the full-history export for the initial corpus. The export uses a consistent first-of-month UTC cutoff and is published after a delay for revision suppression/deletion processing.
+
+Official technical documentation: https://wikitech.wikimedia.org/wiki/MediaWiki_Content_File_Exports
