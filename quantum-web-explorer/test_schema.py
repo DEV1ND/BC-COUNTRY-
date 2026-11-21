@@ -47,3 +47,4 @@ legacy_topics = legacy.execute("SELECT COUNT(*) FROM search_topics").fetchone()[
 assert legacy_topics >= 15, legacy_topics
 print("Wikipedia explorer legacy migration smoke test passed.")
 
+
