@@ -268,12 +268,12 @@
         "technology"
       ],
       "format": [
-        "official pages-articles XML dump (.bz2)"
+        "monthly mediawiki_content_current XML export parts (.bz2)"
       ],
       "license_id": "CC-BY-SA-4.0 (candidate; verify per revision and page notices)",
-      "source": "https://dumps.wikimedia.org/",
+      "source": "https://dumps.wikimedia.org/other/mediawiki_content_current/",
       "license_reference": "https://creativecommons.org/licenses/by-sa/4.0/",
-      "evidence": "Wikimedia Terms of Use and article reuse guidance identify CC BY-SA 4.0 as the current general text license, while imported material and page-level notices may carry additional terms. The dump processor records article and revision URLs, dump SHA-256, and pending review metadata.",
+      "evidence": "Wikimedia Terms of Use and article reuse guidance identify CC BY-SA 4.0 as the current general text license, while imported material and page-level notices may carry additional terms. The dump processor records article and revision URLs, dump SHA-256, and pending review metadata. The preferred current source is the newer monthly mediawiki_content_current export, whose official SHA256SUMS lists all XML parts and whose publication is documented by Wikimedia Wikitech.",
       "limitations": [
         "Only official Wikimedia XML dumps are used; this pipeline does not crawl article pages.",
         "Every page remains pending review; the default license label is not proof that every passage is CC BY-SA 4.0.",
@@ -281,15 +281,16 @@
         "Attribution, license link, revision history, and a description of text normalization must be preserved.",
         "Whether model weights trained on CC BY-SA text are an adaptation and what ShareAlike obligations would apply is a separate unresolved policy/legal question; do not infer an answer.",
         "The trainer intentionally continues to reject CC-BY-SA-4.0 until a documented project-level decision and technical compliance policy are approved.",
-        "Wikipedia dumps support knowledge coverage but are not a substitute for broad conversational, code, mathematical, and reasoning corpora."
+        "Wikipedia dumps support knowledge coverage but are not a substitute for broad conversational, code, mathematical, and reasoning corpora.",
+        "The legacy XML dump path is being replaced; use monthly mediawiki_content_current exports, verify all parts with SHA256SUMS, and process all parts together."
       ],
       "ingestion_status": "official_dump_processor_available_pending_real_dump_and_page_review",
       "approval_required": true,
       "training_allowlist_enabled": false,
       "processor": "pretraining/prepare_wikimedia_dump.py",
       "command_examples": [
-        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/kowiki-latest-pages-articles.xml.bz2 --language ko --max-pages 3000",
-        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/enwiki-latest-pages-articles.xml.bz2 --language en --max-pages 3000"
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/ko-part-1.xml.bz2 --dump /path/to/ko-part-2.xml.bz2 --language ko --max-pages 3000",
+        "python pretraining/prepare_wikimedia_dump.py --dump /path/to/en-part-1.xml.bz2 --dump /path/to/en-part-2.xml.bz2 --language en --max-pages 3000"
       ]
     }
   ],
