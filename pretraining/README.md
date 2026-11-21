@@ -135,3 +135,19 @@ These are promising Korean-language candidates, but they are **not approved trai
 
 Official portal: https://kli.korean.go.kr/corpus/main/requestMain.do?lang=ko
 Official FAQ: https://kli.korean.go.kr/boards/faqList.do
+
+
+## Wikimedia candidate intake (updated 2026-11-22)
+
+Korean and English Wikipedia are now registered as explicit candidate sources for Quantum pretraining. Use the official Wikimedia pages-articles XML dumps; do not scrape live article pages. Example commands:
+
+```bash
+python pretraining/prepare_wikimedia_dump.py --dump /path/to/kowiki-latest-pages-articles.xml.bz2 --language ko --max-pages 3000
+python pretraining/prepare_wikimedia_dump.py --dump /path/to/enwiki-latest-pages-articles.xml.bz2 --language en --max-pages 3000
+```
+
+The importer writes plain-text pages and a JSONL manifest under `pretraining/`. It records page title, article URL, revision URL, page/revision IDs, dump filename and SHA-256, a processing date, and attribution/history links. It records the original dump download date as unknown rather than inventing it. Every record is `pending_review`; output files and manifests are never overwritten. The importer also records that wikitext formatting was normalized.
+
+**Important:** CC BY-SA 4.0 is a candidate license label, not blanket approval for every page or imported passage. Check the exact revision, page footer, history, and imported-content notices. Keep attribution, the license link, revision history, and a description of modifications. The legal treatment of model weights trained on ShareAlike material is not settled by this repository; the trainer therefore continues to reject CC BY-SA until a project-level legal and technical policy is documented and approved. Do not manually change the trainer allowlist just to force a run.
+
+The XML importer is a staging tool, not a fact checker, and Wikipedia alone does not provide the breadth needed for a strong general-purpose model. Add other reviewed Korean and English corpora for dialogue, code, mathematics, and varied prose. Keep validation documents out of BPE merge fitting and gradient updates.
