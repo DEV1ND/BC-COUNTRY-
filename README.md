@@ -60,3 +60,12 @@
 ## 원본 보존
 
 배포 패키지의 `juckex_weights.npz`와 `vocab.json`은 기존 체크포인트를 유지합니다. 첫 학습은 이 가중치에서 이어지며, Cloudflare KV에는 현재 모델과 직전 모델을 별도로 저장합니다.
+
+
+## Quantum 무료 Colab 학습 실험
+
+- 노트북: [quantum-inference/Quantum_Free_Colab_Training.ipynb](https://github.com/DEV1ND/BC-COUNTRY-/blob/quantum-v2-development/quantum-inference/Quantum_Free_Colab_Training.ipynb)
+- 이 노트북은 무료 Colab 세션에서 승인된 한국어 위키백과 문서로 독립적인 후보 체크포인트를 학습합니다.
+- Cloudflare의 격리된 Wikipedia Worker에 인증된 `GET /export-approved` 경로가 배포되어 있어야 합니다. 이 경로는 승인된 본문을 최대 10개씩 페이지 단위로 내보냅니다.
+- 후보 모델은 파일로만 내려받으며 운영 JUCKEX 또는 운영 Quantum 모델을 자동 교체하지 않습니다.
+- 무료 Colab GPU는 세션·할당량이 제한되고 학습 결과는 세션 종료 후 사라질 수 있으므로 결과 체크포인트를 직접 보관해야 합니다.
