@@ -109,3 +109,18 @@ Before the general corpus preparation step:
 The official `dev.tsv` is reserved for validation. Do not import `test.tsv` into training or validation. The current fixed Quantum evaluation set remains separate.
 
 Other candidates have been excluded or blocked where their exact conditions do not match the conservative trainer policy. In particular, the Open Korean Historical Corpus Hugging Face card currently declares CC BY-NC 4.0, the Korpora repository license does not automatically apply to every corpus it packages, and AI-Hub collections have collection-specific access and use conditions.
+
+## Current intake status (2026-11-22)
+
+The exact Mozilla Common Voice archive `cv-corpus-27.0-2026-09-11` has now been received and staged locally. Its bundled Korean README states that the dataset is released under Creative Commons Zero (CC0). The staging process reads only the `sentence` column, drops speaker and demographic fields, and excludes the official test split.
+
+Re-parsing the uploaded TSV files with a tab-delimited CSV parser produced **623 train rows**, **514 dev rows**, and **579 test rows excluded**. The locally staged review file contains **12 train blocks** and **9 validation blocks**. Automated first-pass checks found no normalized duplicate blocks, no train/validation duplicate blocks, no blocks shorter than 200 characters, and no matches for the configured email, Korean mobile-phone, or Korean resident-number patterns.
+
+The original download/retrieval date was not recorded in the uploaded archive metadata. Therefore the staged JSONL keeps its review flags false and is not admitted to the training manifest yet. The automated checks are not comprehensive PII detection and do not replace final human content review.
+
+Larger sources have been added to `sources.json` as candidates only:
+- FineWeb-2 Korean and FineWeb English: ODC-By database terms plus Common Crawl and underlying-page rights review; blocked by the current trainer's CC0/CC-BY-only allowlist.
+- Cosmopedia: Apache-2.0 dataset card, but synthetic English text and seed-source/content review remain necessary.
+- Sage Pretrain Corpus: mixed per-record licenses; record-level provenance and license filtering are required.
+
+**No 10,000-step run has started.** The Common Voice text is too small and too narrow to justify a general pretraining run. No candidate checkpoint, production checkpoint, Render service, or live model was changed.
