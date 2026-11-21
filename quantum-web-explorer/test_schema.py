@@ -21,3 +21,28 @@ row = db.execute("SELECT content_hash,revision_id,status FROM pages WHERE id='p1
 assert row == ("hash2", 124, "pending_review"), row
 print("Wikipedia explorer SQLite schema smoke test passed.")
 
+
+# Existing lab databases must be upgradeable with the additive migration.
+legacy = sqlite3.connect(":memory:")
+legacy.executescript("""
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE search_topics (query TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 1, last_searched_at TEXT);
+CREATE TABLE pages (
+ id TEXT PRIMARY KEY, provider TEXT NOT NULL, title TEXT NOT NULL, url TEXT NOT NULL UNIQUE,
+ domain TEXT NOT NULL, snippet TEXT NOT NULL DEFAULT '', content_hash TEXT NOT NULL UNIQUE,
+ r2_key TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_review',
+ license_status TEXT NOT NULL DEFAULT 'unknown', license_name TEXT, attribution TEXT,
+ discovered_at TEXT NOT NULL, reviewed_at TEXT, reviewer_note TEXT, synced_at TEXT, sync_error TEXT
+);
+CREATE TABLE crawl_runs (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, discovered INTEGER NOT NULL, errors TEXT NOT NULL, ran_at TEXT NOT NULL
+);
+""")
+legacy.executescript((ROOT / "migrations" / "0002-autonomous-crawler.sql").read_text(encoding="utf-8"))
+legacy_page_columns = {row[1] for row in legacy.execute("PRAGMA table_info(pages)")}
+assert {"revision_id", "last_seen_at"} <= legacy_page_columns
+legacy_run_columns = {row[1] for row in legacy.execute("PRAGMA table_info(crawl_runs)")}
+assert {"updated", "synced"} <= legacy_run_columns
+legacy_topics = legacy.execute("SELECT COUNT(*) FROM search_topics").fetchone()[0]
+assert legacy_topics >= 15, legacy_topics
+print("Wikipedia explorer legacy migration smoke test passed.")
