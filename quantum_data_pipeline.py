@@ -44,7 +44,7 @@ def main():
             if reason: rejected[reason]=rejected.get(reason,0)+1; continue
             seen.add(key)
             accepted.append({"question":q,"answer":ans,"approved":True,"source":source,"license":license_id,
-                             "source_url":str(row.get("source_url","")),"record_id":str(row.get("record_id",key[:16]))})
+                             "source_url":str(row.get("source_url","")),"context":str(row.get("context","")),"record_id":str(row.get("record_id",key[:16]))})
             if len(accepted)>=a.target: break
         if len(accepted)>=a.target: break
     # Stable question-level split prevents paraphrase leakage across train/validation.
