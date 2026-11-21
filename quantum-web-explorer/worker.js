@@ -1,3 +1,4 @@
+import { reviewCandidate } from "./auto_review.js";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -56,6 +57,22 @@ async function collectTopic(topic,env){
   await env.DB.prepare("UPDATE search_topics SET last_searched_at=datetime('now'),last_error=NULL WHERE query=?").bind(topic.query).run();
   return {discovered,updated};
 }
+
+async function autoReviewPending(env, limit = 15) {
+  const { results = [] } = await env.DB.prepare("SELECT id,title,url,domain,content,license_status,license_name,attribution,revision_id FROM pages WHERE status='pending_review' AND (reviewer_note IS NULL OR reviewer_note LIKE 'AUTO_REVIEW:%') ORDER BY discovered_at LIMIT ?").bind(limit).all();
+  const counts = { approved: 0, excluded: 0, pending: 0, checked: results.length };
+  for (const row of results) {
+    const decision = reviewCandidate(row);
+    const note = "AUTO_REVIEW: " + decision.reason + " | score=" + decision.score;
+    await env.DB.prepare("UPDATE pages SET status=?,reviewed_at=CASE WHEN ?='approved' OR ?='excluded' THEN datetime('now') ELSE reviewed_at END,reviewer_note=? WHERE id=? AND status='pending_review'")
+      .bind(decision.status, decision.status, decision.status, note, row.id).run();
+    if (decision.status === "approved") counts.approved++;
+    else if (decision.status === "excluded") counts.excluded++;
+    else counts.pending++;
+  }
+  return counts;
+}
+
 async function syncApproved(env){
   if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return {ok:false,synced:0,error:"inference_sync_not_configured"};
   const {results=[]}=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL ORDER BY reviewed_at LIMIT ?").bind(SYNC_BATCH).all();
@@ -114,11 +131,12 @@ async function runCycle(env){
       await env.DB.prepare("UPDATE search_topics SET last_error=? WHERE query=?").bind(message.slice(0,500),topic.query).run();
     }
   }
+  const review=await autoReviewPending(env,15);
   const sync=await syncApproved(env);
   const training=await maybeStartIncrementalTraining(env);
   await env.DB.prepare("INSERT INTO crawl_runs(discovered,updated,synced,errors,ran_at) VALUES(?,?,?,?,datetime('now'))")
     .bind(discovered,updated,sync.synced||0,JSON.stringify({crawl:errors,sync:sync.error||null})).run();
-  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,sync,training,errors};
+  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,review,sync,training,errors};
 }
 async function approvePage(request,env){
   let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
@@ -191,6 +209,7 @@ export default {
       return json({ok:true,running:false});
     }
     if(request.method==="POST"&&url.pathname==="/run-once")return json(await runCycle(env));
+    if(request.method==="POST"&&url.pathname==="/auto-review"){let body={};try{body=await request.json();}catch{} const limit=Math.min(50,Math.max(1,Number(body.limit||20))); return json({ok:true,review:await autoReviewPending(env,limit)});}
     if(request.method==="POST"&&url.pathname==="/approve")return approvePage(request,env);
     if(request.method==="POST"&&url.pathname==="/sync-approved")return json(await syncApproved(env));
     return json({error:"not_found"},404);
