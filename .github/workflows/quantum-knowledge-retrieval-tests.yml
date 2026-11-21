@@ -6,6 +6,7 @@ on:
       - quantum-data-repair
     paths:
       - "cloudflare-workers/**"
+      - "quantum-lab-worker/**"
       - "quantum-inference/knowledge_index_status.py"
       - "quantum-inference/tests/test_knowledge_index_status.py"
       - "quantum-inference/app.py"
@@ -14,6 +15,7 @@ on:
       - "quantum-inference/tests/test_wikipedia_index_evaluation.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
       - "quantum-inference/tests/test_knowledge_retrieval_benchmark.py"
+      - "quantum-lab-worker/**"
       - ".github/workflows/quantum-knowledge-retrieval-tests.yml"
   pull_request:
     branches:
@@ -23,6 +25,7 @@ on:
       - "quantum-inference/evaluate_wikipedia_index.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
       - "quantum-inference/tests/test_wikipedia_index_evaluation.py"
+      - "quantum-lab-worker/**"
       - ".github/workflows/quantum-knowledge-retrieval-tests.yml"
 
 permissions:
@@ -55,6 +58,9 @@ jobs:
           node --check cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs
           node --check cloudflare-workers/auto_review.mjs
           node --check cloudflare-workers/knowledge_sync_plan.mjs
+          node --check quantum-lab-worker/worker.js
+      - name: Run Quantum Lab Worker contract tests
+        run: node --test quantum-lab-worker/tests/worker_contract.test.mjs
       - name: Run Cloudflare sync planner tests
         run: node --test cloudflare-workers/tests/sync-plan.test.mjs
       - name: Run retrieval regression tests
