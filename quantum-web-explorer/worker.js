@@ -78,16 +78,25 @@ function extractText(html) {
     .replace(/\s+/g, " ").trim().slice(0, 300000);
 }
 async function crawlResult(item, domains, env) {
-  const host = hostOf(item.url);
-  if (!host || !allowedHost(host, domains)) return "skipped_domain";
-  const parsed = new URL(item.url);
-  if (!["http:", "https:"].includes(parsed.protocol)) return "skipped_scheme";
-  if (!(await robotsAllows(item.url))) return "skipped_robots";
-  const res = await fetch(item.url, {
-    headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
-    redirect: "follow", signal: AbortSignal.timeout(12000)
-  });
-  if (!res.ok) return "fetch_error_" + res.status;
+  let currentUrl = item.url;
+  let res;
+  // Validate every redirect hop; never let a permitted URL redirect the crawler off the allowlist.
+  for (let hop = 0; hop <= 4; hop++) {
+    const host = hostOf(currentUrl);
+    if (!host || !allowedHost(host, domains)) return "skipped_domain";
+    const parsed = new URL(currentUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "skipped_scheme";
+    if (!(await robotsAllows(currentUrl))) return "skipped_robots";
+    res = await fetch(currentUrl, {
+      headers: { "user-agent": USER_AGENT, "accept": "text/html,application/xhtml+xml" },
+      redirect: "manual", signal: AbortSignal.timeout(12000)
+    });
+    if (![301, 302, 303, 307, 308].includes(res.status)) break;
+    const location = res.headers.get("location");
+    if (!location || hop === 4) return "skipped_redirect";
+    currentUrl = new URL(location, currentUrl).toString();
+  }
+  if (!res || !res.ok) return "fetch_error_" + (res?.status || "unknown");
   const type = res.headers.get("content-type") || "";
   if (!type.includes("text/html") && !type.includes("text/plain")) return "skipped_content_type";
   const body = await res.text();
@@ -97,7 +106,7 @@ async function crawlResult(item, domains, env) {
   const hash = await sha256(text);
   if (await env.DB.prepare("SELECT id FROM pages WHERE content_hash = ?").bind(hash).first()) return "duplicate";
   const id = crypto.randomUUID();
-  const finalUrl = res.url || item.url;
+  const finalUrl = currentUrl;
   const key = "pages/" + id + ".txt";
   await env.RAW_PAGES.put(key, text, { httpMetadata: { contentType: "text/plain; charset=utf-8" } });
   await env.DB.prepare(
