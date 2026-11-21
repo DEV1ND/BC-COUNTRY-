@@ -32,7 +32,7 @@ jobs:
           path = Path("pretraining/manifest.example.jsonl")
           rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
           required = {"path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split", "review_status"}
-          assert len(rows) == 2
+          assert len(rows) == 3
           assert all(required <= row.keys() for row in rows)
           assert {row["split"] for row in rows} == {"train", "validation"}
           print("manifest example structure: PASS")
@@ -116,6 +116,7 @@ jobs:
           with tempfile.TemporaryDirectory() as temp:
               temp = Path(temp)
               dump = temp / "synthetic-wiki.xml"
+              second_dump = temp / "synthetic-wiki-part-2.xml"
               mediawiki = ET.Element("mediawiki")
               for page_id, revision_id, title, body in [
                   ("101", "1001", "한국어 테스트 문서", "한국어 위키백과 합성 검증 문장입니다. " * 40),
@@ -129,12 +130,21 @@ jobs:
                   ET.SubElement(revision, "id").text = revision_id
                   ET.SubElement(revision, "text").text = body
               ET.ElementTree(mediawiki).write(dump, encoding="utf-8", xml_declaration=True)
+              second_tree = ET.Element("mediawiki")
+              page = ET.SubElement(second_tree, "page")
+              ET.SubElement(page, "title").text = "Second Part Article"
+              ET.SubElement(page, "ns").text = "0"
+              ET.SubElement(page, "id").text = "303"
+              revision = ET.SubElement(page, "revision")
+              ET.SubElement(revision, "id").text = "3003"
+              ET.SubElement(revision, "text").text = "A second synthetic dump part validates multi-file intake. " * 30
+              ET.ElementTree(second_tree).write(second_dump, encoding="utf-8", xml_declaration=True)
               output = root / "corpus" / "ci-wikimedia-fixture"
               manifest = root / "manifest.ci-wikimedia-fixture.jsonl"
               try:
                   subprocess.run([
                       "python", "pretraining/prepare_wikimedia_dump.py",
-                      "--dump", str(dump), "--language", "ko", "--max-pages", "2",
+                      "--dump", str(dump), "--dump", str(second_dump), "--language", "ko", "--max-pages", "3",
                       "--output", str(output), "--manifest", str(manifest),
                   ], check=True, capture_output=True, text=True)
                   rows = [json.loads(line) for line in manifest.read_text(encoding="utf-8").splitlines()]
@@ -142,7 +152,8 @@ jobs:
                   assert all(row["review_status"] == "pending_review" for row in rows)
                   assert all(row["license_review_status"] == "verify_revision_and_page_notices" for row in rows)
                   assert all(row["retrieved_at"] == "unknown_original_dump_download_date" for row in rows)
-                  assert all(row["revision_url"] and row["dump_sha256"] and row["content_sha256"] for row in rows)
+                  assert all(row["revision_url"] and row["dump_sha256"] and row["dump_set_sha256"] and row["content_sha256"] for row in rows)
+              assert len({row["dump_filename"] for row in rows}) == 2
                   assert all(row["changes_made"] for row in rows)
                   assert all((root / row["path"]).is_file() for row in rows)
                   print("Wikimedia XML staging fixture: PASS")
