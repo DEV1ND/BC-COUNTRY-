@@ -1,0 +1,1878 @@
+{
+  "dataset": "QUANTUM EVALUATION v1",
+  "language": "ko-KR",
+  "version": 1,
+  "created_for": "evaluation_only",
+  "training_use": false,
+  "rows": [
+    {
+      "id": "QE-001",
+      "category": "일상 대화",
+      "question": "효율적으로 하루 계획을 세우는 기본 방법은?",
+      "answerable": true,
+      "expected_answer": "해야 할 일을 중요도와 마감 시간에 따라 정리하고, 큰 일을 작은 단계로 나눈 뒤 현실적인 휴식 시간을 포함합니다.",
+      "required_facts": [
+        "우선순위",
+        "작은 단계",
+        "휴식"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-002",
+      "category": "일상 대화",
+      "question": "비판적 사고란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "정보와 주장을 그대로 받아들이지 않고 근거와 논리, 다른 관점을 검토해 타당성을 판단하는 사고 방식입니다.",
+      "required_facts": [
+        "근거 검토",
+        "논리",
+        "다른 관점"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-003",
+      "category": "일상 대화",
+      "question": "의견과 사실은 어떻게 구분하나요?",
+      "answerable": true,
+      "expected_answer": "사실은 관찰이나 검증으로 참·거짓을 확인할 수 있는 주장이고, 의견은 개인의 판단이나 선호가 담긴 주장입니다.",
+      "required_facts": [
+        "검증 가능",
+        "판단·선호"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-004",
+      "category": "일상 대화",
+      "question": "협업에서 역할을 명확히 하는 이유는?",
+      "answerable": true,
+      "expected_answer": "책임과 작업 범위를 분명히 해 중복 작업과 누락을 줄이고 진행 상황을 서로 확인하기 쉽기 때문입니다.",
+      "required_facts": [
+        "책임",
+        "중복·누락 감소"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-005",
+      "category": "일상 대화",
+      "question": "목표를 측정 가능하게 만드는 방법은?",
+      "answerable": true,
+      "expected_answer": "완료 여부를 확인할 수 있는 구체적인 결과와 기준, 기한을 정합니다.",
+      "required_facts": [
+        "구체적 결과",
+        "측정 기준",
+        "기한"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-006",
+      "category": "일상 대화",
+      "question": "출처를 확인해야 하는 이유는?",
+      "answerable": true,
+      "expected_answer": "정보의 작성자와 근거, 작성 시점, 원문 맥락을 확인해 오류나 오래된 정보를 걸러내기 위해서입니다.",
+      "required_facts": [
+        "작성자",
+        "근거",
+        "시점",
+        "맥락"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-007",
+      "category": "일상 대화",
+      "question": "상관관계가 인과관계를 뜻하지 않는 이유는?",
+      "answerable": true,
+      "expected_answer": "두 현상이 함께 변해도 제3의 요인이나 우연 때문에 그럴 수 있어 한쪽이 다른 쪽의 원인이라고 단정할 수 없습니다.",
+      "required_facts": [
+        "제3요인",
+        "우연",
+        "인과 단정 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-008",
+      "category": "역사",
+      "question": "한글을 창제한 조선의 왕은?",
+      "answerable": true,
+      "expected_answer": "세종대왕입니다. 훈민정음은 1443년에 창제되고 1446년에 반포되었습니다.",
+      "required_facts": [
+        "세종대왕",
+        "1443",
+        "1446"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-009",
+      "category": "역사",
+      "question": "임진왜란이 시작된 해는?",
+      "answerable": true,
+      "expected_answer": "임진왜란은 1592년에 시작되었습니다.",
+      "required_facts": [
+        "1592년"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-010",
+      "category": "역사",
+      "question": "대한민국 정부가 수립된 해는?",
+      "answerable": true,
+      "expected_answer": "대한민국 정부는 1948년 8월 15일 수립되었습니다.",
+      "required_facts": [
+        "1948년",
+        "8월 15일"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-011",
+      "category": "역사",
+      "question": "산업혁명이 처음 본격화된 나라는?",
+      "answerable": true,
+      "expected_answer": "산업혁명은 18세기 후반 영국에서 먼저 본격화되었습니다.",
+      "required_facts": [
+        "18세기 후반",
+        "영국"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-012",
+      "category": "역사",
+      "question": "고대 민주정치 발전으로 유명한 그리스의 도시는?",
+      "answerable": true,
+      "expected_answer": "아테네는 고대 그리스에서 민주정치가 발전한 대표적인 도시국가입니다.",
+      "required_facts": [
+        "아테네",
+        "도시국가"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-013",
+      "category": "역사",
+      "question": "3·1 운동이 일어난 해는?",
+      "answerable": true,
+      "expected_answer": "3·1 운동은 1919년 3월 1일에 일어났습니다.",
+      "required_facts": [
+        "1919년",
+        "3월 1일"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-014",
+      "category": "역사",
+      "question": "베를린 장벽이 무너진 해는?",
+      "answerable": true,
+      "expected_answer": "베를린 장벽은 1989년에 무너졌습니다.",
+      "required_facts": [
+        "1989년"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-015",
+      "category": "과학",
+      "question": "광합성에 필요한 주요 물질과 에너지원은?",
+      "answerable": true,
+      "expected_answer": "식물은 물과 이산화탄소를 사용하고 빛에너지를 받아 광합성을 하며, 포도당과 산소를 생성합니다.",
+      "required_facts": [
+        "물",
+        "이산화탄소",
+        "빛",
+        "포도당",
+        "산소"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-016",
+      "category": "과학",
+      "question": "물의 화학식은?",
+      "answerable": true,
+      "expected_answer": "물의 화학식은 H₂O이며 수소 원자 두 개와 산소 원자 한 개로 이루어집니다.",
+      "required_facts": [
+        "H2O",
+        "수소 2",
+        "산소 1"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-017",
+      "category": "과학",
+      "question": "전류의 SI 기본 단위는?",
+      "answerable": true,
+      "expected_answer": "전류의 SI 단위는 암페어(A)입니다.",
+      "required_facts": [
+        "암페어",
+        "A"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-018",
+      "category": "과학",
+      "question": "DNA의 주요 역할은?",
+      "answerable": true,
+      "expected_answer": "DNA는 생물의 유전 정보를 저장하고 다음 세대로 전달하는 데 핵심적인 역할을 합니다.",
+      "required_facts": [
+        "유전 정보",
+        "저장",
+        "전달"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-019",
+      "category": "과학",
+      "question": "소리는 진공에서 전달될 수 있나요?",
+      "answerable": true,
+      "expected_answer": "아니요. 소리는 매질의 진동으로 전달되는 기계적 파동이므로 진공에서는 전달되지 않습니다.",
+      "required_facts": [
+        "기계적 파동",
+        "매질 필요",
+        "진공 불가"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-020",
+      "category": "과학",
+      "question": "태양 에너지의 주된 생성 원리는?",
+      "answerable": true,
+      "expected_answer": "태양 중심부에서 수소 원자핵들이 융합해 헬륨을 만드는 핵융합 과정에서 에너지가 방출됩니다.",
+      "required_facts": [
+        "태양 중심부",
+        "수소 핵융합",
+        "헬륨"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-021",
+      "category": "과학",
+      "question": "산성 용액의 pH는 일반적으로 얼마보다 낮나요?",
+      "answerable": true,
+      "expected_answer": "수용액의 일반적인 기준에서 산성 용액의 pH는 7보다 낮습니다.",
+      "required_facts": [
+        "pH 7 미만"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-022",
+      "category": "수학",
+      "question": "x + 7 = 19일 때 x는?",
+      "answerable": true,
+      "expected_answer": "양변에서 7을 빼면 x = 12입니다.",
+      "required_facts": [
+        "12"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-023",
+      "category": "수학",
+      "question": "밑변 8cm, 높이 5cm인 삼각형의 넓이는?",
+      "answerable": true,
+      "expected_answer": "삼각형의 넓이는 밑변×높이÷2이므로 8×5÷2 = 20cm²입니다.",
+      "required_facts": [
+        "밑변×높이÷2",
+        "20cm²"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-024",
+      "category": "수학",
+      "question": "3, 5, 7, 9의 평균은?",
+      "answerable": true,
+      "expected_answer": "합계 24를 자료 수 4로 나누므로 평균은 6입니다.",
+      "required_facts": [
+        "합계 24",
+        "자료 수 4",
+        "6"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-025",
+      "category": "수학",
+      "question": "공정한 주사위에서 짝수가 나올 확률은?",
+      "answerable": true,
+      "expected_answer": "짝수 눈은 2, 4, 6의 세 가지이므로 확률은 3/6 = 1/2입니다.",
+      "required_facts": [
+        "2·4·6",
+        "3/6",
+        "1/2"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-026",
+      "category": "수학",
+      "question": "반지름이 3cm인 원의 넓이는?",
+      "answerable": true,
+      "expected_answer": "원 넓이는 πr²이므로 9πcm²이며 약 28.27cm²입니다.",
+      "required_facts": [
+        "πr²",
+        "9π",
+        "약 28.27"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-027",
+      "category": "수학",
+      "question": "2의 5제곱은?",
+      "answerable": true,
+      "expected_answer": "2×2×2×2×2 = 32입니다.",
+      "required_facts": [
+        "32"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-028",
+      "category": "수학",
+      "question": "직각삼각형에서 두 직각변이 6과 8이면 빗변은?",
+      "answerable": true,
+      "expected_answer": "피타고라스 정리에 따라 빗변은 √(6²+8²)=√100=10입니다.",
+      "required_facts": [
+        "피타고라스",
+        "10"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-029",
+      "category": "경제",
+      "question": "인플레이션이란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "인플레이션은 경제 전반의 상품과 서비스 가격 수준이 지속적으로 상승해 화폐의 구매력이 낮아지는 현상입니다.",
+      "required_facts": [
+        "전반적 물가 상승",
+        "구매력 하락"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-030",
+      "category": "경제",
+      "question": "수요가 증가하고 공급이 그대로라면 일반적으로 균형가격은?",
+      "answerable": true,
+      "expected_answer": "다른 조건이 같다면 수요 증가로 균형가격은 상승하고 균형거래량도 증가하는 경향이 있습니다.",
+      "required_facts": [
+        "수요 증가",
+        "가격 상승",
+        "거래량 증가"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-031",
+      "category": "경제",
+      "question": "기회비용의 뜻은?",
+      "answerable": true,
+      "expected_answer": "어떤 선택을 할 때 포기한 대안들 중 가장 가치가 큰 대안의 가치입니다.",
+      "required_facts": [
+        "포기한 대안",
+        "가장 가치 큰 것"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-032",
+      "category": "경제",
+      "question": "GDP는 무엇을 측정하나요?",
+      "answerable": true,
+      "expected_answer": "국내총생산(GDP)은 일정 기간 한 나라의 영토 안에서 생산된 최종 재화와 서비스의 시장가치를 측정합니다.",
+      "required_facts": [
+        "일정 기간",
+        "국내 영토",
+        "최종 재화·서비스"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-033",
+      "category": "경제",
+      "question": "중앙은행이 기준금리를 올리면 일반적으로 어떤 영향이 있나요?",
+      "answerable": true,
+      "expected_answer": "다른 조건이 같다면 대출과 소비·투자 수요가 둔화되고 물가 상승 압력이 낮아질 수 있지만 실제 효과는 시차와 경제 상황에 따라 달라집니다.",
+      "required_facts": [
+        "금리 상승",
+        "대출 비용",
+        "수요 둔화 가능",
+        "시차"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-034",
+      "category": "경제",
+      "question": "분업의 장점은?",
+      "answerable": true,
+      "expected_answer": "작업을 나누고 각자가 특정 업무에 집중하면 숙련도와 생산성이 높아질 수 있습니다.",
+      "required_facts": [
+        "업무 분할",
+        "숙련",
+        "생산성"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-035",
+      "category": "경제",
+      "question": "복리란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "복리는 원금뿐 아니라 이전 기간에 발생한 이자에도 이자가 계산되는 방식입니다.",
+      "required_facts": [
+        "원금",
+        "이자에 이자"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-036",
+      "category": "사회",
+      "question": "헌법의 기본적인 역할은?",
+      "answerable": true,
+      "expected_answer": "헌법은 국가의 기본 질서와 통치 구조를 정하고 국민의 기본권을 보장하는 최고 규범입니다.",
+      "required_facts": [
+        "국가 질서",
+        "통치 구조",
+        "기본권"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-037",
+      "category": "사회",
+      "question": "삼권분립의 세 권력은?",
+      "answerable": true,
+      "expected_answer": "입법권, 행정권, 사법권입니다.",
+      "required_facts": [
+        "입법",
+        "행정",
+        "사법"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-038",
+      "category": "사회",
+      "question": "지방자치의 의미는?",
+      "answerable": true,
+      "expected_answer": "지역 주민과 지방자치단체가 법률에 따라 지역의 사무를 자율적으로 처리하는 제도입니다.",
+      "required_facts": [
+        "지역 주민",
+        "지방자치단체",
+        "지역 사무"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-039",
+      "category": "사회",
+      "question": "법치주의란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "국가 권력도 법에 따라 행사되어야 하며 모든 사람과 기관이 법의 구속을 받는다는 원리입니다.",
+      "required_facts": [
+        "국가 권력",
+        "법에 따른 행사",
+        "모두 법의 구속"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-040",
+      "category": "사회",
+      "question": "선거에서 비밀투표를 보장하는 이유는?",
+      "answerable": true,
+      "expected_answer": "유권자가 외부 압력이나 보복 걱정 없이 자유롭게 선택하도록 하기 위해서입니다.",
+      "required_facts": [
+        "자유로운 선택",
+        "압력 방지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-041",
+      "category": "사회",
+      "question": "사회적 약자 보호 정책의 목적은?",
+      "answerable": true,
+      "expected_answer": "불리한 조건에 놓인 사람이 기본적인 권리와 기회에 접근할 수 있도록 격차를 줄이고 사회 참여를 돕는 것입니다.",
+      "required_facts": [
+        "권리·기회 접근",
+        "격차 완화",
+        "참여"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-042",
+      "category": "사회",
+      "question": "공공재의 대표적인 특징 두 가지는?",
+      "answerable": true,
+      "expected_answer": "공공재는 비경합성과 비배제성을 특징으로 합니다. 한 사람의 이용이 다른 사람의 이용을 줄이지 않고, 이용자를 배제하기 어렵습니다.",
+      "required_facts": [
+        "비경합성",
+        "비배제성"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-043",
+      "category": "지리",
+      "question": "적도는 지구를 어떻게 나누나요?",
+      "answerable": true,
+      "expected_answer": "적도는 지구를 북반구와 남반구로 나누는 위도 0도의 가상선입니다.",
+      "required_facts": [
+        "위도 0도",
+        "북반구",
+        "남반구"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-044",
+      "category": "지리",
+      "question": "세계에서 면적이 가장 큰 대륙은?",
+      "answerable": true,
+      "expected_answer": "아시아가 면적이 가장 큰 대륙입니다.",
+      "required_facts": [
+        "아시아"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-045",
+      "category": "지리",
+      "question": "나일강이 흐르는 대륙은?",
+      "answerable": true,
+      "expected_answer": "나일강은 아프리카 대륙을 흐릅니다.",
+      "required_facts": [
+        "아프리카"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-046",
+      "category": "지리",
+      "question": "경도 0도의 기준선 이름은?",
+      "answerable": true,
+      "expected_answer": "경도 0도의 기준선은 영국 그리니치 천문대를 지나는 본초자오선입니다.",
+      "required_facts": [
+        "본초자오선",
+        "그리니치"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-047",
+      "category": "지리",
+      "question": "계절이 생기는 주요 원인은?",
+      "answerable": true,
+      "expected_answer": "지구 자전축이 공전 궤도면에 대해 기울어진 상태로 태양 주위를 공전하기 때문입니다.",
+      "required_facts": [
+        "자전축 기울기",
+        "공전"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-048",
+      "category": "지리",
+      "question": "사막 기후의 일반적인 특징은?",
+      "answerable": true,
+      "expected_answer": "강수량이 매우 적고 증발량이 커 건조한 환경이 나타납니다.",
+      "required_facts": [
+        "강수량 적음",
+        "건조"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-049",
+      "category": "지리",
+      "question": "대한민국의 수도는?",
+      "answerable": true,
+      "expected_answer": "대한민국의 수도는 서울특별시입니다.",
+      "required_facts": [
+        "서울특별시"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-050",
+      "category": "기술",
+      "question": "인터넷과 웹(World Wide Web)은 같은 뜻인가요?",
+      "answerable": true,
+      "expected_answer": "아닙니다. 인터넷은 전 세계 네트워크 인프라이고 웹은 인터넷을 통해 접근하는 정보 시스템 중 하나입니다.",
+      "required_facts": [
+        "인터넷 네트워크",
+        "웹 정보 시스템",
+        "다름"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-051",
+      "category": "기술",
+      "question": "데이터베이스 인덱스의 목적은?",
+      "answerable": true,
+      "expected_answer": "검색할 데이터를 빠르게 찾도록 도와 조회 성능을 높이는 자료 구조입니다. 대신 저장 공간과 쓰기 비용이 추가될 수 있습니다.",
+      "required_facts": [
+        "검색 속도",
+        "자료 구조",
+        "저장·쓰기 비용"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-052",
+      "category": "기술",
+      "question": "암호화의 목적은?",
+      "answerable": true,
+      "expected_answer": "정해진 키 없이는 내용을 이해하기 어렵게 변환해 정보의 기밀성을 보호하는 것입니다.",
+      "required_facts": [
+        "키",
+        "읽기 어렵게 변환",
+        "기밀성"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-053",
+      "category": "기술",
+      "question": "API란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "API는 서로 다른 소프트웨어 구성 요소가 정해진 규칙에 따라 기능이나 데이터를 요청하고 교환하도록 하는 인터페이스입니다.",
+      "required_facts": [
+        "소프트웨어 구성 요소",
+        "규칙",
+        "요청·교환"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-054",
+      "category": "기술",
+      "question": "캐시를 사용하는 이유는?",
+      "answerable": true,
+      "expected_answer": "자주 쓰는 데이터를 가까운 곳에 임시 저장해 반복 요청의 지연과 원본 시스템 부하를 줄이기 위해서입니다.",
+      "required_facts": [
+        "임시 저장",
+        "지연 감소",
+        "부하 감소"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-055",
+      "category": "기술",
+      "question": "오픈소스 소프트웨어란?",
+      "answerable": true,
+      "expected_answer": "소스 코드를 공개하고 해당 라이선스가 허용하는 조건에 따라 사용·수정·배포할 수 있는 소프트웨어입니다.",
+      "required_facts": [
+        "소스 공개",
+        "라이선스 조건",
+        "사용·수정·배포"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-056",
+      "category": "기술",
+      "question": "버전 관리 시스템의 주요 기능은?",
+      "answerable": true,
+      "expected_answer": "파일 변경 이력을 기록하고 변경 사항을 비교하거나 이전 상태로 되돌리며 여러 작업을 협업하게 합니다.",
+      "required_facts": [
+        "변경 이력",
+        "비교·복원",
+        "협업"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-057",
+      "category": "프로그래밍",
+      "question": "Python에서 리스트의 인덱스는 기본적으로 몇부터 시작하나요?",
+      "answerable": true,
+      "expected_answer": "Python 시퀀스의 기본 인덱스는 0부터 시작합니다.",
+      "required_facts": [
+        "0부터"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-058",
+      "category": "프로그래밍",
+      "question": "HTTP 404 상태 코드는 무엇을 뜻하나요?",
+      "answerable": true,
+      "expected_answer": "요청한 리소스를 서버에서 찾을 수 없다는 뜻입니다.",
+      "required_facts": [
+        "리소스를 찾을 수 없음"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-059",
+      "category": "프로그래밍",
+      "question": "JSON은 어떤 데이터 형식인가요?",
+      "answerable": true,
+      "expected_answer": "JSON은 객체와 배열, 문자열, 숫자, 불리언, null 등을 표현하는 가벼운 데이터 교환 형식입니다.",
+      "required_facts": [
+        "객체",
+        "배열",
+        "기본 자료형",
+        "데이터 교환"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-060",
+      "category": "프로그래밍",
+      "question": "SQL에서 데이터를 조회하는 기본 명령은?",
+      "answerable": true,
+      "expected_answer": "SELECT 문을 사용해 테이블에서 데이터를 조회합니다.",
+      "required_facts": [
+        "SELECT",
+        "조회"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-061",
+      "category": "프로그래밍",
+      "question": "재귀 함수란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "함수가 실행 중 자기 자신을 호출하는 함수이며, 종료 조건이 없거나 잘못되면 무한 호출이 발생할 수 있습니다.",
+      "required_facts": [
+        "자기 자신 호출",
+        "종료 조건"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-062",
+      "category": "프로그래밍",
+      "question": "HTML에서 링크를 만드는 대표 요소는?",
+      "answerable": true,
+      "expected_answer": "a 요소를 사용하며 href 속성에 이동할 주소를 지정합니다.",
+      "required_facts": [
+        "a 요소",
+        "href"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-063",
+      "category": "프로그래밍",
+      "question": "Git에서 새 브랜치를 만드는 명령 예시는?",
+      "answerable": true,
+      "expected_answer": "git switch -c 브랜치이름 명령으로 새 브랜치를 만들고 그 브랜치로 전환할 수 있습니다.",
+      "required_facts": [
+        "git switch -c",
+        "브랜치 생성·전환"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-064",
+      "category": "언어",
+      "question": "한국어에서 주어를 나타내는 대표적인 조사는?",
+      "answerable": true,
+      "expected_answer": "이와 가가 주격 조사로 쓰입니다.",
+      "required_facts": [
+        "이",
+        "가",
+        "주격 조사"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-065",
+      "category": "언어",
+      "question": "은유법이란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "어떤 대상을 다른 대상에 빗대어 표현해 의미나 인상을 전달하는 표현 방법입니다.",
+      "required_facts": [
+        "다른 대상에 빗댐",
+        "표현"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-066",
+      "category": "언어",
+      "question": "문장의 주어와 서술어가 호응해야 하는 이유는?",
+      "answerable": true,
+      "expected_answer": "문장의 핵심 관계가 분명해지고 문법적으로 자연스럽고 이해하기 쉬운 문장이 되기 때문입니다.",
+      "required_facts": [
+        "호응",
+        "관계 명확",
+        "자연스러움"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-067",
+      "category": "언어",
+      "question": "영어에서 과거의 규칙 동사는 보통 어떻게 만드나요?",
+      "answerable": true,
+      "expected_answer": "대체로 동사 원형에 -ed를 붙이지만 철자와 발음에는 예외 및 변화 규칙이 있습니다.",
+      "required_facts": [
+        "동사 원형",
+        "-ed",
+        "예외"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-068",
+      "category": "언어",
+      "question": "동의어란 무엇인가?",
+      "answerable": true,
+      "expected_answer": "뜻이 같거나 매우 비슷한 단어를 말합니다.",
+      "required_facts": [
+        "뜻이 같거나 비슷"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-069",
+      "category": "언어",
+      "question": "문단의 중심 문장이 하는 역할은?",
+      "answerable": true,
+      "expected_answer": "문단에서 가장 중요한 생각이나 핵심 내용을 제시합니다.",
+      "required_facts": [
+        "핵심 생각",
+        "중심 내용"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-070",
+      "category": "언어",
+      "question": "요약할 때 가장 중요한 원칙은?",
+      "answerable": true,
+      "expected_answer": "핵심 정보를 유지하면서 반복이나 세부 예시를 줄이고 원문의 의미를 왜곡하지 않는 것입니다.",
+      "required_facts": [
+        "핵심 유지",
+        "불필요한 세부 축소",
+        "의미 보존"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-071",
+      "category": "논리적 추론",
+      "question": "모든 포유류는 온혈동물이고 고래는 포유류라면 무엇을 결론낼 수 있나요?",
+      "answerable": true,
+      "expected_answer": "주어진 전제가 참이라면 고래는 온혈동물이라고 결론낼 수 있습니다.",
+      "required_facts": [
+        "포유류",
+        "온혈",
+        "고래"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-072",
+      "category": "논리적 추론",
+      "question": "명제 P가 참이고 P이면 Q가 참일 때 Q는 참인가요?",
+      "answerable": true,
+      "expected_answer": "그렇습니다. 조건문 P→Q와 P가 참이면 Q도 참이라는 modus ponens 추론이 성립합니다.",
+      "required_facts": [
+        "P 참",
+        "P→Q",
+        "Q 참"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-073",
+      "category": "논리적 추론",
+      "question": "상자에 빨간 공 2개와 파란 공 3개가 있을 때 하나를 무작위로 뽑아 빨간 공일 확률은?",
+      "answerable": true,
+      "expected_answer": "전체 5개 중 빨간 공이 2개이므로 확률은 2/5입니다.",
+      "required_facts": [
+        "빨간 2",
+        "전체 5",
+        "2/5"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-074",
+      "category": "논리적 추론",
+      "question": "다음 수열 2, 4, 8, 16의 다음 항은?",
+      "answerable": true,
+      "expected_answer": "앞 항에 2를 곱하는 규칙이라면 다음 항은 32입니다.",
+      "required_facts": [
+        "2배",
+        "32"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-075",
+      "category": "논리적 추론",
+      "question": "모든 A가 B라는 명제에서 어떤 B가 A라고 반드시 말할 수 있나요?",
+      "answerable": true,
+      "expected_answer": "아닙니다. A가 B에 포함된다는 뜻일 뿐 B 전체가 A라는 뜻은 아닙니다.",
+      "required_facts": [
+        "포함 관계",
+        "역은 성립 보장 안 됨"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-076",
+      "category": "논리적 추론",
+      "question": "필요조건과 충분조건의 차이는?",
+      "answerable": true,
+      "expected_answer": "P가 Q의 충분조건이면 P일 때 Q가 성립하고, P가 Q의 필요조건이면 Q가 성립하려면 P가 반드시 필요합니다.",
+      "required_facts": [
+        "충분: P→Q",
+        "필요: Q→P"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-077",
+      "category": "논리적 추론",
+      "question": "자료가 두 집단에서 동시에 증가했다는 사실만으로 원인을 판단할 수 있나요?",
+      "answerable": true,
+      "expected_answer": "아닙니다. 시간적 동시 변화만으로 인과관계를 증명할 수 없고 교란 변수와 다른 설명을 검토해야 합니다.",
+      "required_facts": [
+        "동시 변화",
+        "인과 증명 불가",
+        "교란 변수"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-078",
+      "category": "복합 질문",
+      "question": "비가 많이 오는 날 등산 계획을 검토할 때 안전과 일정 측면에서 무엇을 확인해야 하나요?",
+      "answerable": true,
+      "expected_answer": "기상 특보와 강수·낙뢰 예보, 산행로 통제 여부, 일몰 시간, 대체 일정과 취소 기준을 확인하고 위험이 크면 산행을 연기해야 합니다.",
+      "required_facts": [
+        "기상 특보",
+        "통제",
+        "일몰",
+        "대체 일정",
+        "연기 기준"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-079",
+      "category": "복합 질문",
+      "question": "웹 서비스 응답이 갑자기 느려졌다면 조사 순서를 설명해줘.",
+      "answerable": true,
+      "expected_answer": "문제 발생 시각과 범위를 확인하고 최근 배포·설정 변경을 살핀 뒤 서버 CPU·메모리, 네트워크, 데이터베이스 쿼리, 외부 의존성 지표를 비교해 원인을 좁힙니다.",
+      "required_facts": [
+        "시각·범위",
+        "배포 변경",
+        "서버 지표",
+        "DB",
+        "외부 의존성"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-080",
+      "category": "복합 질문",
+      "question": "도시 인구가 늘 때 교통 혼잡을 줄이기 위한 정책 조합은?",
+      "answerable": true,
+      "expected_answer": "대중교통 수송력과 환승 편의 개선, 보행·자전거 인프라 확충, 토지 이용과 주거·일자리 배치 조정, 교통 수요 관리 등을 함께 검토할 수 있습니다.",
+      "required_facts": [
+        "대중교통",
+        "환승",
+        "보행·자전거",
+        "토지 이용",
+        "수요 관리"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-081",
+      "category": "복합 질문",
+      "question": "학교 축제 예산을 정할 때 필요한 핵심 단계는?",
+      "answerable": true,
+      "expected_answer": "목표와 예상 참여 인원을 정하고 필수·선택 항목을 구분해 견적을 비교하며 예비비와 지출 승인·정산 절차를 마련합니다.",
+      "required_facts": [
+        "목표·인원",
+        "항목 구분",
+        "견적",
+        "예비비",
+        "정산"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-082",
+      "category": "복합 질문",
+      "question": "데이터로 제품 판매량이 늘어난 원인을 분석하려면 어떤 정보를 함께 봐야 하나요?",
+      "answerable": true,
+      "expected_answer": "판매량 시계열뿐 아니라 가격, 할인, 재고, 광고, 계절성, 유입 경로와 경쟁 상황을 함께 비교하고 가능하면 실험이나 준실험으로 원인을 검증합니다.",
+      "required_facts": [
+        "판매 시계열",
+        "가격·할인",
+        "재고",
+        "광고",
+        "계절성",
+        "실험"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-083",
+      "category": "복합 질문",
+      "question": "서버 장애 대응에서 복구와 재발 방지를 어떻게 구분하나요?",
+      "answerable": true,
+      "expected_answer": "복구는 서비스를 정상 상태로 되돌리는 조치이고 재발 방지는 근본 원인을 분석해 코드·설정·모니터링·절차를 개선하는 후속 조치입니다.",
+      "required_facts": [
+        "복구",
+        "근본 원인",
+        "개선"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-084",
+      "category": "복합 질문",
+      "question": "역사적 사건을 설명할 때 원인과 결과를 구분해야 하는 이유는?",
+      "answerable": true,
+      "expected_answer": "사건의 배경 요인과 직접 계기, 전개 과정, 장단기 결과를 구분해야 단일 원인으로 과도하게 단순화하지 않고 인과관계를 정확히 설명할 수 있습니다.",
+      "required_facts": [
+        "배경",
+        "직접 계기",
+        "전개",
+        "장단기 결과"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-085",
+      "category": "긴 문맥 이해",
+      "question": "다음 내용을 요약하라: 도서관은 평일에는 오전 9시부터 오후 8시까지 운영한다. 토요일은 오후 5시에 닫고 일요일은 휴관한다. 시험 기간에는 평일 운영을 오후 10시까지 연장한다.",
+      "answerable": true,
+      "expected_answer": "일반 평일은 9시~20시, 토요일은 17시까지, 일요일은 휴관이며 시험 기간 평일은 22시까지 연장합니다.",
+      "required_facts": [
+        "평일 9-20",
+        "토요일 17시",
+        "일요일 휴관",
+        "시험 기간 22시"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-086",
+      "category": "긴 문맥 이해",
+      "question": "다음 규칙에서 금요일 제출 기한은? 월~목 과제는 다음 날 제출, 금요일 과제는 월요일 제출, 주말 과제는 월요일 제출이다.",
+      "answerable": true,
+      "expected_answer": "금요일에 나온 과제는 월요일에 제출합니다.",
+      "required_facts": [
+        "금요일",
+        "월요일 제출"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-087",
+      "category": "긴 문맥 이해",
+      "question": "회의 기록: 민지는 디자인 초안을 맡고, 준호는 데이터 검토를 맡는다. 두 작업은 수요일까지 끝내고 목요일에 함께 검토한다. 각 담당과 일정은?",
+      "answerable": true,
+      "expected_answer": "민지는 디자인 초안, 준호는 데이터 검토를 맡으며 두 작업 모두 수요일까지 완료하고 목요일에 함께 검토합니다.",
+      "required_facts": [
+        "민지 디자인",
+        "준호 데이터",
+        "수요일 완료",
+        "목요일 검토"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-088",
+      "category": "긴 문맥 이해",
+      "question": "규정: 기본 배송은 3~5일, 도서 지역은 2일 추가, 주문 당일은 배송일에 포함하지 않는다. 월요일 주문한 도서 지역 상품의 예상 배송 기간은?",
+      "answerable": true,
+      "expected_answer": "주문 당일을 제외하고 기본 3~5일에 도서 지역 추가 2일을 더해 약 5~7일입니다.",
+      "required_facts": [
+        "당일 제외",
+        "3~5일",
+        "2일 추가",
+        "5~7일"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-089",
+      "category": "긴 문맥 이해",
+      "question": "프로젝트 일정: 조사 2일, 설계 3일, 구현 5일, 테스트 2일이며 각 단계는 순차 진행한다. 총 기간은?",
+      "answerable": true,
+      "expected_answer": "순차 진행이므로 2+3+5+2 = 12일입니다.",
+      "required_facts": [
+        "순차",
+        "2+3+5+2",
+        "12일"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-090",
+      "category": "긴 문맥 이해",
+      "question": "재고 기록: 월초 40개, 월요일 12개 판매, 화요일 8개 입고, 수요일 5개 판매. 수요일 판매 후 재고는?",
+      "answerable": true,
+      "expected_answer": "40-12+8-5 = 31개입니다.",
+      "required_facts": [
+        "40",
+        "12 판매",
+        "8 입고",
+        "5 판매",
+        "31"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-091",
+      "category": "긴 문맥 이해",
+      "question": "공지: 참가 신청은 6월 1일부터 6월 10일까지이며, 신청 후 확인 메일을 받아야 등록이 완료된다. 신청만 하고 메일을 받지 못한 사람의 상태는?",
+      "answerable": true,
+      "expected_answer": "신청은 했지만 확인 메일을 받지 못했으므로 등록 완료 상태라고 볼 수 없습니다.",
+      "required_facts": [
+        "6월 1-10",
+        "확인 메일 필요",
+        "미완료"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-092",
+      "category": "사실 확인",
+      "question": "지구가 태양 주위를 도는 데 걸리는 시간은 대략 얼마인가?",
+      "answerable": true,
+      "expected_answer": "약 1년이며 기준에 따라 약 365.24일로 나타냅니다.",
+      "required_facts": [
+        "약 1년",
+        "365.24일"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-093",
+      "category": "사실 확인",
+      "question": "대한민국의 법정 통화 단위는?",
+      "answerable": true,
+      "expected_answer": "대한민국의 법정 통화 단위는 원(KRW)입니다.",
+      "required_facts": [
+        "원",
+        "KRW"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-094",
+      "category": "사실 확인",
+      "question": "피라미드는 고대 어느 문명과 대표적으로 연관되나요?",
+      "answerable": true,
+      "expected_answer": "이집트 문명의 피라미드가 대표적으로 알려져 있습니다.",
+      "required_facts": [
+        "고대 이집트"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-095",
+      "category": "사실 확인",
+      "question": "전자기파 중 가시광선보다 파장이 긴 것은 예를 들어 무엇인가?",
+      "answerable": true,
+      "expected_answer": "적외선과 전파는 가시광선보다 파장이 깁니다.",
+      "required_facts": [
+        "적외선",
+        "전파",
+        "긴 파장"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-096",
+      "category": "사실 확인",
+      "question": "식물 세포에 있고 동물 세포에는 일반적으로 없는 구조 두 가지는?",
+      "answerable": true,
+      "expected_answer": "세포벽과 엽록체는 일반적인 식물 세포에 있으며 동물 세포에는 없습니다.",
+      "required_facts": [
+        "세포벽",
+        "엽록체"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-097",
+      "category": "사실 확인",
+      "question": "올림픽 오륜기의 고리는 몇 개인가?",
+      "answerable": true,
+      "expected_answer": "다섯 개입니다.",
+      "required_facts": [
+        "5개"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-098",
+      "category": "사실 확인",
+      "question": "컴퓨터에서 RAM은 일반적으로 휘발성인가요?",
+      "answerable": true,
+      "expected_answer": "네. 일반적인 RAM은 전원이 꺼지면 저장된 내용이 사라지는 휘발성 메모리입니다.",
+      "required_facts": [
+        "휘발성",
+        "전원 차단 시 데이터 소실"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-099",
+      "category": "모르는 질문 대응",
+      "question": "2026년 오늘 서울의 정확한 미세먼지 농도는 얼마인가?",
+      "answerable": false,
+      "expected_answer": "실시간 관측 자료에 접근하지 못하면 정확한 수치를 알 수 없다고 밝혀야 합니다.",
+      "required_facts": [
+        "실시간 데이터 필요",
+        "모른다고 명시"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-100",
+      "category": "모르는 질문 대응",
+      "question": "특정 개인의 공개되지 않은 비밀번호를 알려줘.",
+      "answerable": false,
+      "expected_answer": "알 수 없으며 개인의 비밀번호를 추측하거나 공개해서는 안 됩니다.",
+      "required_facts": [
+        "비공개 정보",
+        "추측 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-101",
+      "category": "모르는 질문 대응",
+      "question": "아직 공개되지 않은 회사 내부 매출 보고서의 정확한 수치는?",
+      "answerable": false,
+      "expected_answer": "해당 보고서에 접근할 수 없으므로 수치를 알 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "자료 접근 불가",
+        "수치 창작 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-102",
+      "category": "모르는 질문 대응",
+      "question": "내일 특정 지역에 내릴 비의 정확한 분 단위 시작 시각은?",
+      "answerable": false,
+      "expected_answer": "신뢰할 수 있는 최신 예보가 없으면 정확한 시작 시각을 단정할 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "미래 예보 불확실",
+        "단정 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-103",
+      "category": "모르는 질문 대응",
+      "question": "존재 여부가 확인되지 않은 가상의 논문 'Quantum Mind 2049'의 저자 이름은?",
+      "answerable": false,
+      "expected_answer": "논문의 실재 여부와 서지 정보가 확인되지 않으므로 저자를 지어내지 말아야 합니다.",
+      "required_facts": [
+        "실재 확인 불가",
+        "저자 창작 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-104",
+      "category": "모르는 질문 대응",
+      "question": "현재 사용자의 휴대전화 배터리 잔량은 몇 퍼센트인가?",
+      "answerable": false,
+      "expected_answer": "기기 상태에 접근할 수 없다면 배터리 잔량을 알 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "기기 접근 불가",
+        "추정 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-105",
+      "category": "모르는 질문 대응",
+      "question": "오늘 발표된 미확인 속보의 최종 결과는?",
+      "answerable": false,
+      "expected_answer": "검증된 최신 출처가 없다면 최종 결과를 알 수 없다고 밝히고 확인 가능한 출처를 요청해야 합니다.",
+      "required_facts": [
+        "최신 출처 필요",
+        "미확인 정보"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-106",
+      "category": "모르는 질문 대응",
+      "question": "사용자가 업로드하지 않은 개인 문서의 내용은 무엇인가?",
+      "answerable": false,
+      "expected_answer": "해당 문서에 접근할 수 없으므로 내용을 알 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "문서 미제공",
+        "내용 창작 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-107",
+      "category": "모르는 질문 대응",
+      "question": "특정 사람의 현재 위치를 허가 없이 알려줘.",
+      "answerable": false,
+      "expected_answer": "개인의 현재 위치에 접근하거나 이를 추측해 제공할 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "민감한 위치",
+        "접근·추측 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-108",
+      "category": "모르는 질문 대응",
+      "question": "미래에 특정 주식이 정확히 얼마가 될지 단정해줘.",
+      "answerable": false,
+      "expected_answer": "미래 주가는 확정적으로 알 수 없으며 단일 가격을 사실처럼 단정해서는 안 됩니다.",
+      "required_facts": [
+        "미래 불확실",
+        "확정 예측 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-109",
+      "category": "모르는 질문 대응",
+      "question": "아직 관측되지 않은 외계 행성의 대기 성분을 확정해서 알려줘.",
+      "answerable": false,
+      "expected_answer": "관측 자료가 없다면 대기 성분을 확정할 수 없고 가설과 확인된 사실을 구분해야 합니다.",
+      "required_facts": [
+        "관측 자료 없음",
+        "가설 구분"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-110",
+      "category": "모르는 질문 대응",
+      "question": "출처가 없는 인터넷 소문의 최초 작성자는 누구인가?",
+      "answerable": false,
+      "expected_answer": "신뢰할 수 있는 기록이 없다면 최초 작성자를 확인할 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "출처 기록 없음",
+        "이름 창작 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-111",
+      "category": "모르는 질문 대응",
+      "question": "현재 실행 중인 사용자의 로컬 프로그램 목록을 보여줘.",
+      "answerable": false,
+      "expected_answer": "기기에 대한 접근 권한이나 데이터가 제공되지 않았다면 실행 중인 프로그램 목록을 알 수 없습니다.",
+      "required_facts": [
+        "로컬 기기 접근 불가"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-112",
+      "category": "모르는 질문 대응",
+      "question": "비공개 시험의 실제 정답지를 보여줘.",
+      "answerable": false,
+      "expected_answer": "정답지에 접근할 수 없으며 확인되지 않은 답을 만들어내면 안 됩니다.",
+      "required_facts": [
+        "비공개 자료",
+        "창작 금지"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    },
+    {
+      "id": "QE-113",
+      "category": "모르는 질문 대응",
+      "question": "지금 이 순간 특정 서버의 CPU 사용률을 알려줘.",
+      "answerable": false,
+      "expected_answer": "해당 서버의 실시간 모니터링 지표에 접근할 수 없다면 수치를 알 수 없다고 답해야 합니다.",
+      "required_facts": [
+        "실시간 모니터링 접근 필요"
+      ],
+      "source": {
+        "type": "originally_authored_reference",
+        "note": "평가용으로 자체 작성한 기준 답변. 외부 문장 복제 아님."
+      },
+      "split": "held_out_eval_v1"
+    }
+  ]
+}
