@@ -18,7 +18,7 @@ def main():
         for line in f:
             if not line.strip(): continue
             row=json.loads(line)
-            text=(str(row.get("question",""))+" "+str(row.get("answer",""))).strip()
+            text=(str(row.get("context","")) or (str(row.get("question",""))+" "+str(row.get("answer","")))).strip()
             if not text: continue
             batch.append((text,str(row.get("source","")),str(row.get("source_url",""))))
             if len(batch)>=2000:
