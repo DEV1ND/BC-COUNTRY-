@@ -85,6 +85,43 @@ class KnowledgeRetrievalBenchmarkTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_domain_paraphrases_rank_specific_articles_above_generic_distractors(self):
+        cases = [
+            (
+                "연속 신호를 다루는 전자 시스템",
+                "아날로그 전자공학",
+                "아날로그 전자공학은 연속적으로 변하는 신호를 다루는 전자 시스템이다",
+                "전자공학은 전류와 전자 회로를 연구한다",
+            ),
+            (
+                "화학자에게 수여하는 노벨상",
+                "노벨 화학상",
+                "노벨 화학상은 화학 분야에 공헌한 과학자에게 수여하는 상이다",
+                "노벨 생리학·의학상은 생리학과 의학 분야의 상이다",
+            ),
+            (
+                "함수의 변화율과 누적량을 연구하는 수학 분야",
+                "미적분학",
+                "미적분학은 함수의 변화율을 구하는 미분과 누적량을 구하는 적분을 다룬다",
+                "선형대수학은 벡터 공간과 행렬을 연구한다",
+            ),
+            (
+                "물질을 이루는 기본 입자와 상호작용을 연구하는 물리학",
+                "입자물리학",
+                "입자물리학은 물질을 이루는 기본 입자와 그 상호작용을 연구한다",
+                "물리학은 물질과 에너지 및 자연 현상을 연구한다",
+            ),
+        ]
+        for question, expected, expected_body, distractor_body in cases:
+            with self.subTest(question=question):
+                rows = [
+                    {"title": expected, "url": "expected", "text": expected_body},
+                    {"title": "일반 물리학·전자공학", "url": "distractor", "text": distractor_body},
+                ]
+                ranked = rank_documents(question, rows, limit=3)
+                self.assertTrue(ranked)
+                self.assertEqual(ranked[0]["title"], expected)
+
     def test_empty_or_stopword_only_query_abstains(self):
         self.assertEqual(rank_documents("무엇인가요 어떻게 설명", []), [])
         self.assertEqual(build_fts_query("무엇인가요 어떻게 설명"), "")
