@@ -11,6 +11,10 @@ _STOP = {
     "란", "은", "는", "이", "가", "을", "를", "의", "에", "에서",
     "으로", "로", "와", "과", "및", "대한", "관한", "관련",
 }
+_SUFFIXES = (
+    "무엇인가요", "무엇인가", "인가요", "인가", "이란", "에서", "으로",
+    "에게", "은", "는", "이", "가", "을", "를", "의", "와", "과", "에", "로", "란",
+)
 
 
 def _norm(value):
@@ -18,22 +22,27 @@ def _norm(value):
     return re.sub(r"\s+", " ", value).strip()
 
 
-def _terms(value):
+def query_terms(value):
+    """Return deduplicated Korean/Latin terms with common Korean endings removed."""
     raw = re.findall(r"[0-9a-z]+|[가-힣]{2,}", _norm(value))
-    suffixes = (
-        "무엇인가요", "무엇인가", "인가요", "인가", "이란", "에서", "으로",
-        "에게", "은", "는", "이", "가", "을", "를", "의", "와", "과", "에", "로", "란",
-    )
     result = []
     for token in raw:
         stem = token
-        for suffix in suffixes:
+        for suffix in _SUFFIXES:
             if stem.endswith(suffix) and len(stem) - len(suffix) >= 2:
                 stem = stem[:-len(suffix)]
                 break
-        if stem not in _STOP and len(stem) >= 2:
+        if stem not in _STOP and len(stem) >= 2 and stem not in result:
             result.append(stem)
     return result
+
+
+def build_fts_query(question, max_terms=10):
+    """Build safe FTS5 prefix-OR query so attached Korean particles/endings match."""
+    terms = query_terms(question)[:max(1, min(int(max_terms), 20))]
+    if not terms:
+        return ""
+    return " OR ".join('"' + term.replace('"', '""') + '"*' for term in terms)
 
 
 def score_document(question, title, body):
@@ -41,7 +50,7 @@ def score_document(question, title, body):
     q = _norm(question)
     title_n = _norm(title)
     body_n = _norm(body)
-    terms = list(dict.fromkeys(_terms(q)))
+    terms = query_terms(q)
     if not terms:
         return 0.0
 
@@ -64,15 +73,10 @@ def score_document(question, title, body):
 
 
 def rank_documents(question, rows, limit=3, min_score=0.18):
-    """Rank candidates conservatively.
-
-    A title hit is sufficient evidence. If the title does not match, require at
-    least two distinct query terms in the body and at least 50% body coverage.
-    This prevents a single accidental body-word occurrence from becoming a source.
-    """
+    """Rank candidates conservatively, filtering accidental single body-word matches."""
     ranked = []
     seen = set()
-    terms = list(dict.fromkeys(_terms(question)))
+    terms = query_terms(question)
     if not terms:
         return []
 
