@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
 REPORT = ROOT / "bpe_candidate_report.json"
 TOKENIZER_REPORT = ROOT / "bpe_candidate.json"
-BLOCK = 256
+BLOCK = 512
 DEVICE = torch.device("cpu")
 
 
@@ -253,13 +253,15 @@ def live_bits_per_char(sequences):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--steps", type=int, default=1000)
-    parser.add_argument("--vocab-size", type=int, default=1024)
+    parser.add_argument("--steps", type=int, default=10000)
+    parser.add_argument("--vocab-size", type=int, default=8192)
     parser.add_argument("--seed", type=int, default=20261120)
-    parser.add_argument("--width", type=int, default=64)
-    parser.add_argument("--heads", type=int, default=4)
-    parser.add_argument("--layers", type=int, default=2)
+    parser.add_argument("--width", type=int, default=768)
+    parser.add_argument("--heads", type=int, default=12)
+    parser.add_argument("--layers", type=int, default=8)
     parser.add_argument("--target-parameters", type=int, default=0)
+    parser.add_argument("--data-path", default="training_extra.json")
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--parameter-tolerance", type=float, default=0.02)
     args = parser.parse_args()
     if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
@@ -270,7 +272,12 @@ def main():
 
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
-    source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+    data_path = ROOT / args.data_path
+    raw_data = data_path.read_text(encoding="utf-8")
+    if data_path.suffix.lower() == ".jsonl":
+        source_rows = [json.loads(line) for line in raw_data.splitlines() if line.strip()]
+    else:
+        source_rows = json.loads(raw_data)
     rows = clean_pairs(source_rows)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
@@ -334,10 +341,10 @@ def main():
     best_step = 0
     best_state = None
     stale_evaluations = 0
-    total_steps = max(1, min(args.steps, 5000))
+    total_steps = max(1, min(args.steps, 10000))
     eval_interval = 100
     for step in range(1, total_steps + 1):
-        x, y = make_batch(train_examples, batch_size=8)
+        x, y = make_batch(train_examples, batch_size=args.batch_size)
         optimizer.zero_grad(set_to_none=True)
         logits = candidate(x)
         loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), y.reshape(-1), ignore_index=-100)
