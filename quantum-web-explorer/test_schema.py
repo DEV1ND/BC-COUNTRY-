@@ -20,3 +20,4 @@ db.execute("UPDATE pages SET content_hash='hash2', revision_id=124, status='pend
 row = db.execute("SELECT content_hash,revision_id,status FROM pages WHERE id='p1'").fetchone()
 assert row == ("hash2", 124, "pending_review"), row
 print("Wikipedia explorer SQLite schema smoke test passed.")
+
