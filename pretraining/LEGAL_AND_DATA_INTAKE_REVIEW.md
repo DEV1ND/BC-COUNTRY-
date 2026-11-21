@@ -152,3 +152,25 @@ The current implementation is correct to keep `CC-BY-SA-4.0` outside `ALLOWED_LI
 - CC BY-SA 4.0 legal code: https://creativecommons.org/licenses/by-sa/4.0/legalcode
 - Creative Commons FAQ — text/data mining and AI: https://creativecommons.org/faq/#can-i-conduct-textdata-mining-on-a-cc-licensed-database
 - Wikimedia Foundation Terms of Use, section 7 (licensing, attribution, imported text, reuse and modifications): https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+
+
+## Binding project policy decision — Wikipedia / CC BY-SA 4.0 (2026-11-22)
+
+**Project decision: EXCLUDED FROM QUANTUM PRETRAINING AND SFT.** This is a conservative JUCKEX engineering and risk policy, not a claim that CC BY-SA 4.0 legally forbids AI training.
+
+The project will not put Wikipedia or other CC BY-SA 4.0 material into Quantum's pretraining, SFT, tokenizer-training, or other weight-changing datasets. The trainer allowlist remains exactly `CC0-1.0` and `CC-BY-4.0`; no automated or manual page approval may override this exclusion. The Wikimedia importer is for offline provenance inspection only and its output is not an approved training corpus.
+
+**Possible future use: a separate retrieval-only knowledge store (RAG), not model training.** This use is not enabled merely by this policy. Before any Wikipedia content is loaded into a user-facing RAG store, the implementation must:
+- preserve article title, canonical URL, revision ID/URL, contributor attribution path, license identifier and license URL;
+- preserve the source text's license notices and record text normalization/modifications;
+- detect and exclude pages or passages with incompatible/unclear third-party notices;
+- return source citations and attribution with retrieved content;
+- provide a process for removing or refreshing revisions when source content is deleted or corrected;
+- ensure any redistributed adapted text/database complies with CC BY-SA 4.0 ShareAlike and attribution requirements;
+- keep non-text media out unless separately licensed and reviewed.
+
+Until those controls exist and are tested, Wikipedia dumps may be staged for audit but must not be connected to the production retrieval index.
+
+**Why this is the final project choice:** CC BY-SA 4.0 allows qualifying reuse and AI development where permission is needed, subject to its terms. However, this project's desired model-weight, checkpoint, and hosted-service distribution posture does not have a sufficiently certain, documented compliance analysis for CC BY-SA training. Excluding it avoids making JUCKEX's core model depend on resolving that uncertainty. Reconsideration requires a separate written legal review and a new, explicitly approved policy change; it must not happen through a routine data-ingestion action.
+
+This decision does not certify any CC0 or CC BY source automatically. Every other dataset still requires exact-version, upstream-rights, attribution, privacy, quality, and provenance review.
