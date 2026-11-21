@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'quantum_10m_config.json'
+      - 'training_extra.json'
       - 'bpe_candidate_train.py'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
