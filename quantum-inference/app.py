@@ -19,16 +19,14 @@ KNOWLEDGE_DB = Path(os.getenv("QUANTUM_KNOWLEDGE_DB", "quantum_knowledge.sqlite3
 def retrieval_document_count():
     if not KNOWLEDGE_DB.exists():
         return 0
-    try:
-        with sqlite3.connect(KNOWLEDGE_DB) as conn:
-            base = conn.execute("SELECT count(*) FROM knowledge").fetchone()[0]
+    total = 0
+    with sqlite3.connect(KNOWLEDGE_DB) as conn:
+        for table in ("knowledge", "wiki_knowledge"):
             try:
-                wiki = conn.execute("SELECT count(*) FROM wiki_knowledge").fetchone()[0]
+                total += int(conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0])
             except sqlite3.Error:
-                wiki = 0
-            return int(base + wiki)
-    except sqlite3.Error:
-        return 0
+                continue
+    return total
 
 def retrieve_context(query, limit=3):
     if not KNOWLEDGE_DB.exists():
@@ -38,24 +36,25 @@ def retrieve_context(query, limit=3):
     if not terms:
         return []
     match_query = " OR ".join('"' + term.replace('"', '') + '"' for term in terms)
-    try:
-        with sqlite3.connect(KNOWLEDGE_DB) as conn:
+    base, wiki = [], []
+    with sqlite3.connect(KNOWLEDGE_DB) as conn:
+        try:
             rows = conn.execute(
                 "SELECT text, source, url FROM knowledge WHERE knowledge MATCH ? ORDER BY rank LIMIT ?",
                 (match_query, limit)
             ).fetchall()
-            try:
-                wiki_rows = conn.execute(
-                    "SELECT text, source, url, license, attribution FROM wiki_knowledge WHERE wiki_knowledge MATCH ? ORDER BY rank LIMIT ?",
-                    (match_query, limit)
-                ).fetchall()
-            except sqlite3.Error:
-                wiki_rows = []
-        base = [{"text": r[0], "source": r[1], "url": r[2], "license": None, "attribution": None} for r in rows]
-        wiki = [{"text": r[0], "source": r[1], "url": r[2], "license": r[3], "attribution": r[4]} for r in wiki_rows]
-        return sorted(base + wiki, key=lambda r: 0 if r["license"] else 1)[:limit]
-    except sqlite3.Error:
-        return []
+            base = [{"text": r[0], "source": r[1], "url": r[2], "license": None, "attribution": None} for r in rows]
+        except sqlite3.Error:
+            pass
+        try:
+            wiki_rows = conn.execute(
+                "SELECT text, source, url, license, attribution FROM wiki_knowledge WHERE wiki_knowledge MATCH ? ORDER BY rank LIMIT ?",
+                (match_query, limit)
+            ).fetchall()
+            wiki = [{"text": r[0], "source": r[1], "url": r[2], "license": r[3], "attribution": r[4]} for r in wiki_rows]
+        except sqlite3.Error:
+            pass
+    return sorted(base + wiki, key=lambda r: 0 if r["license"] else 1)[:limit]
 
 
 class BPECandidate(nn.Module):
