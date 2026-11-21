@@ -8,13 +8,13 @@ db.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))
 topics = db.execute("SELECT COUNT(*) FROM search_topics WHERE enabled=1").fetchone()[0]
 assert topics >= 15, topics
 page_columns = {row[1] for row in db.execute("PRAGMA table_info(pages)")}
-assert {"revision_id", "last_seen_at", "synced_at", "license_name", "attribution"} <= page_columns
+assert {"revision_id", "last_seen_at", "synced_at", "license_name", "attribution", "content"} <= page_columns
 run_columns = {row[1] for row in db.execute("PRAGMA table_info(crawl_runs)")}
 assert {"discovered", "updated", "synced", "errors", "ran_at"} <= run_columns
 
 db.execute("""INSERT INTO pages
-(id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
-VALUES ('p1','wikipedia','테스트','https://ko.wikipedia.org/wiki/테스트','ko.wikipedia.org','','hash1','pages/p1/hash1.txt',
+(id,provider,title,url,domain,snippet,content_hash,content,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
+VALUES ('p1','wikipedia','테스트','https://ko.wikipedia.org/wiki/테스트','ko.wikipedia.org','','hash1','테스트 본문',
 'pending_review','attribution_required','CC BY-SA 4.0','Wikipedia contributors',123,datetime('now'),datetime('now'))""")
 db.execute("UPDATE pages SET content_hash='hash2', revision_id=124, status='pending_review', synced_at=NULL WHERE id='p1'")
 row = db.execute("SELECT content_hash,revision_id,status FROM pages WHERE id='p1'").fetchone()
@@ -39,12 +39,14 @@ CREATE TABLE crawl_runs (
 );
 """)
 legacy.executescript((ROOT / "migrations" / "0002-autonomous-crawler.sql").read_text(encoding="utf-8"))
+legacy.executescript((ROOT / "migrations" / "0003-d1-page-content.sql").read_text(encoding="utf-8"))
 legacy_page_columns = {row[1] for row in legacy.execute("PRAGMA table_info(pages)")}
-assert {"revision_id", "last_seen_at"} <= legacy_page_columns
+assert {"revision_id", "last_seen_at", "content"} <= legacy_page_columns
 legacy_run_columns = {row[1] for row in legacy.execute("PRAGMA table_info(crawl_runs)")}
 assert {"updated", "synced"} <= legacy_run_columns
 legacy_topics = legacy.execute("SELECT COUNT(*) FROM search_topics").fetchone()[0]
 assert legacy_topics >= 15, legacy_topics
+legacy.execute("UPDATE pages SET content='기존 데이터 호환 테스트' WHERE id='legacy-missing'")
 print("Wikipedia explorer legacy migration smoke test passed.")
 
 
