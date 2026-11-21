@@ -101,8 +101,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 next_id = int(torch.multinomial(probs, 1).item())
         generated.append(next_id)
         decoded = tokenizer.decode(generated)
-        if step >= 5 and "\\n\\n" in decoded:
+        if step >= 5 and "\n\n" in decoded:
             break
-    answer = tokenizer.decode(generated).split("\\n\\n", 1)[0].strip()[:1600]
+    answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     return {"answer": answer, "model": "quantum-bpe-10m-candidate",
             "is_live_inference": True, "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
