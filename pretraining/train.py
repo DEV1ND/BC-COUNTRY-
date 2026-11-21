@@ -20,6 +20,9 @@ from bpe_tokenizer import BPETokenizer
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent
+# Conservative default: licenses requiring share-alike or dataset-specific approval
+# must be reviewed separately before being admitted to the training corpus.
+ALLOWED_LICENSES = {"CC0-1.0", "CC-BY-4.0"}
 
 
 def load_corpus(manifest_path: Path, min_chars: int = 200):
@@ -37,9 +40,12 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
             raise ValueError(f"manifest line {line_no}: document is not manually approved")
         if row["split"] not in ("train", "validation"):
             raise ValueError(f"manifest line {line_no}: split must be train or validation")
-        license_id = str(row["license_id"]).strip().lower()
-        if license_id in ("unknown", "unverified", "none", "n/a"):
-            raise ValueError(f"manifest line {line_no}: unverified license is not allowed")
+        license_id = str(row["license_id"]).strip().upper()
+        if license_id not in ALLOWED_LICENSES:
+            raise ValueError(
+                f"manifest line {line_no}: license {license_id!r} is not in the conservative allowlist "
+                f"{sorted(ALLOWED_LICENSES)}; obtain a documented legal/use-policy review first"
+            )
         path = (ROOT / str(row["path"])).resolve()
         if ROOT.resolve() not in path.parents:
             raise ValueError(f"manifest line {line_no}: corpus path escapes pretraining directory")
