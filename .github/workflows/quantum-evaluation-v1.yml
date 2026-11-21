@@ -1,0 +1,40 @@
+name: Quantum evaluation v1
+
+on:
+  push:
+    branches: [quantum-eval-v1]
+    paths:
+      - 'evaluation/**'
+      - '.github/workflows/quantum-evaluation-v1.yml'
+  pull_request:
+    branches: [quantum-live-inference]
+    paths:
+      - 'evaluation/**'
+      - '.github/workflows/quantum-evaluation-v1.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  evaluation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate evaluation dataset
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[json.loads(x) for x in Path('evaluation/quantum_eval_v1.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+          ids=[r['id'] for r in rows]
+          assert len(rows) >= 100, len(rows)
+          assert len(ids) == len(set(ids)), 'duplicate ids'
+          assert all(r.get('training_eligible') is False for r in rows)
+          assert sum(not r['answerable'] for r in rows) >= 10
+          print(f'Validated {len(rows)} held-out evaluation cases')
+          PY
+      - name: Run evaluator unit tests
+        run: python -m unittest discover -s evaluation -p 'test_*.py' -v
