@@ -79,6 +79,30 @@ async function syncApproved(env){
   for(const doc of docs) await env.DB.prepare("UPDATE pages SET synced_at=datetime('now'),sync_error=NULL WHERE id=?").bind(doc.page_id).run();
   return {ok:true,synced:docs.length,inference:result};
 }
+async function maybeStartIncrementalTraining(env){
+  if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN)
+    return {started:false,reason:"inference_training_not_configured"};
+  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND synced_at IS NOT NULL").first();
+  if((count?.count||0)<10) return {started:false,reason:"need_at_least_10_approved_synced_pages",documents:count?.count||0};
+  const previous=await env.DB.prepare("SELECT value FROM settings WHERE key='training_last_requested_at'").first();
+  if(previous?.value){
+    const due=await env.DB.prepare("SELECT CASE WHEN datetime(?) <= datetime('now','-1 day') THEN 1 ELSE 0 END AS due").bind(previous.value).first();
+    if(!due?.due) return {started:false,reason:"daily_training_interval_not_reached",documents:count.count};
+  }
+  let response;
+  try{
+    response=await fetch(new URL("/admin/training/start",env.QUANTUM_INFERENCE_URL),{
+      method:"POST",headers:{"authorization":"Bearer "+env.QUANTUM_API_TOKEN},
+      signal:AbortSignal.timeout(15000)
+    });
+  }catch(e){return {started:false,reason:"training_service_unreachable",detail:String(e.message||e)};}
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) return {started:false,reason:"training_service_rejected",status:response.status,detail:result};
+  if(result.started){
+    await env.DB.prepare("INSERT INTO settings(key,value) VALUES('training_last_requested_at',datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+  }
+  return {...result,documents:count.count};
+}
 async function runCycle(env){
   const state=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
   if(!state||state.value!=="1") return {running:false,discovered:0,updated:0,synced:0,message:"paused"};
@@ -92,9 +116,10 @@ async function runCycle(env){
     }
   }
   const sync=await syncApproved(env);
+  const training=await maybeStartIncrementalTraining(env);
   await env.DB.prepare("INSERT INTO crawl_runs(discovered,updated,synced,errors,ran_at) VALUES(?,?,?,?,datetime('now'))")
     .bind(discovered,updated,sync.synced||0,JSON.stringify({crawl:errors,sync:sync.error||null})).run();
-  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,sync,errors};
+  return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,sync,training,errors};
 }
 async function approvePage(request,env){
   let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
