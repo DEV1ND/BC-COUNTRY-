@@ -151,7 +151,7 @@ def health():
 @app.post("/v1/generate")
 @torch.inference_mode()
 def generate(req: GenerateRequest, authorization: Optional[str] = Header(default=None)):
-    if API_TOKEN and authorization != "Bearer " + API_TOKEN:
+    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
         raise HTTPException(401, "인증이 필요합니다.")
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
