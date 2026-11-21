@@ -20,7 +20,7 @@ _SUFFIXES = (
 
 def _norm(value):
     value = unicodedata.normalize("NFKC", str(value or "")).casefold()
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def _expand_domain_terms(terms):
@@ -81,8 +81,8 @@ def score_document(question, title, body):
     title_coverage = title_hits / len(terms)
     body_coverage = body_hits / len(terms)
 
-    compact_q = re.sub(r"\\s+", "", q)
-    compact_title = re.sub(r"\\s+", "", title_n)
+    compact_q = re.sub(r"\s+", "", q)
+    compact_title = re.sub(r"\s+", "", title_n)
     exact_title = bool(compact_q and compact_q == compact_title)
     # A short generic title such as "물리학" must not receive a phrase bonus
     # merely because it appears at the end of a longer question.
