@@ -174,8 +174,8 @@ def main():
 
     train_rows, valid_rows = load_corpus(args.manifest)
     # BPE merge statistics are learned from training documents only.
-    train_texts = [r["text"] + "\\n" for r in train_rows]
-    validation_texts = [r["text"] + "\\n" for r in valid_rows]
+    train_texts = [r["text"] + "\n" for r in train_rows]
+    validation_texts = [r["text"] + "\n" for r in valid_rows]
     tokenizer = BPETokenizer.train(
         train_texts, vocab_size=args.vocab_size,
         min_pair_frequency=3, extra_alphabet_texts=validation_texts,
