@@ -22,7 +22,7 @@ The schedule is not active merely because the code exists. The Worker must be de
 4. At the next cron run, approved documents are automatically sent to the isolated inference service. Manual `POST /sync-approved` is also available.
 5. Quantum indexes them in a separate FTS5 table, alongside the existing knowledge index. Retrieved sources include title, URL and license metadata.
 
-This is retrieval-augmented generation (RAG), not automatic model-weight training. Crawling never silently approves content or triggers fine-tuning. RAG can provide relevant passages, but it cannot guarantee that the experimental language model will produce a correct answer.
+RAG supplies retrieved passages; the separate incremental trainer also performs bounded next-token weight updates from the approved article corpus. It does not perform supervised Q&A instruction tuning. Training candidates are staged separately and never silently replace the serving checkpoint. Next-token loss is not a semantic or factual accuracy metric.
 
 ## Licensing
 
@@ -45,6 +45,7 @@ Wikipedia article text is generally available under CC BY-SA 4.0, with exception
 All except `GET /health` require `Authorization: Bearer <ADMIN_TOKEN>`.
 
 - `GET /status`: running state, review counts, pending sync count and latest run
+- `GET /training-status`: isolated inference training process, accumulated approved corpus size and latest evaluation report
 - `GET /pages?status=pending_review&limit=20`: review queue
 - `GET /topics`: configured search topics and last errors
 - `POST /topics` with `{"query":"topic name"}`: add a topic
