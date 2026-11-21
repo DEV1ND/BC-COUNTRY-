@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
+ALLOWED_LICENSES = {"CC0-1.0", "CC-BY-4.0"}
 REQUIRED = {
     "document_id", "text", "source_name", "source_url", "retrieved_at",
     "license_id", "license_url", "attribution", "category", "split",
@@ -42,8 +43,9 @@ def validate_record(row: dict, line_no: int):
         raise ValueError(f"line {line_no}: split must be train or validation")
     if not isinstance(row["text"], str) or len(row["text"].strip()) < 200:
         raise ValueError(f"line {line_no}: text must contain at least 200 characters")
-    if str(row["license_id"]).strip().lower() in {"unknown", "unverified", "none", "n/a"}:
-        raise ValueError(f"line {line_no}: unverified license")
+    license_id = str(row["license_id"]).strip().upper()
+    if license_id not in ALLOWED_LICENSES:
+        raise ValueError(f"line {line_no}: license {license_id!r} is not in the trainer allowlist {sorted(ALLOWED_LICENSES)}; obtain a separate documented review before changing policy")
     for field in ("source_url", "license_url"):
         parsed = urlparse(str(row[field]))
         if parsed.scheme != "https" or not parsed.netloc:
@@ -105,7 +107,10 @@ def main():
             "license_id": row["license_id"],
             "license_url": row["license_url"],
             "attribution": row["attribution"],
+            "category": row["category"],
+            "reviewed_by": row["reviewed_by"],
             "split": split,
+            "review_status": "approved",
         })
         if split == "train":
             train_count += 1
@@ -124,6 +129,7 @@ def main():
         "documents_total": len(manifest_rows),
         "train_documents": train_count,
         "validation_documents": validation_count,
+        "license_policy": sorted(ALLOWED_LICENSES),
         "manifest": str(manifest_path),
         "note": "No model training was started. Review the resulting files and manifest before training.",
     }, ensure_ascii=False, indent=2))
