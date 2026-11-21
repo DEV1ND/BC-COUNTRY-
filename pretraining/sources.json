@@ -1,7 +1,7 @@
 {
-  "schema_version": 3,
-  "status": "wikimedia_cc-by-sa-legal-review-completed_conditionally_blocked_from_training",
-  "policy": "Wikimedia CC BY-SA 4.0 is permitted for qualifying reuse subject to attribution and ShareAlike where applicable; AI use is not categorically prohibited. Whether Quantum model weights are adapted material remains unsettled. Keep Wikimedia staging-only and CC-BY-SA excluded from the trainer allowlist pending qualified legal review or a documented project-owner risk decision.",
+  "schema_version": 4,
+  "status": "wikipedia_cc-by-sa_excluded_from_quantum_training_rag_not_enabled",
+  "policy": "Binding JUCKEX project policy (2026-11-22): CC-BY-SA-4.0 material, including Wikipedia, is excluded from Quantum pretraining, SFT, tokenizer training, and all weight-changing datasets. Trainer allowlist remains CC0-1.0 and CC-BY-4.0. Wikipedia is only a possible future retrieval-only RAG source; production RAG ingestion is not enabled until page-level attribution, license, revision, third-party notice, citation, and removal controls are implemented and tested. This is a conservative project risk policy, not a claim that CC-BY-SA legally prohibits AI training.",
   "candidate_sources": [
     {
       "name": "Mozilla Common Voice Scripted Speech 27.0 - Korean",
@@ -285,9 +285,11 @@
         "The legacy XML dump path is being replaced; use monthly mediawiki_content_current exports, verify all parts with SHA256SUMS, and process all parts together.",
         "CC BY-SA 4.0 permits qualifying AI development uses where permission is required, subject to applicable conditions; attribution and ShareAlike apply when licensed material/adaptations are publicly shared.",
         "Whether neural-network weights/checkpoints are adapted material is unresolved; do not assume either automatic ShareAlike or automatic exemption.",
-        "Trainer allowlist intentionally excludes CC-BY-SA-4.0 pending qualified legal review or a documented project-owner risk decision."
+        "Binding JUCKEX policy: CC-BY-SA-4.0 is excluded from Quantum pretraining, SFT, tokenizer training, and all weight-changing datasets; no page-level approval can override this.",
+        "Possible future RAG use only; production RAG ingestion remains disabled until page-level attribution, license, revision, third-party notice, citation, and removal controls are implemented and tested.",
+        "This is a conservative project policy, not a statement that CC-BY-SA legally prohibits AI training."
       ],
-      "ingestion_status": "staging_only_cc_by_sa_legal_review_complete_model_weight_treatment_unresolved",
+      "ingestion_status": "excluded_from_all_quantum_training_possible_future_rag_only_not_enabled",
       "approval_required": true,
       "training_allowlist_enabled": false,
       "processor": "pretraining/prepare_wikimedia_dump.py",
@@ -295,9 +297,10 @@
         "python pretraining/prepare_wikimedia_dump.py --dump /path/to/ko-part-1.xml.bz2 --dump /path/to/ko-part-2.xml.bz2 --language ko --max-pages 3000",
         "python pretraining/prepare_wikimedia_dump.py --dump /path/to/en-part-1.xml.bz2 --dump /path/to/en-part-2.xml.bz2 --language en --max-pages 3000"
       ],
-      "legal_review_decision": "conditional_candidate_not_approved_for_training",
+      "legal_review_decision": "project_policy_excluded_from_pretraining_and_sft",
       "legal_review_date": "2026-11-22",
-      "legal_review_reference": "pretraining/LEGAL_AND_DATA_INTAKE_REVIEW.md"
+      "legal_review_reference": "pretraining/LEGAL_AND_DATA_INTAKE_REVIEW.md",
+      "policy_decision_date": "2026-11-22"
     }
   ],
   "excluded_sources": [
