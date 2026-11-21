@@ -8,6 +8,7 @@ on:
       - 'quantum_10m_config.json'
       - 'bpe_candidate_train.py'
       - 'test_quality_benchmark.py'
+      - '.github/workflows/quantum-10m-smoke.yml'
 
 permissions:
   contents: read
