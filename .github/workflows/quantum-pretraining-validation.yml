@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile training pipeline
-        run: python -m py_compile pretraining/train.py pretraining/prepare_wikimedia_dump.py
+        run: python -m py_compile pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py
       - name: Validate manifest example JSONL shape
         run: |
           python - <<'PY'
