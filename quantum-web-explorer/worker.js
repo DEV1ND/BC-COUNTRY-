@@ -31,18 +31,26 @@ async function searchGoogle(env, query) {
   return (data.items || []).map(x => ({ provider: "google", title: x.title || "", url: x.link || "", snippet: x.snippet || "" }));
 }
 async function searchNaver(env, query) {
-  // Legacy NAVER Developers API only. New integrations must use NAVER API HUB.
-  if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) return [];
-  const endpoint = env.NAVER_SEARCH_ENDPOINT || "https://openapi.naver.com/v1/search/webkr.json";
-  const url = new URL(endpoint);
-  url.search = new URLSearchParams({ query, display: String(MAX_RESULTS), start: "1" });
+  // Current NAVER API HUB Search API. API output is used only to discover original pages;
+  // snippets are deliberately not retained as training material.
+  if (!env.NAVER_HUB_KEY_ID || !env.NAVER_HUB_KEY) return [];
+  const url = new URL(env.NAVER_HUB_ENDPOINT || "https://naverapihub.apigw.ntruss.com/search/v1/webkr");
+  url.search = new URLSearchParams({ query, display: String(MAX_RESULTS), start: "1", format: "json" });
   const res = await fetch(url, {
-    headers: { "X-Naver-Client-Id": env.NAVER_CLIENT_ID, "X-Naver-Client-Secret": env.NAVER_CLIENT_SECRET },
+    headers: {
+      "X-NCP-APIGW-API-KEY-ID": env.NAVER_HUB_KEY_ID,
+      "X-NCP-APIGW-API-KEY": env.NAVER_HUB_KEY
+    },
     signal: AbortSignal.timeout(12000)
   });
-  if (!res.ok) throw new Error("Naver search HTTP " + res.status);
+  if (!res.ok) throw new Error("Naver API HUB search HTTP " + res.status);
   const data = await res.json();
-  return (data.items || []).map(x => ({ provider: "naver", title: x.title || "", url: x.link || x.originallink || "", snippet: x.description || "" }));
+  return (data.items || []).map(x => ({
+    provider: "naver",
+    title: "Discovered page",
+    url: x.link || "",
+    snippet: ""
+  }));
 }
 async function robotsAllows(pageUrl) {
   try {
