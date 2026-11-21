@@ -25,7 +25,7 @@ def load_dataset(path):
 
 def looks_like_abstention(answer):
     """Conservative phrase heuristic; this is not a semantic judgment."""
-    text = re.sub(r"\s+, " ", str(answer or "").casefold())
+    text = re.sub(r"\s+", " ", str(answer or "").casefold())
     phrases = (
         "알 수 없", "확인할 수 없", "정보가 없", "자료가 없",
         "접근할 수 없", "제공되지 않", "확인되지 않", "단정할 수 없",
