@@ -57,16 +57,15 @@ def validate_record(row: dict, line_no: int):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=ROOT / "incoming" / "documents.jsonl")
-    parser.add_argument("--output", type=Path, default=ROOT / "corpus")
     parser.add_argument("--manifest", type=Path, default=ROOT / "manifest.jsonl")
     args = parser.parse_args()
     source = args.input.resolve()
-    output = args.output.resolve()
     manifest_path = args.manifest.resolve()
     if not source.is_file():
         raise FileNotFoundError(f"missing input JSONL: {source}")
-    if output.exists() and any(output.rglob("*.txt")):
-        raise FileExistsError(f"refusing to overwrite existing corpus files: {output}")
+    corpus_root = ROOT / "corpus"
+    if corpus_root.exists() and any(corpus_root.rglob("*.txt")):
+        raise FileExistsError(f"refusing to overwrite existing corpus files: {corpus_root}")
     if manifest_path.exists():
         raise FileExistsError(f"refusing to overwrite existing manifest: {manifest_path}")
 
