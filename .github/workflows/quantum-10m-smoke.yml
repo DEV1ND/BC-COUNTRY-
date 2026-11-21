@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, quantum-generation-quality]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
@@ -11,6 +11,7 @@ on:
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
+      - 'quantum_generation_eval.py'
       - '.github/workflows/quantum-10m-smoke.yml'
 
 permissions:
@@ -59,6 +60,9 @@ jobs:
           }, ensure_ascii=False, indent=2))
           PY
 
+      - name: Compare Quantum decoding strategies on independent questions
+        run: python quantum_generation_eval.py --checkpoint bpe_candidate_checkpoint.pt --evaluation bpe_independent_eval.json --output quantum_decoding_sweep.json
+
       - name: Upload 10M smoke-test artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -68,5 +72,6 @@ jobs:
             bpe_candidate.json
             bpe_candidate_checkpoint.pt
             bpe_generation_seed_20261123.json
+            quantum_decoding_sweep.json
           if-no-files-found: error
           retention-days: 14
