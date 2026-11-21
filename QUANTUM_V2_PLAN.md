@@ -21,12 +21,12 @@ Only approved records with source and license metadata are accepted. Do not fabr
 ```bash
 python quantum_data_pipeline.py --input reviewed-a.jsonl --input reviewed-b.jsonl --target 1000000 --output quantum_dataset
 ```
-The pipeline writes train.jsonl, validation.jsonl, and dataset_report.json. It reports the actual count; it never claims the target was reached unless it was.
+The pipeline writes train.jsonl, validation.jsonl, training_extra.jsonl, quantum_knowledge.jsonl, and dataset_report.json. The trainer consumes the JSONL corpus in sampled batches; tokenizer construction still needs substantial RAM for million-record corpora. It reports the actual count; it never claims the target was reached unless it was.
 
 ## Compute reality
-The larger profile and 10,000 steps are not suitable for a small free CPU instance. Use a GPU training runner with sufficient VRAM/RAM and persistent artifact storage. Do not change the production service. First run a small smoke test, then a measured pilot, then scale only after throughput and validation are known.
+The larger profile and 10,000 steps are not suitable for a small free CPU instance. The candidate profile is approximately 70M parameters (width 768, 12 heads, 8 layers, vocabulary 8192, context 512). Use a GPU training runner with sufficient VRAM/RAM and persistent artifact storage. The trainer selects CUDA when available; CPU fallback is only for small smoke tests. Do not change the production service. First run a small smoke test, then a measured pilot, then scale only after throughput and validation are known.
 
-## Acceptance gates
+## Training command\n\nAfter preparing and auditing the corpus, run `python bpe_candidate_train.py --data-path quantum_dataset/training_extra.jsonl --steps 10000 --vocab-size 8192 --width 768 --heads 12 --layers 8 --batch-size 4`. This is an isolated candidate run; do not deploy it to production.\n\n## Acceptance gates
 1. Dataset provenance, license, deduplication and quality audit.
 2. No train/validation question overlap.
 3. Loss and held-out metrics are finite and improving.
