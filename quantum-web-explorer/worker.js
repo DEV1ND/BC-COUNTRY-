@@ -137,6 +137,16 @@ export default {
     const url=new URL(request.url);
     if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"quantum-wikipedia-explorer",isolated:true,provider:"ko.wikipedia.org"});
     if(!authorized(request,env))return json({error:"unauthorized"},401);
+    if(request.method==="GET"&&url.pathname==="/training-status"){
+      if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN)return json({error:"training_service_not_configured"},503);
+      try{
+        const response=await fetch(new URL("/admin/training/status",env.QUANTUM_INFERENCE_URL),{
+          headers:{"authorization":"Bearer "+env.QUANTUM_API_TOKEN},signal:AbortSignal.timeout(15000)
+        });
+        const result=await response.json().catch(()=>({}));
+        return json(result,response.status);
+      }catch(e){return json({error:"training_service_unreachable",detail:String(e.message||e)},502);}
+    }
     if(request.method==="GET"&&url.pathname==="/status"){
       const running=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
       const counts=await env.DB.prepare("SELECT status,COUNT(*) AS count FROM pages GROUP BY status").all();
