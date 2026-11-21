@@ -190,6 +190,36 @@ def health():
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 
+@app.post("/admin/knowledge/search")
+async def knowledge_search(request: Request, authorization: Optional[str] = Header(default=None)):
+    """Authenticated retrieval diagnostic; does not invoke or train the language model."""
+    require_admin(authorization)
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON 본문이 필요합니다.")
+    question = str(payload.get("question", "")).strip() if isinstance(payload, dict) else ""
+    if not question or len(question) > 1000:
+        raise HTTPException(422, "question은 1~1000자여야 합니다.")
+    matches = retrieve_knowledge(question, limit=5)
+    return {
+        "ok": True,
+        "question": question,
+        "count": len(matches),
+        "results": [{
+            "title": str(item.get("title", "")),
+            "url": str(item.get("url", "")),
+            "license": str(item.get("license", "")),
+            "attribution": str(item.get("attribution", "")),
+            "relevance_score": float(item.get("relevance_score", 0)),
+            "excerpt": " ".join(str(item.get("text", "")).split())[:500],
+        } for item in matches],
+        "model_invoked": False,
+        "model_training": False,
+        "production_model_touched": False,
+    }
+
+
 @app.post("/admin/knowledge/import")
 async def import_knowledge(request: Request, authorization: Optional[str] = Header(default=None)):
     require_admin(authorization)
