@@ -103,3 +103,53 @@ jobs:
               assert "private-" not in "\n".join(docs)
               print("Common Voice TSV staging fixture: PASS")
           PY
+
+      - name: Exercise Wikimedia XML dump staging with synthetic pages
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import tempfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          root = Path("pretraining").resolve()
+          with tempfile.TemporaryDirectory() as temp:
+              temp = Path(temp)
+              dump = temp / "synthetic-wiki.xml"
+              mediawiki = ET.Element("mediawiki")
+              for page_id, revision_id, title, body in [
+                  ("101", "1001", "한국어 테스트 문서", "한국어 위키백과 합성 검증 문장입니다. " * 40),
+                  ("202", "2002", "Synthetic English Article", "This is a synthetic English encyclopedia fixture for parser validation. " * 30),
+              ]:
+                  page = ET.SubElement(mediawiki, "page")
+                  ET.SubElement(page, "title").text = title
+                  ET.SubElement(page, "ns").text = "0"
+                  ET.SubElement(page, "id").text = page_id
+                  revision = ET.SubElement(page, "revision")
+                  ET.SubElement(revision, "id").text = revision_id
+                  ET.SubElement(revision, "text").text = body
+              ET.ElementTree(mediawiki).write(dump, encoding="utf-8", xml_declaration=True)
+              output = root / "corpus" / "ci-wikimedia-fixture"
+              manifest = root / "manifest.ci-wikimedia-fixture.jsonl"
+              try:
+                  subprocess.run([
+                      "python", "pretraining/prepare_wikimedia_dump.py",
+                      "--dump", str(dump), "--language", "ko", "--max-pages", "2",
+                      "--output", str(output), "--manifest", str(manifest),
+                  ], check=True, capture_output=True, text=True)
+                  rows = [json.loads(line) for line in manifest.read_text(encoding="utf-8").splitlines()]
+                  assert len(rows) == 2
+                  assert all(row["review_status"] == "pending_review" for row in rows)
+                  assert all(row["license_review_status"] == "verify_revision_and_page_notices" for row in rows)
+                  assert all(row["retrieved_at"] == "unknown_original_dump_download_date" for row in rows)
+                  assert all(row["revision_url"] and row["dump_sha256"] and row["content_sha256"] for row in rows)
+                  assert all(row["changes_made"] for row in rows)
+                  assert all((root / row["path"]).is_file() for row in rows)
+                  print("Wikimedia XML staging fixture: PASS")
+              finally:
+                  if manifest.exists():
+                      manifest.unlink()
+                  if output.exists():
+                      import shutil
+                      shutil.rmtree(output)
+          PY
