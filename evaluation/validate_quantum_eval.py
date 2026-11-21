@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "quantum_eval_v1.json"
 TRAINING = ROOT.parent / "training_extra.json"
+PREVIOUS_EVAL = ROOT.parent / "bpe_independent_eval.json"
 
 def normalize(text):
     return re.sub(r"[^0-9a-z가-힣]", "", str(text).casefold())
@@ -38,11 +39,20 @@ def main():
             assert row.get("expected_answer", "").strip(), f"{i}: 무응답 기준 누락"
     assert len(categories) >= 12, "평가 분야가 12개 미만입니다."
     assert sum(not row["answerable"] for row in rows) >= 10, "무응답 평가 질문이 10개 미만입니다."
+    train_overlap = None
     if TRAINING.exists():
         train = json.loads(TRAINING.read_text(encoding="utf-8"))
         train_questions = {normalize(row.get("question", "")) for row in train if isinstance(row, dict)}
         overlap = questions & train_questions
         assert not overlap, f"학습 질문과 중복된 평가 질문: {sorted(overlap)[:10]}"
+        train_overlap = len(overlap)
+    previous_overlap = None
+    if PREVIOUS_EVAL.exists():
+        previous = json.loads(PREVIOUS_EVAL.read_text(encoding="utf-8"))
+        previous_questions = {normalize(row.get("question", "")) for row in previous if isinstance(row, dict)}
+        overlap = questions & previous_questions
+        assert not overlap, f"기존 독립 평가 질문과 중복: {sorted(overlap)[:10]}"
+        previous_overlap = len(overlap)
     print(json.dumps({
         "status": "dataset_validation_passed",
         "total_questions": len(rows),
@@ -51,7 +61,8 @@ def main():
         "category_count": len(categories),
         "category_distribution": categories,
         "training_use": False,
-        "training_overlap": 0 if TRAINING.exists() else None,
+        "training_overlap": train_overlap,
+        "previous_eval_overlap": previous_overlap,
         "semantic_accuracy_evaluated": False,
     }, ensure_ascii=False, indent=2))
 
