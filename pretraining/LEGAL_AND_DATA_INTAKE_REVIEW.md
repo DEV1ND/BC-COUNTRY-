@@ -13,7 +13,7 @@ Review date: 2026-11-22
 | Cosmopedia v0.1 | Candidate only | Dataset card labels Apache-2.0, but the corpus is synthetic and seed-source provenance, quality, and factual reliability need review. |
 | Sage Pretrain Corpus | Candidate only | Mixed per-record licenses require row-level provenance and allowlist filtering. |
 | WanJuan-Korean | Candidate only | Dataset-level CC BY label is not enough; schema, source provenance, spam, and privacy checks are still required. |
-| Wikipedia / Stack Exchange | Excluded by current trainer allowlist | ShareAlike and attribution obligations require a separate documented policy and implementation review. |
+| Wikimedia Wikipedia XML dumps (Korean + English) | Explicit candidate; staging only; CC BY-SA excluded from trainer | Official dump processor exists and now records revision/dump provenance. Per-page imported-content review and a documented decision on ShareAlike obligations for trained weights are still required. |\n| Stack Exchange public data | Excluded by current trainer allowlist | Version-dependent CC BY-SA terms require post/revision-level attribution and ShareAlike review. |
 
 ## NIKL application questions to resolve
 
@@ -54,3 +54,25 @@ Do not start the official 10,000-step run until:
 - validation data remains excluded from BPE merge fitting and gradient updates.
 
 The existing production Quantum model and checkpoints must remain untouched. Candidate training stays isolated.
+
+
+## Wikimedia decision and required gate
+
+Decision: **Use official Korean and English Wikimedia dumps as a candidate corpus source, but do not train on them yet.** The offline importer may stage pages for review. It must not auto-approve pages or change the trainer's license allowlist.
+
+Before any Wikimedia page enters the training manifest:
+
+1. Pin the exact dump filename, language, dump SHA-256, and actual download date.
+2. Preserve page ID, revision ID, article URL, revision-history URL, title, attribution, license URL, and the text-normalization/modification note.
+3. Review the exact revision and page footer for imported content, third-party notices, exclusions, and differing license terms.
+4. Remove unsuitable, low-quality, duplicate, privacy-sensitive, or non-article content.
+5. Keep train and validation splits separate and exclude the fixed evaluation set.
+6. Obtain a documented project-level legal/policy decision on whether training on CC BY-SA text and retaining/distributing/serving resulting model weights triggers ShareAlike or other obligations. CC BY-SA source licensing does not by itself answer that model-weight question.
+7. Only after approval, implement the required attribution and license compliance for the corpus, checkpoints, and any distributed/served model artifacts. Then update the trainer allowlist through a separately reviewed change.
+
+Official references:
+- Wikimedia Terms of Use: https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+- Wikimedia reuse guidance: https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_Trademark_Policy (check current policy links before relying on them)
+- CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+
+The current importer records the original dump retrieval date as unknown unless supplied by a later reviewed manifest update; it records the processing date separately. The training engine still rejects `CC-BY-SA-4.0`.
