@@ -1,37 +1,84 @@
 {
-  "schema_version": 1,
-  "status": "candidate_sources_not_yet_ingested",
-  "policy": "A dataset or website being public does not automatically grant permission to use every document for model pretraining. Each document/source collection requires license review and explicit approval before ingestion.",
+  "schema_version": 2,
+  "status": "candidate_sources_reviewed_no_corpus_downloaded",
+  "policy": "A dataset being publicly accessible does not automatically grant permission to use every document for model pretraining. Only dataset versions whose exact license is documented and compatible with the conservative trainer allowlist may be staged. Human review remains mandatory.",
   "candidate_sources": [
     {
-      "name": "Wikimedia Wikipedia dumps",
-      "languages": ["ko", "en", "many"],
-      "topics": ["general knowledge", "history", "science", "geography"],
-      "license": "Usually CC BY-SA 4.0 for Wikipedia article text; verify project/page exceptions and preserve attribution and ShareAlike obligations.",
-      "source": "https://dumps.wikimedia.org/",
-      "license_reference": "https://www.mediawiki.org/wiki/Wikimedia_APIs/Content_reuse",
-      "ingestion_status": "not_ingested",
+      "name": "Mozilla Common Voice Scripted Speech 27.0 - Korean",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "conversational sentence patterns",
+        "spoken Korean",
+        "short-form language"
+      ],
+      "format": [
+        "TSV sentence text",
+        "MP3 audio (not used by this text-only pipeline)"
+      ],
+      "license_id": "CC0-1.0",
+      "source": "https://commonvoice.mozilla.org/ko/datasets",
+      "license_reference": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "evidence": "Mozilla Data Collective dataset listing identifies Common Voice Scripted Speech 27.0 - Korean, locale ko, license CC0-1.0, dataset size 208.48 MB at time of review.",
+      "limitations": [
+        "ASR prompt sentences are not a balanced general-knowledge corpus",
+        "short sentences must be grouped into documents",
+        "only sentence column is retained; speaker IDs and demographic metadata are discarded",
+        "official train and dev splits are kept separate; official test split is never imported"
+      ],
+      "ingestion_status": "not_downloaded",
       "approval_required": true
     },
     {
-      "name": "PleIAs Common Corpus",
-      "languages": ["multilingual"],
-      "topics": ["books", "scientific articles", "government and legal documents", "code", "cultural heritage"],
-      "license": "Dataset reports document-level provenance and open-licensed/public-domain material. Inspect the dataset card and per-document rights metadata; do not assume one blanket license.",
-      "source": "https://huggingface.co/datasets/PleIAs/common_corpus",
-      "license_reference": "https://huggingface.co/datasets/PleIAs/common_corpus",
-      "ingestion_status": "not_ingested",
+      "name": "Korean Language Corpus 2025 (National Institute of Korean Language)",
+      "languages": [
+        "ko"
+      ],
+      "topics": [
+        "written Korean",
+        "Korean language and culture"
+      ],
+      "source": "https://kli.korean.go.kr/corpus/openapi/corpusList.do?lang=en",
+      "license_id": null,
+      "license_reference": "https://kli.korean.go.kr/corpus/main/requestMain.do?lang=en",
+      "evidence": "Official corpus portal describes individual corpus collections and per-corpus access requests; some listed 2025 resources describe copyright-cleared or commercially usable source materials, but exact terms are collection-specific.",
+      "limitations": [
+        "must request access",
+        "verify the selected corpus's own terms and permitted model-training use",
+        "portal currently displays partial service maintenance notice"
+      ],
+      "ingestion_status": "blocked_pending_collection_specific_terms",
       "approval_required": true
+    }
+  ],
+  "excluded_sources": [
+    {
+      "name": "Open Korean Historical Corpus Hugging Face dataset",
+      "source": "https://huggingface.co/datasets/anonymous-1501/Open-Korean-Historical-Corpus",
+      "actual_dataset_card_license": "CC-BY-NC-4.0",
+      "reason": "NonCommercial license is not accepted by this project's conservative training allowlist; excluded even though the dataset description discusses public-domain source materials."
+    },
+    {
+      "name": "Korpora package repository",
+      "source": "https://github.com/ko-nlp/Korpora",
+      "repository_license": "CC-BY-4.0",
+      "reason": "Repository license applies to the package and its accompanying materials; individual corpora have separate licenses. No corpus is approved based on the repository license alone."
+    },
+    {
+      "name": "AI-Hub collections",
+      "source": "https://aihub.or.kr/intrcn/guid/usagepolicy.do",
+      "reason": "AI-Hub has collection-specific access agreements, attribution, no-redistribution and other conditions. Not admitted under the current generic CC0/CC-BY manifest policy without collection-specific legal and policy review."
+    },
+    {
+      "name": "Wikimedia Wikipedia dumps",
+      "source": "https://dumps.wikimedia.org/",
+      "reason": "Wikipedia text is generally CC BY-SA; current trainer allowlist excludes ShareAlike pending separate legal and technical policy review."
     },
     {
       "name": "Stack Exchange public data",
-      "languages": ["primarily English; individual communities vary"],
-      "topics": ["programming", "mathematics", "science"],
-      "license": "Contributions have version-dependent CC BY-SA terms; determine the applicable license for each post/revision and preserve attribution/share-alike requirements.",
       "source": "https://archive.org/details/stackexchange",
-      "license_reference": "https://opendata.stackexchange.com/help/licensing",
-      "ingestion_status": "not_ingested",
-      "approval_required": true
+      "reason": "Version-dependent CC BY-SA terms require post/revision-level attribution and ShareAlike review; not admitted by current trainer allowlist."
     }
   ],
   "excluded_by_default": [
@@ -41,4 +88,4 @@
     "evaluation and benchmark questions",
     "unreviewed synthetic text presented as factual source material"
   ]
-}
+}\n
