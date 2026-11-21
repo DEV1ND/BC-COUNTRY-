@@ -1,7 +1,6 @@
 """Conservative, local-only retrieval for approved Quantum examples."""
 import re
 
-
 _STOP_WORDS = {
     "무엇", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
     "뜻", "의미", "정의", "설명", "설명해줘", "알려줘", "해주세요",
@@ -14,22 +13,21 @@ _SUFFIXES = ("인가요", "인가", "에서", "으로", "에게", "은", "는", 
              "을", "를", "의", "와", "과", "에", "로", "란", "은요", "는요")
 
 
+def _token_variants(token):
+    variants = {token}
+    for suffix in _SUFFIXES:
+        if token.endswith(suffix):
+            stem = token[:-len(suffix)]
+            if len(stem) >= 2 and stem not in _STOP_WORDS:
+                variants.add(stem)
+    return variants
+
+
 def content_tokens(text):
-    """Extract conservative topic terms; strip common Korean particles."""
+    """Keep original Korean terms while also considering one particle-stripped form."""
     raw = re.findall(r"[0-9a-z]+|[가-힣]+", str(text).lower())
-    result = []
-    for token in raw:
-        changed = True
-        while changed:
-            changed = False
-            for suffix in _SUFFIXES:
-                if len(token) > len(suffix) + 1 and token.endswith(suffix):
-                    token = token[:-len(suffix)]
-                    changed = True
-                    break
-        if len(token) >= 2 and token not in _STOP_WORDS:
-            result.append(token)
-    return result
+    return [_token_variants(token) for token in raw
+            if len(token) >= 2 and token not in _STOP_WORDS]
 
 
 def intent_signature(question):
@@ -48,10 +46,19 @@ def intent_signature(question):
 
 
 def token_similarity(left, right):
-    a, b = set(content_tokens(left)), set(content_tokens(right))
+    a, b = content_tokens(left), content_tokens(right)
     if not a or not b:
         return 0.0
-    return len(a & b) / len(a | b)
+    used = set()
+    matches = 0
+    for left_token in sorted(a, key=len, reverse=True):
+        candidates = [i for i, right_token in enumerate(b)
+                      if i not in used and left_token.intersection(right_token)]
+        if candidates:
+            best = max(candidates, key=lambda i: len(left_token.intersection(b[i])))
+            used.add(best)
+            matches += 1
+    return matches / (len(a) + len(b) - matches)
 
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
