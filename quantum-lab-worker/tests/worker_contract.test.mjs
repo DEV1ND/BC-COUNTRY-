@@ -22,7 +22,8 @@ test("inference endpoint can be configured without exposing a token to the brows
 test("knowledge source metadata is passed through and displayed", () => {
   assert.ok(worker.includes("knowledgeSources:Array.isArray(d.knowledge_sources)"));
   assert.ok(worker.includes("startsWith('https://ko.wikipedia.org/wiki/')"));
-  assert.ok(worker.includes('target=\\"_blank\\" rel=\\"noopener noreferrer\\"'));
+  const slash = String.fromCharCode(92);
+  assert.ok(worker.includes('target=' + slash + '"_blank"' + ' rel=' + slash + '"noopener noreferrer"'));
   assert.ok(worker.includes("esc(s.title"));
   assert.ok(worker.includes("esc(s.attribution"));
 });
