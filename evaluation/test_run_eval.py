@@ -14,7 +14,7 @@ class EvaluationTests(unittest.TestCase):
         ]
         report=evaluate(self.dataset,predictions)
         self.assertEqual(report["coverage"],1.0)
-        self.assertEqual(report["required_term_coverage_proxy"],1.0)
+        self.assertEqual(report["required_fact_coverage_proxy"],1.0)
         self.assertEqual(report["unanswerable_abstention_recall"],1.0)
         self.assertEqual(report["answerable_false_abstention_rate"],0.0)
     def test_retrieval_metrics(self):
