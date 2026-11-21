@@ -2,7 +2,9 @@ export function planMissingPageIds(approvedIds, cachedIds, limit = 5) {
   const cached = cachedIds instanceof Set ? cachedIds : new Set(cachedIds || []);
   const seen = new Set();
   const missing = [];
-  const max = Math.max(1, Math.min(Number(limit) || 5, 50));
+  const requested = Number(limit);
+  const normalizedLimit = Number.isFinite(requested) ? Math.trunc(requested) : 5;
+  const max = Math.max(1, Math.min(normalizedLimit, 50));
   for (const raw of approvedIds || []) {
     const id = String(raw);
     if (!id || seen.has(id)) continue;
