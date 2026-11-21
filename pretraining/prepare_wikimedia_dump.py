@@ -34,24 +34,24 @@ def child_text(element, name: str) -> str:
 
 def strip_wikitext(source: str) -> str:
     text = re.sub(r"<!--.*?-->", " ", source, flags=re.S)
-    text = re.sub(r"<(ref|gallery|math|nowiki|source|syntaxhighlight)\\b[^>]*>.*?</\\1\\s*>", " ", text, flags=re.I | re.S)
-    text = re.sub(r"<ref\\b[^>]*/\\s*>", " ", text, flags=re.I)
+    text = re.sub(r"<(ref|gallery|math|nowiki|source|syntaxhighlight)\b[^>]*>.*?</\1\s*>", " ", text, flags=re.I | re.S)
+    text = re.sub(r"<ref\b[^>]*/\s*>", " ", text, flags=re.I)
     # Remove nested templates conservatively.
     for _ in range(8):
-        updated = re.sub(r"\\{\\{[^{}]*\\}\\}", " ", text, flags=re.S)
+        updated = re.sub(r"\{\{[^{}]*\}\}", " ", text, flags=re.S)
         if updated == text:
             break
         text = updated
-    text = re.sub(r"\\[\\[(?:File|Image|파일|그림):[^\\]]*\\]\\]", " ", text, flags=re.I)
-    text = re.sub(r"\\[\\[([^\\]|]+)\\|([^\\]]+)\\]\\]", r"\\2", text)
-    text = re.sub(r"\\[\\[([^\\]]+)\\]\\]", r"\\1", text)
-    text = re.sub(r"\\[(https?://\\S+)\\s+([^\\]]+)\\]", r"\\2", text)
-    text = re.sub(r"(?m)^\\s*[*#;:]+\\s*", "", text)
-    text = re.sub(r"(?m)^={2,}\\s*(.*?)\\s*={2,}\\s*$", r"\\1", text)
+    text = re.sub(r"\[\[(?:File|Image|파일|그림):[^\]]*\]\]", " ", text, flags=re.I)
+    text = re.sub(r"\[\[([^\]|]+)\|([^\]]+)\]\]", r"\2", text)
+    text = re.sub(r"\[\[([^\]]+)\]\]", r"\1", text)
+    text = re.sub(r"\[(https?://\S+)\s+([^\]]+)\]", r"\2", text)
+    text = re.sub(r"(?m)^\s*[*#;:]+\s*", "", text)
+    text = re.sub(r"(?m)^={2,}\s*(.*?)\s*={2,}\s*$", r"\1", text)
     text = re.sub(r"'{2,5}", "", text)
     text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"\\[https?://[^\\]]+\\]", " ", text)
-    text = re.sub(r"\\s+", " ", text)
+    text = re.sub(r"\[https?://[^\]]+\]", " ", text)
+    text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
@@ -124,7 +124,7 @@ def main():
             split = "validation" if split_bucket < 5 else "train"
             filename = f"{args.language}_{page_id}_{revision_id}.txt"
             target = output / filename
-            target.write_text(plain + "\\n", encoding="utf-8")
+            target.write_text(plain + "\n", encoding="utf-8")
             article_url = f"https://{args.language}.wikipedia.org/wiki/{urllib.parse.quote(title.replace(' ', '_'))}"
             revision_url = f"https://{args.language}.wikipedia.org/w/index.php?oldid={revision_id}"
             rows.append({
@@ -153,7 +153,7 @@ def main():
         raise RuntimeError("No eligible article text found; check dump format and language.")
     with manifest.open("w", encoding="utf-8") as handle:
         for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\\n")
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(json.dumps({
         "status": "staged_for_review_only",
         "language": args.language,
