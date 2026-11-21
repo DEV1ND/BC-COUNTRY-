@@ -81,3 +81,31 @@ python pretraining/prepare_corpus.py --input pretraining/incoming/documents.json
 The preparation script rejects missing provenance, unreviewed rights, unsupported split labels, short documents, exact normalized duplicates, and common email/phone/Korean resident-number patterns. This is a conservative first-pass filter, not comprehensive PII detection or legal advice. Inspect every rejection and the generated manifest manually. Raw corpora, manifests, and checkpoints are git-ignored.
 
 Only after the dataset has passed review should the 10,000-step trainer be run. No source collection is considered ingested merely because it appears in `sources.json`.
+
+
+## Korean text source candidate: Mozilla Common Voice
+
+The source register identifies **Mozilla Common Voice Scripted Speech 27.0 - Korean** as a candidate listed with locale `ko` and license `CC0-1.0` on the Mozilla Data Collective dataset page:
+- Dataset listing: https://commonvoice.mozilla.org/ko/datasets
+- CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+
+This is a narrow speech-prompt corpus, not a general-knowledge corpus. It is not enough by itself to establish broad pretraining coverage or justify a 10,000-step run. The dataset page listed 208.48 MB at review time; this is the package size, not a claim about text token count.
+
+After obtaining the exact dataset version through its official download process, stage only the official `train.tsv` and `dev.tsv` files:
+
+```bash
+python pretraining/prepare_common_voice.py --train-tsv /path/to/train.tsv --dev-tsv /path/to/dev.tsv
+```
+
+The importer keeps only the `sentence` column, discards speaker identifiers and demographic columns, excludes the official test split, groups short sentences into text blocks, and writes records with both approval flags set to false. It does not download the dataset or grant permission automatically.
+
+Before the general corpus preparation step:
+1. Verify the downloaded archive's exact version and its included license/readme files.
+2. Fill in the actual retrieval date and confirm the source/version metadata.
+3. Review the resulting text blocks for personal information, quality, duplicates, and suitability.
+4. Only after explicit review, set `license_reviewed` and `approved_for_training` to true and record the responsible reviewer.
+5. Run `prepare_corpus.py`, then `audit_corpus.py`; inspect the complete report.
+
+The official `dev.tsv` is reserved for validation. Do not import `test.tsv` into training or validation. The current fixed Quantum evaluation set remains separate.
+
+Other candidates have been excluded or blocked where their exact conditions do not match the conservative trainer policy. In particular, the Open Korean Historical Corpus Hugging Face card currently declares CC BY-NC 4.0, the Korpora repository license does not automatically apply to every corpus it packages, and AI-Hub collections have collection-specific access and use conditions.
