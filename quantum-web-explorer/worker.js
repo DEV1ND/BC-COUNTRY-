@@ -75,25 +75,38 @@ async function autoReviewPending(env, limit = 15) {
 
 async function syncApproved(env){
   if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return {ok:false,synced:0,error:"inference_sync_not_configured"};
-  const {results=[]}=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL ORDER BY reviewed_at LIMIT ?").bind(SYNC_BATCH).all();
-  if(!results.length) return {ok:true,synced:0};
-  const docs=[];
-  for(const row of results){
-    const text=String(row.content||"").trim(); if(text.length<200) continue;
-    docs.push({page_id:row.id,title:row.title,url:row.url,text,license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"});
-  }
-  if(!docs.length) return {ok:false,synced:0,error:"approved_d1_documents_missing"};
+  const headers={"authorization":"Bearer "+env.QUANTUM_API_TOKEN};
+  let cacheStatus;
+  try{
+    const statusResponse=await fetch(new URL("/admin/knowledge/status",env.QUANTUM_INFERENCE_URL),{
+      headers,signal:AbortSignal.timeout(15000)
+    });
+    cacheStatus=await statusResponse.json().catch(()=>({}));
+    if(!statusResponse.ok) return {ok:false,synced:0,error:"inference_status_rejected",status:statusResponse.status,detail:cacheStatus};
+  }catch(e){return {ok:false,synced:0,error:"inference_status_unreachable",detail:String(e.message||e)};}
+  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND length(content)>=200").first();
+  const cached=Number(cacheStatus.documents||0);
+  const rebuilding=cached<Number(expected?.count||0);
+  const query=rebuilding
+    ? "SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND length(content)>=200 ORDER BY id LIMIT ? OFFSET ?"
+    : "SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL AND length(content)>=200 ORDER BY reviewed_at LIMIT ?";
+  const result=rebuilding
+    ? await env.DB.prepare(query).bind(SYNC_BATCH,cached).all()
+    : await env.DB.prepare(query).bind(SYNC_BATCH).all();
+  const rows=result.results||[];
+  if(!rows.length) return {ok:true,synced:0,cacheDocuments:cached,expectedDocuments:expected?.count||0,rebuilding:false};
+  const docs=rows.map(row=>({page_id:row.id,title:row.title,url:row.url,text:String(row.content||"").trim(),license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"}));
   let response;
   try{
     response=await fetch(new URL("/admin/knowledge/import",env.QUANTUM_INFERENCE_URL),{
-      method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.QUANTUM_API_TOKEN},
+      method:"POST",headers:{"content-type":"application/json",...headers},
       body:JSON.stringify({documents:docs}),signal:AbortSignal.timeout(30000)
     });
   }catch(e){return {ok:false,synced:0,error:"inference_unreachable",detail:String(e.message||e)};}
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok) return {ok:false,synced:0,error:"inference_rejected",status:response.status,detail:result};
+  const importResult=await response.json().catch(()=>({}));
+  if(!response.ok) return {ok:false,synced:0,error:"inference_rejected",status:response.status,detail:importResult};
   for(const doc of docs) await env.DB.prepare("UPDATE pages SET synced_at=datetime('now'),sync_error=NULL WHERE id=?").bind(doc.page_id).run();
-  return {ok:true,synced:docs.length,inference:result};
+  return {ok:true,synced:docs.length,inference:importResult,rebuilding,cacheDocumentsBefore:cached,expectedDocuments:expected?.count||0};
 }
 async function maybeStartIncrementalTraining(env){
   if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN)
