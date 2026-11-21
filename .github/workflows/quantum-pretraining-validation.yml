@@ -1,0 +1,166 @@
+name: Quantum pretraining pipeline validation
+
+on:
+  push:
+    branches:
+      - quantum-pretraining-10k
+    paths:
+      - "pretraining/**"
+      - ".github/workflows/quantum-pretraining-validation.yml"
+  pull_request:
+    branches:
+      - quantum-pretraining-review
+    paths:
+      - "pretraining/**"
+      - ".github/workflows/quantum-pretraining-validation.yml"
+
+jobs:
+  syntax-and-manifest-example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile training pipeline
+        run: python -m py_compile bpe_tokenizer.py pretraining/train.py pretraining/prepare_corpus.py pretraining/prepare_wikimedia_dump.py pretraining/audit_corpus.py pretraining/prepare_common_voice.py
+      - name: Validate manifest example JSONL shape
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("pretraining/manifest.example.jsonl")
+          rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+          required = {"path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split", "review_status"}
+          assert len(rows) == 2
+          assert all(required <= row.keys() for row in rows)
+          assert {row["split"] for row in rows} == {"train", "validation"}
+          print("manifest example structure: PASS")
+          PY
+
+      - name: Verify corpus audit CLI is available
+        run: PYTHONPATH="$GITHUB_WORKSPACE" python pretraining/audit_corpus.py --help
+
+      - name: Exercise corpus audit with isolated synthetic fixtures
+        run: |
+          python - <<'PY'
+          import json
+          import shutil
+          from pathlib import Path
+          from pretraining.audit_corpus import audit, ROOT
+          fixture = ROOT / "corpus" / "ci-audit-fixture"
+          manifest = ROOT / "manifest.ci-audit-fixture.jsonl"
+          fixture.mkdir(parents=True, exist_ok=True)
+          try:
+              train_text = ("Quantum CI train fixture contains enough unique sample words and Korean text for tokenizer coverage. " * 4).strip()
+              valid_text = ("Quantum CI validation fixture is held out and includes 별도의 한국어 문자 범위 확인 문장. " * 4).strip()
+              (fixture / "train.txt").write_text(train_text, encoding="utf-8")
+              (fixture / "validation.txt").write_text(valid_text, encoding="utf-8")
+              rows = []
+              for filename, split in (("train.txt", "train"), ("validation.txt", "validation")):
+                  rows.append({
+                      "path": f"corpus/ci-audit-fixture/{filename}",
+                      "source_name": "CI synthetic fixture",
+                      "source_url": "https://example.org/fixture",
+                      "retrieved_at": "2026-11-21",
+                      "license_id": "CC0-1.0",
+                      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+                      "attribution": "Synthetic CI-only fixture",
+                      "split": split,
+                      "review_status": "approved",
+                  })
+              manifest.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+              report = audit(manifest)
+              assert report["documents"] == {"total": 2, "train": 1, "validation": 1}
+              assert report["tokens_estimated_with_candidate_bpe"]["train"] > 0
+              assert report["tokens_estimated_with_candidate_bpe"]["validation"] > 0
+              print("corpus audit fixture: PASS")
+          finally:
+              if manifest.exists():
+                  manifest.unlink()
+              shutil.rmtree(fixture, ignore_errors=True)
+          PY
+
+      - name: Exercise Common Voice TSV staging without real corpus data
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          import tempfile
+          from pathlib import Path
+          from pretraining.prepare_common_voice import read_sentences, group_sentences
+          with tempfile.TemporaryDirectory() as temp:
+              train = Path(temp) / "train.tsv"
+              with train.open("w", encoding="utf-8", newline="") as stream:
+                  writer = csv.DictWriter(stream, fieldnames=["client_id", "sentence", "age", "gender"], delimiter="\t")
+                  writer.writeheader()
+                  for i in range(40):
+                      writer.writerow({"client_id": f"private-{i}", "sentence": f"한국어 테스트 문장 {i}번입니다. 자연스러운 문장 패턴을 확인하기 위한 합성 문장입니다.", "age": "hidden", "gender": "hidden"})
+              sentences = read_sentences(train)
+              docs = group_sentences(sentences, target_chars=500)
+              assert len(sentences) == 40
+              assert docs and all(len(doc) >= 200 for doc in docs)
+              assert "private-" not in "\n".join(docs)
+              print("Common Voice TSV staging fixture: PASS")
+          PY
+
+      - name: Exercise Wikimedia XML dump staging with synthetic pages
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          import tempfile
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          root = Path("pretraining").resolve()
+          with tempfile.TemporaryDirectory() as temp:
+              temp = Path(temp)
+              dump = temp / "synthetic-wiki.xml"
+              second_dump = temp / "synthetic-wiki-part-2.xml"
+              mediawiki = ET.Element("mediawiki")
+              for page_id, revision_id, title, body in [
+                  ("101", "1001", "한국어 테스트 문서", "한국어 위키백과 합성 검증 문장입니다. " * 40),
+                  ("202", "2002", "Synthetic English Article", "This is a synthetic English encyclopedia fixture for parser validation. " * 30),
+              ]:
+                  page = ET.SubElement(mediawiki, "page")
+                  ET.SubElement(page, "title").text = title
+                  ET.SubElement(page, "ns").text = "0"
+                  ET.SubElement(page, "id").text = page_id
+                  revision = ET.SubElement(page, "revision")
+                  ET.SubElement(revision, "id").text = revision_id
+                  ET.SubElement(revision, "text").text = body
+              ET.ElementTree(mediawiki).write(dump, encoding="utf-8", xml_declaration=True)
+              second_tree = ET.Element("mediawiki")
+              page = ET.SubElement(second_tree, "page")
+              ET.SubElement(page, "title").text = "Second Part Article"
+              ET.SubElement(page, "ns").text = "0"
+              ET.SubElement(page, "id").text = "303"
+              revision = ET.SubElement(page, "revision")
+              ET.SubElement(revision, "id").text = "3003"
+              ET.SubElement(revision, "text").text = "A second synthetic dump part validates multi-file intake. " * 30
+              ET.ElementTree(second_tree).write(second_dump, encoding="utf-8", xml_declaration=True)
+              output = root / "corpus" / "ci-wikimedia-fixture"
+              manifest = root / "manifest.ci-wikimedia-fixture.jsonl"
+              try:
+                  subprocess.run([
+                      "python", "pretraining/prepare_wikimedia_dump.py",
+                      "--dump", str(dump), "--dump", str(second_dump), "--language", "ko", "--max-pages", "3",
+                      "--output", str(output), "--manifest", str(manifest),
+                  ], check=True, capture_output=True, text=True)
+                  rows = [json.loads(line) for line in manifest.read_text(encoding="utf-8").splitlines()]
+                  assert len(rows) == 2
+                  assert all(row["review_status"] == "pending_review" for row in rows)
+                  assert all(row["license_review_status"] == "verify_revision_and_page_notices" for row in rows)
+                  assert all(row["retrieved_at"] == "unknown_original_dump_download_date" for row in rows)
+                  assert all(row["revision_url"] and row["dump_sha256"] and row["dump_set_sha256"] and row["content_sha256"] for row in rows)
+              assert len({row["dump_filename"] for row in rows}) == 2
+                  assert all(row["changes_made"] for row in rows)
+                  assert all((root / row["path"]).is_file() for row in rows)
+                  print("Wikimedia XML staging fixture: PASS")
+              finally:
+                  if manifest.exists():
+                      manifest.unlink()
+                  if output.exists():
+                      import shutil
+                      shutil.rmtree(output)
+          PY

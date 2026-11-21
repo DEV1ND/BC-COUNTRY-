@@ -1,0 +1,8 @@
+# Raw source dumps and derived corpus are not committed by default.
+incoming/
+corpus/
+artifacts/
+manifest.jsonl
+*.pt
+*.pth
+*.ckpt
