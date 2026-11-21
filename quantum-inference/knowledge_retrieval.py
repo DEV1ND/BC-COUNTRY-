@@ -17,8 +17,19 @@ def _norm(value):
     return re.sub(r"\\s+", " ", value).strip()
 
 def _terms(value):
-    terms = re.findall(r"[0-9a-z]+|[가-힣]{2,}", _norm(value))
-    return [t for t in terms if t not in _STOP]
+    raw = re.findall(r"[0-9a-z]+|[가-힣]{2,}", _norm(value))
+    suffixes = ("무엇인가요", "무엇인가", "인가요", "인가", "이란", "에서", "으로",
+                "에게", "은", "는", "이", "가", "을", "를", "의", "와", "과", "에", "로", "란")
+    result = []
+    for token in raw:
+        stem = token
+        for suffix in suffixes:
+            if stem.endswith(suffix) and len(stem) - len(suffix) >= 2:
+                stem = stem[:-len(suffix)]
+                break
+        if stem not in _STOP and len(stem) >= 2:
+            result.append(stem)
+    return result
 
 def score_document(question, title, body):
     """Return a transparent lexical relevance score in [0, 1]."""
