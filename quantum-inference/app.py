@@ -13,7 +13,7 @@ from wikipedia_seed import seed_wikipedia
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from knowledge_retrieval import rank_documents
+from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
@@ -141,12 +141,12 @@ def require_admin(authorization):
 
 def retrieve_knowledge(question, limit=3):
     # FTS5 discovers broad candidates; title-weighted reranking filters weak OR matches.
-    terms = list(dict.fromkeys(re.findall(r"[0-9A-Za-z가-힣]{2,}", question or "")))[:10]
-    if not terms:
+    terms = query_terms(question)[:10]
+    match = build_fts_query(question, max_terms=10)
+    if not terms or not match:
         return []
     conn = knowledge_db()
     try:
-        match = " OR ".join('"' + t.replace('"', '""') + '"' for t in terms)
         rows = []
         try:
             rows = conn.execute("""SELECT d.title,d.url,d.text,d.attribution,d.license
