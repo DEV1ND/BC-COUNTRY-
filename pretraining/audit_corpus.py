@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from bpe_tokenizer import BPETokenizer
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT.parent))
 ALLOWED_LICENSES = {"CC0-1.0", "CC-BY-4.0"}
 REQUIRED = {
     "path", "source_name", "source_url", "retrieved_at", "license_id",
