@@ -29,7 +29,7 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
         if not raw.strip():
             continue
         row = json.loads(raw)
-        required = ("path", "source_name", "license_id", "attribution", "split")
+        required = ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "split")
         missing = [key for key in required if not str(row.get(key, "")).strip()]
         if missing:
             raise ValueError(f"manifest line {line_no}: missing {', '.join(missing)}")
@@ -55,7 +55,9 @@ def load_corpus(manifest_path: Path, min_chars: int = 200):
         seen_hashes[digest] = row["split"]
         records.append({
             "text": text, "split": row["split"], "source_name": row["source_name"],
-            "license_id": row["license_id"], "attribution": row["attribution"],
+            "source_url": row["source_url"], "retrieved_at": row["retrieved_at"],
+            "license_id": row["license_id"], "license_url": row["license_url"],
+            "attribution": row["attribution"],
             "sha256": digest, "path": str(path.relative_to(ROOT)),
         })
     train = [r for r in records if r["split"] == "train"]
@@ -205,7 +207,7 @@ def main():
                         "training_tokens": len(train_tokens), "validation_tokens": len(valid_tokens),
                         "manifest": str(args.manifest),
                         "provenance": [
-                            {k: r[k] for k in ("path", "source_name", "license_id", "attribution", "sha256")}
+                            {k: r[k] for k in ("path", "source_name", "source_url", "retrieved_at", "license_id", "license_url", "attribution", "sha256")}
                             for r in train_rows + valid_rows
                         ],
                         "live_model_modified": False,
