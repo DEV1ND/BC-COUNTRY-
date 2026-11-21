@@ -13,6 +13,7 @@ from wikipedia_seed import seed_wikipedia
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from knowledge_retrieval import rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
@@ -127,27 +128,34 @@ def require_admin(authorization):
         raise HTTPException(401, "관리자 인증이 필요합니다.")
 
 def retrieve_knowledge(question, limit=3):
-    terms = re.findall(r"[0-9A-Za-z가-힣]{2,}", question or "")[:8]
+    # FTS5 discovers broad candidates; title-weighted reranking filters weak OR matches.
+    terms = list(dict.fromkeys(re.findall(r"[0-9A-Za-z가-힣]{2,}", question or "")))[:10]
     if not terms:
         return []
     conn = knowledge_db()
     try:
         match = " OR ".join('"' + t.replace('"', '""') + '"' for t in terms)
+        rows = []
         try:
             rows = conn.execute("""SELECT d.title,d.url,d.text,d.attribution,d.license
                 FROM knowledge_fts f JOIN knowledge_docs d ON d.page_id=f.page_id
-                WHERE knowledge_fts MATCH ? ORDER BY bm25(knowledge_fts) LIMIT ?""",
-                (match, limit)).fetchall()
+                WHERE knowledge_fts MATCH ?
+                ORDER BY bm25(knowledge_fts) LIMIT 50""", (match,)).fetchall()
         except sqlite3.OperationalError:
             rows = []
         if not rows:
             clauses = " OR ".join("title LIKE ? OR text LIKE ?" for _ in terms)
             args = []
-            for term in terms: args.extend(["%"+term+"%", "%"+term+"%"])
-            rows = conn.execute("SELECT title,url,text,attribution,license FROM knowledge_docs WHERE "+clauses+" LIMIT ?", (*args,limit)).fetchall()
-        return [dict(row) for row in rows]
+            for term in terms:
+                args.extend(["%" + term + "%", "%" + term + "%"])
+            rows = conn.execute(
+                "SELECT title,url,text,attribution,license FROM knowledge_docs WHERE " +
+                clauses + " LIMIT 100", args
+            ).fetchall()
+        return rank_documents(question, rows, limit=limit, min_score=0.18)
     finally:
         conn.close()
+
 
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
