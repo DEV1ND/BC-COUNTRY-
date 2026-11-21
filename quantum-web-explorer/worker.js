@@ -2,7 +2,8 @@ const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
 const MAX_RESULTS = 8;
-const SYNC_BATCH = 10;
+const SYNC_BATCH = 5;
+const MAX_PAGE_CHARS = 80000;
 
 function json(data,status=200){return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});}
 async function sha256(value){
@@ -24,7 +25,7 @@ async function collectTopic(topic,env){
   let discovered=0,updated=0;
   for(const hit of search.query?.search||[]){
     const detail=await wikiRequest({action:"query",prop:"extracts|info",explaintext:"1",exsectionformat:"plain",inprop:"url",pageids:String(hit.pageid)});
-    const page=detail.query?.pages?.[0], text=String(page?.extract||"").trim();
+    const page=detail.query?.pages?.[0], text=String(page?.extract||"").trim().slice(0,MAX_PAGE_CHARS);
     if(!page||text.length<500) continue;
     const hash=await sha256(text);
     const sameHash=await env.DB.prepare("SELECT id,url FROM pages WHERE content_hash=?").bind(hash).first();
@@ -35,21 +36,20 @@ async function collectTopic(topic,env){
       await env.DB.prepare("UPDATE pages SET last_seen_at=datetime('now') WHERE id=?").bind(existing.id).run();
       continue;
     }
-    const id=existing?.id||crypto.randomUUID(), key="pages/"+id+"/"+hash+".txt";
-    await env.RAW_PAGES.put(key,text,{httpMetadata:{contentType:"text/plain; charset=utf-8"}});
+    const id=existing?.id||crypto.randomUUID();
     if(existing){
-      await env.DB.prepare(`UPDATE pages SET title=?,snippet=?,content_hash=?,r2_key=?,revision_id=?,status='pending_review',
+      await env.DB.prepare(`UPDATE pages SET title=?,snippet=?,content_hash=?,content=?,revision_id=?,status='pending_review',
         license_status='attribution_required',license_name='CC BY-SA 4.0',
         attribution='Wikipedia contributors; retain page title, URL, license, and indicate modifications',
         discovered_at=datetime('now'),last_seen_at=datetime('now'),reviewed_at=NULL,reviewer_note=NULL,synced_at=NULL,sync_error=NULL
-        WHERE id=?`).bind(page.title,String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key,page.lastrevid||null,id).run();
+        WHERE id=?`).bind(page.title,String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,page.lastrevid||null,id).run();
       updated++;
     }else{
       await env.DB.prepare(`INSERT INTO pages
-        (id,provider,title,url,domain,snippet,content_hash,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
+        (id,provider,title,url,domain,snippet,content_hash,content,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
         VALUES (?,'wikipedia',?,?,?,?,?,?, 'pending_review','attribution_required','CC BY-SA 4.0',
         'Wikipedia contributors; retain page title, URL, license, and indicate modifications',?,datetime('now'),datetime('now'))`)
-        .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,key,page.lastrevid||null).run();
+        .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,page.lastrevid||null).run();
       discovered++;
     }
   }
@@ -58,15 +58,14 @@ async function collectTopic(topic,env){
 }
 async function syncApproved(env){
   if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return {ok:false,synced:0,error:"inference_sync_not_configured"};
-  const {results=[]}=await env.DB.prepare("SELECT id,title,url,r2_key,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL ORDER BY reviewed_at LIMIT ?").bind(SYNC_BATCH).all();
+  const {results=[]}=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND synced_at IS NULL ORDER BY reviewed_at LIMIT ?").bind(SYNC_BATCH).all();
   if(!results.length) return {ok:true,synced:0};
   const docs=[];
   for(const row of results){
-    const obj=await env.RAW_PAGES.get(row.r2_key); if(!obj) continue;
-    const text=await obj.text(); if(text.trim().length<200) continue;
-    docs.push({page_id:row.id,title:row.title,url:row.url,text:text.slice(0,120000),license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"});
+    const text=String(row.content||"").trim(); if(text.length<200) continue;
+    docs.push({page_id:row.id,title:row.title,url:row.url,text,license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"});
   }
-  if(!docs.length) return {ok:false,synced:0,error:"approved_r2_documents_missing"};
+  if(!docs.length) return {ok:false,synced:0,error:"approved_d1_documents_missing"};
   let response;
   try{
     response=await fetch(new URL("/admin/knowledge/import",env.QUANTUM_INFERENCE_URL),{
