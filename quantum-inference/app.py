@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re
+import os, json, re, sqlite3
 from pathlib import Path
 from typing import Optional
 import torch
@@ -14,39 +14,34 @@ DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
 CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
-KNOWLEDGE_PATH = Path(os.getenv("QUANTUM_KNOWLEDGE_PATH", "quantum_knowledge.jsonl"))
+KNOWLEDGE_DB = Path(os.getenv("QUANTUM_KNOWLEDGE_DB", "quantum_knowledge.sqlite3"))
 
-def load_knowledge():
-    if not KNOWLEDGE_PATH.exists():
-        return []
-    rows = []
-    for line in KNOWLEDGE_PATH.read_text(encoding="utf-8").splitlines():
-        try:
-            row = json.loads(line)
-            text = str(row.get("text") or (str(row.get("question", "")) + " " + str(row.get("answer", "")))).strip()
-            if text:
-                rows.append({"text": text, "source": str(row.get("source", "")), "url": str(row.get("source_url", ""))})
-        except (ValueError, TypeError):
-            continue
-    return rows
-
-knowledge = load_knowledge()
+def retrieval_document_count():
+    if not KNOWLEDGE_DB.exists():
+        return 0
+    try:
+        with sqlite3.connect(KNOWLEDGE_DB) as conn:
+            return int(conn.execute("SELECT count(*) FROM knowledge").fetchone()[0])
+    except sqlite3.Error:
+        return 0
 
 def retrieve_context(query, limit=3):
-    def terms(value):
-        words = re.findall(r"[가-힣]{2,}|[a-zA-Z0-9_]{2,}", value.casefold())
-        compact = re.sub(r"\\s+", "", value)
-        grams = [compact[i:i+2] for i in range(max(0, len(compact)-1))]
-        return set(words + grams)
-    qterms = terms(query)
-    scored = []
-    for row in knowledge:
-        doc_terms = terms(row["text"])
-        overlap = len(qterms & doc_terms)
-        if overlap:
-            scored.append((overlap / max(1, len(qterms)), row))
-    scored.sort(key=lambda item: item[0], reverse=True)
-    return [row for score, row in scored[:limit] if score > 0.04]
+    if not KNOWLEDGE_DB.exists():
+        return []
+    terms = re.findall(r"[가-힣]{2,}|[a-zA-Z0-9_]{2,}", query.casefold())
+    terms = list(dict.fromkeys(terms))[:12]
+    if not terms:
+        return []
+    match_query = " OR ".join('"' + term.replace('"', '') + '"' for term in terms)
+    try:
+        with sqlite3.connect(KNOWLEDGE_DB) as conn:
+            rows = conn.execute(
+                "SELECT text, source, url FROM knowledge WHERE knowledge MATCH ? ORDER BY rank LIMIT ?",
+                (match_query, limit)
+            ).fetchall()
+        return [{"text": row[0], "source": row[1], "url": row[2]} for row in rows]
+    except sqlite3.Error:
+        return []
 
 
 class BPECandidate(nn.Module):
@@ -104,7 +99,7 @@ class GenerateRequest(BaseModel):
 def health():
     return {"ok": True, "model_loaded": model is not None,
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
-            "production_model_touched": False, "retrieval_documents": len(knowledge)}
+            "production_model_touched": False, "retrieval_documents": retrieval_document_count()}
 
 @app.post("/v1/generate")
 @torch.inference_mode()
