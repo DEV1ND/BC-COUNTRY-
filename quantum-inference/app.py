@@ -63,7 +63,8 @@ def banned_ngram_tokens(tokens, n=3):
 def load_model():
     if not CHECKPOINT.exists():
         return None, None, None
-    payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
+    # Candidate checkpoints must contain only tensors and primitive metadata; reject arbitrary pickle globals.
+    payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=True)
     arch = payload["architecture"]
     tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
     model = BPECandidate(len(tokenizer.vocab), int(arch["width"]), int(arch["heads"]), int(arch["layers"]))
