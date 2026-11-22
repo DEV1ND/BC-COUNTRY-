@@ -39,10 +39,55 @@ def seed_wikipedia(db_path):
         "https://ko.wikipedia.org/w/api.php?" + params,
         headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.1 (https://juckex-ai.bcsite.workers.dev)"},
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    def fetch_pages(query_params):
+        query_url = "https://ko.wikipedia.org/w/api.php?" + urllib.parse.urlencode(query_params)
+        query_request = urllib.request.Request(
+            query_url,
+            headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.2 (https://juckex-ai.bcsite.workers.dev)"},
+        )
+        with urllib.request.urlopen(query_request, timeout=30) as response:
+            response_payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(response_payload, dict):
+            raise RuntimeError("Korean Wikipedia API returned an invalid response.")
+        api_error = response_payload.get("error")
+        if isinstance(api_error, dict):
+            code = str(api_error.get("code", "unknown"))[:80]
+            info = " ".join(str(api_error.get("info", "")).split())[:180]
+            raise RuntimeError("Korean Wikipedia API error: " + code + (": " + info if info else ""))
+        query = response_payload.get("query")
+        if not isinstance(query, dict):
+            raise RuntimeError("Korean Wikipedia API response did not contain query data.")
+        response_pages = query.get("pages", [])
+        if isinstance(response_pages, dict):
+            response_pages = list(response_pages.values())
+        if not isinstance(response_pages, list):
+            raise RuntimeError("Korean Wikipedia API returned an invalid pages collection.")
+        return [page for page in response_pages if isinstance(page, dict)]
 
-    pages = payload.get("query", {}).get("pages", [])
+    pages = fetch_pages({
+        "action": "query", "format": "json", "formatversion": "2",
+        "prop": "extracts|info|revisions", "rvprop": "ids", "rvlimit": "1",
+        "explaintext": "1", "inprop": "url", "redirects": "1",
+        "titles": "|".join(titles),
+    })
+    fetch_mode = "batch"
+    if not pages:
+        # Some API gateways reject or truncate large multi-title requests without
+        # returning useful page data. Retry one title at a time so failures are visible.
+        fetch_mode = "per_title_fallback"
+        for title in titles:
+            page_result = fetch_pages({
+                "action": "query", "format": "json", "formatversion": "2",
+                "prop": "extracts|info|revisions", "rvprop": "ids", "rvlimit": "1",
+                "explaintext": "1", "inprop": "url", "redirects": "1",
+                "titles": title,
+            })
+            pages.extend(page_result)
+    if not pages:
+        raise RuntimeError(
+            "Korean Wikipedia API returned zero pages for both batch and per-title requests."
+        )
+
     imported = 0
     skipped = 0
     skip_reasons = {}
@@ -127,6 +172,7 @@ def seed_wikipedia(db_path):
 
     return {
         "source": "Korean Wikipedia",
+        "fetch_mode": fetch_mode,
         "requested": len(titles),
         "requested_titles": titles,
         "returned_pages": len(pages),
