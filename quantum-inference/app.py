@@ -127,7 +127,8 @@ def import_korean_wikipedia_seed():
             conn.close()
         force_reseed = os.getenv("QUANTUM_FORCE_WIKIPEDIA_RESEED", "").strip() == "1"
         reuse_existing_index = should_skip_wikipedia_seed(
-            existing_index, required_documents=len(DEFAULT_TITLES), force=force_reseed
+            existing_index, required_documents=len(DEFAULT_TITLES), force=force_reseed,
+            required_titles=[canonical_seed_title(title) for title in DEFAULT_TITLES],
         )
         if reuse_existing_index:
             result = {
