@@ -37,13 +37,13 @@ def seed_wikipedia(db_path):
             titles.append(title)
         if len(titles) >= 50:
             break
-    def fetch_pages(query_params):
+    def fetch_pages(query_params, timeout=30):
         query_url = "https://ko.wikipedia.org/w/api.php?" + urllib.parse.urlencode(query_params)
         query_request = urllib.request.Request(
             query_url,
             headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.2 (https://juckex-ai.bcsite.workers.dev)"},
         )
-        with urllib.request.urlopen(query_request, timeout=30) as response:
+        with urllib.request.urlopen(query_request, timeout=timeout) as response:
             response_payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(response_payload, dict):
             raise RuntimeError("Korean Wikipedia API returned an invalid response.")
@@ -69,18 +69,45 @@ def seed_wikipedia(db_path):
         "titles": "|".join(titles),
     })
     fetch_mode = "batch"
-    if not pages:
-        # Some API gateways reject or truncate large multi-title requests without
-        # returning useful page data. Retry one title at a time so failures are visible.
-        fetch_mode = "per_title_fallback"
-        for title in titles:
-            page_result = fetch_pages({
-                "action": "query", "format": "json", "formatversion": "2",
-                "prop": "extracts|info|revisions", "rvprop": "ids",
-                "explaintext": "1", "inprop": "url", "redirects": "1",
-                "titles": title,
-            })
-            pages.extend(page_result)
+    fallback_errors = []
+    def usable_page(page):
+        revisions = page.get("revisions") or []
+        revision_id = page.get("lastrevid") or (
+            revisions[0].get("revid") if revisions and isinstance(revisions[0], dict) else ""
+        )
+        return (
+            not page.get("missing")
+            and bool(str(page.get("pageid", "")).strip())
+            and bool(str(page.get("title", "")).strip())
+            and str(page.get("fullurl", "")).startswith("https://ko.wikipedia.org/wiki/")
+            and len(str(page.get("extract", "")).strip()) >= 200
+            and bool(str(revision_id).strip())
+        )
+
+    # Retry titles that the batch did not return as usable pages. A non-empty
+    # response can still consist mostly of missing or unindexable page records.
+    usable_titles = {
+        str(page.get("title", "")).strip().casefold()
+        for page in pages if usable_page(page)
+    }
+    unresolved_titles = [title for title in titles if title.casefold() not in usable_titles]
+    if unresolved_titles:
+        fetch_mode = "batch_plus_per_title_fallback" if pages else "per_title_fallback"
+        for title in unresolved_titles:
+            try:
+                page_result = fetch_pages({
+                    "action": "query", "format": "json", "formatversion": "2",
+                    "prop": "extracts|info|revisions", "rvprop": "ids",
+                    "explaintext": "1", "inprop": "url", "redirects": "1",
+                    "titles": title,
+                }, timeout=10)
+                pages.extend(page_result)
+            except Exception as exc:
+                fallback_errors.append({
+                    "title": title,
+                    "error": (type(exc).__name__ + ": " + str(exc))[:180],
+                })
+                break
     if not pages:
         raise RuntimeError(
             "Korean Wikipedia API returned zero pages for both batch and per-title requests."
@@ -178,6 +205,9 @@ def seed_wikipedia(db_path):
         "skipped": skipped,
         "skip_reasons": skip_reasons,
         "page_diagnostics": page_diagnostics,
+        "fallback_errors": fallback_errors,
+        "fallback_attempted": len(unresolved_titles),
+        "fallback_failures": len(fallback_errors),
         "total_documents": int(total),
         "license": LICENSE,
         "attribution_saved": True,
