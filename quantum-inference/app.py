@@ -1,5 +1,6 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Optional
 import torch
@@ -139,10 +140,11 @@ def import_korean_wikipedia_seed():
             "retrieval_tests_passed": passed,
         }
         logger.warning(
-            "Wikipedia knowledge seed completed: mode=%s returned=%s imported=%s total=%s retrieval=%s/%s elapsed=%.2fs",
+            "Wikipedia knowledge seed completed: mode=%s returned=%s imported=%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s elapsed=%.2fs",
             result.get("fetch_mode"), result.get("returned_pages"),
             result.get("imported_this_start"), result.get("total_documents"),
-            passed, len(smoke_tests), time.monotonic() - started_at,
+            passed, len(smoke_tests), result.get("skipped"), result.get("skip_reasons"),
+            result.get("fallback_failures"), time.monotonic() - started_at,
         )
     except Exception as exc:
         # Keep inference available even if Wikimedia is temporarily unavailable.
@@ -330,7 +332,12 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
             actual_hash=hashlib.sha256(body.encode("utf-8")).hexdigest()
             if not page_id or not title or not body or len(body)<200 or len(body)>50000:
                 raise HTTPException(422, "문서 식별자·제목·본문 길이를 확인하세요.")
-            if not url.startswith("https://ko.wikipedia.org/wiki/") or license_name!="CC BY-SA 4.0" or not attribution:
+            try:
+                parsed_url = urlsplit(url)
+                valid_wikipedia_url = (parsed_url.scheme == "https" and parsed_url.netloc == "ko.wikipedia.org" and parsed_url.path.startswith("/wiki/") and not parsed_url.query and not parsed_url.fragment)
+            except ValueError:
+                valid_wikipedia_url = False
+            if not valid_wikipedia_url or license_name!="CC BY-SA 4.0" or not attribution:
                 raise HTTPException(422, "허용된 출처·라이선스·저작자 표시가 필요합니다.")
             if not revision_id or not re.fullmatch(r"[0-9]+", revision_id):
                 raise HTTPException(422, "위키백과 원문 리비전 ID가 필요합니다.")
