@@ -13,14 +13,16 @@ import urllib.request
 from pathlib import Path
 
 
-def fetch_page(api_base, token, corpus, after, limit):
+def fetch_page(api_base, token, corpus, after, limit, access_client_id="", access_client_secret=""):
     query = urllib.parse.urlencode({"corpus": corpus, "after": after, "limit": limit})
     url = api_base.rstrip("/") + "/export-candidate?" + query
-    request = urllib.request.Request(
-        url,
-        headers={"Authorization": "Bearer " + token, "Accept": "application/json"},
-        method="GET",
-    )
+    headers = {"Authorization": "Bearer " + token, "Accept": "application/json"}
+    if bool(access_client_id) != bool(access_client_secret):
+        raise RuntimeError("Both Cloudflare Access service-token values must be provided together")
+    if access_client_id and access_client_secret:
+        headers["CF-Access-Client-Id"] = access_client_id
+        headers["CF-Access-Client-Secret"] = access_client_secret
+    request = urllib.request.Request(url, headers=headers, method="GET")
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
             payload = json.loads(response.read().decode("utf-8"))
@@ -35,7 +37,8 @@ def fetch_page(api_base, token, corpus, after, limit):
     return payload
 
 
-def export_corpus(api_base, token, corpus, destination, limit=10):
+def export_corpus(api_base, token, corpus, destination, limit=10,
+                  access_client_id="", access_client_secret=""):
     if corpus not in ("manual", "unverified"):
         raise ValueError("corpus must be manual or unverified")
     destination = Path(destination).expanduser().resolve()
@@ -50,7 +53,8 @@ def export_corpus(api_base, token, corpus, destination, limit=10):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as output:
             while True:
-                page = fetch_page(api_base, token, corpus, after, limit)
+                page = fetch_page(api_base, token, corpus, after, limit,
+                                  access_client_id, access_client_secret)
                 rows = page["documents"]
                 for row in rows:
                     expected_status = "approved" if corpus == "manual" else "pending_review"
@@ -99,7 +103,12 @@ def main():
         parser.error("--api must use HTTPS")
     if args.limit < 1 or args.limit > 10:
         parser.error("--limit must be between 1 and 10")
-    count = export_corpus(args.api, token, args.corpus, args.output, args.limit)
+    access_client_id = os.environ.get("CF_ACCESS_CLIENT_ID", "")
+    access_client_secret = os.environ.get("CF_ACCESS_CLIENT_SECRET", "")
+    if bool(access_client_id) != bool(access_client_secret):
+        parser.error("CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must both be set, or both be omitted")
+    count = export_corpus(args.api, token, args.corpus, args.output, args.limit,
+                          access_client_id, access_client_secret)
     print(json.dumps({"ok": True, "corpus": args.corpus, "documents": count,
                       "output": str(Path(args.output).expanduser().resolve()),
                       "permissions": "owner-only"}, ensure_ascii=False))
