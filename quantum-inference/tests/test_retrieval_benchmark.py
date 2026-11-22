@@ -65,7 +65,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty title"):
             evaluate_retrieval_cases(self.cases[:1], lambda q, k: [{"title": " "}])
 
-    def test_real_15_domain_dataset_is_unique_and_retrieval_only(self):
+    def test_real_27_domain_dataset_is_unique_and_retrieval_only(self):
         path = Path(__file__).resolve().parents[1] / "evaluation" / "knowledge_retrieval_cases.json"
         dataset = json.loads(path.read_text(encoding="utf-8"))
         cases = validate_retrieval_cases(dataset["cases"])
