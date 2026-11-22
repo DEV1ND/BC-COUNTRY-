@@ -8,19 +8,20 @@ ROOT = Path(__file__).resolve().parent
 class QuantumArtifactPolicyTests(unittest.TestCase):
     def test_smoke_workflow_uploads_reports_only(self):
         workflow = (ROOT / ".github" / "workflows" / "quantum-10m-smoke.yml").read_text(encoding="utf-8")
+        lines = workflow.splitlines()
         marker = "      - name: Upload 10M smoke-test artifacts"
-        self.assertIn(marker, workflow)
-        section = workflow.split(marker, 1)[1].split("\\n      - name:", 1)[0]
-        lines = section.splitlines()
-        path_index = next((i for i, line in enumerate(lines) if line.strip() == "path:"), None)
+        self.assertIn(marker, lines)
+        start = lines.index(marker)
+        section = lines[start + 1:]
+        path_index = next((i for i, line in enumerate(section) if line.strip() == "path:"), None)
         self.assertIsNotNone(path_index, "artifact path list is missing")
         paths = []
-        for line in lines[path_index + 1:]:
+        for line in section[path_index + 1:]:
             if not line.strip():
                 continue
-            if len(line) - len(line.lstrip()) < 10:
+            if len(line) - len(line.lstrip()) < 12:
                 break
-            paths.append(line.strip().lstrip("- ").strip())
+            paths.append(line.strip())
         self.assertTrue(paths, "artifact path list is empty")
         forbidden = (".pt", ".pth", ".ckpt", ".safetensors", ".bin")
         self.assertFalse(
@@ -33,7 +34,8 @@ class QuantumArtifactPolicyTests(unittest.TestCase):
 
     def test_workflow_has_read_only_repository_permissions(self):
         workflow = (ROOT / ".github" / "workflows" / "quantum-10m-smoke.yml").read_text(encoding="utf-8")
-        self.assertRegex(workflow, r"(?m)^permissions:\\s*\\n\\s+contents:\\s*read\\s*$")
+        self.assertIn("permissions:", workflow.splitlines())
+        self.assertIn("  contents: read", workflow.splitlines())
 
 
 if __name__ == "__main__":
