@@ -47,6 +47,8 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         }
         report = evaluate_retrieval_cases(cases, lambda q, k: retrieved[q], k=3)
         self.assertEqual(report["hit_rate_at_k"], 1.0)
+        self.assertEqual(report["precision_at_k"], 0.3333)
+        self.assertEqual(report["precision_at_returned"], 1.0)
         self.assertEqual(report["mean_reciprocal_rank"], 1.0)
 
     def test_all_expected_titles_exist_in_seed_topic_catalog(self):
