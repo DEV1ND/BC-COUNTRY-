@@ -7,6 +7,9 @@ on:
     paths:
       - "quantum-inference/wikipedia_seed.py"
       - "quantum-inference/app.py"
+      - "quantum-inference/tests/test_retrieval_benchmark.py"
+      - "quantum-inference/evaluation/knowledge_retrieval_cases.json"
+      - "quantum-inference/retrieval_benchmark.py"
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/generation_sources.py"
       - "quantum-inference/tests/test_wikipedia_seed.py"
@@ -41,6 +44,8 @@ jobs:
         run: |
           python -m py_compile quantum-inference/wikipedia_seed.py
           python -m py_compile quantum-inference/app.py
+          python -m py_compile quantum-inference/retrieval_benchmark.py
+          python -m py_compile quantum-inference/tests/test_retrieval_benchmark.py
           python -m py_compile quantum-inference/knowledge_retrieval.py
           python -m py_compile quantum-inference/generation_sources.py
           python -m py_compile quantum-inference/tests/test_wikipedia_seed.py
@@ -49,4 +54,4 @@ jobs:
       - name: Run isolated knowledge and retrieval tests
         run: |
           cd quantum-inference
-          python -m unittest tests.test_wikipedia_seed tests.test_knowledge_retrieval tests.test_generation_sources -v
+          python -m unittest tests.test_wikipedia_seed tests.test_knowledge_retrieval tests.test_generation_sources tests.test_retrieval_benchmark -v
