@@ -96,10 +96,9 @@ def generate(model, tokenizer, question, settings, max_new_tokens=128):
 
 
 def load_candidate(path):
-    try:
-        payload = torch.load(path, map_location=DEVICE, weights_only=False)
-    except TypeError:
-        payload = torch.load(path, map_location=DEVICE)
+    # Candidate checkpoints are restricted to tensors and primitive metadata.
+    # Never fall back to unrestricted pickle loading in evaluation tooling.
+    payload = torch.load(path, map_location=DEVICE, weights_only=True)
     arch = payload["architecture"]
     tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
     model = BPECandidate(

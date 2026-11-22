@@ -1,4 +1,5 @@
 """Regression tests for safe Quantum Candidate checkpoint deserialization."""
+import ast
 import pickle
 import tempfile
 import unittest
@@ -37,6 +38,25 @@ class CheckpointSafetyTests(unittest.TestCase):
         tokenizer = BPETokenizer.from_dict(loaded["tokenizer"])
         self.assertEqual(tokenizer.decode(tokenizer.encode("가가")), "가가")
         self.assertTrue(torch.equal(loaded["state_dict"]["weight"], payload["state_dict"]["weight"]))
+
+    def test_evaluation_loader_uses_weights_only(self):
+        source_path = Path(__file__).resolve().parents[2] / "quantum_generation_eval.py"
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        loader = next(node for node in tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == "load_candidate")
+        torch_load_calls = [
+            node for node in ast.walk(loader)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "torch"
+            and node.func.attr == "load"
+        ]
+        self.assertEqual(len(torch_load_calls), 1)
+        safe_flag = next((kw.value for kw in torch_load_calls[0].keywords
+                          if kw.arg == "weights_only"), None)
+        self.assertIsInstance(safe_flag, ast.Constant)
+        self.assertIs(safe_flag.value, True)
 
     def test_arbitrary_python_object_is_rejected(self):
         payload = {"state_dict": {"weight": torch.ones(1)}, "unexpected": UnexpectedObject()}
