@@ -24,22 +24,6 @@ def seed_wikipedia(db_path):
     titles = [x.strip() for x in os.getenv(
         "QUANTUM_WIKIPEDIA_SEED_TITLES", "|".join(DEFAULT_TITLES)
     ).split("|") if x.strip()][:30]
-    params = urllib.parse.urlencode({
-        "action": "query",
-        "format": "json",
-        "formatversion": "2",
-        "prop": "extracts|info|revisions",
-        "rvprop": "ids",
-        "rvlimit": "1",
-        "explaintext": "1",
-        "inprop": "url",
-        "redirects": "1",
-        "titles": "|".join(titles),
-    })
-    request = urllib.request.Request(
-        "https://ko.wikipedia.org/w/api.php?" + params,
-        headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.1 (https://juckex-ai.bcsite.workers.dev)"},
-    )
     def fetch_pages(query_params):
         query_url = "https://ko.wikipedia.org/w/api.php?" + urllib.parse.urlencode(query_params)
         query_request = urllib.request.Request(
@@ -67,7 +51,7 @@ def seed_wikipedia(db_path):
 
     pages = fetch_pages({
         "action": "query", "format": "json", "formatversion": "2",
-        "prop": "extracts|info|        "prop": "extracts|info|revisions", "rvprop": "ids",
+        "prop": "extracts|info|revisions", "rvprop": "ids",
         "explaintext": "1", "inprop": "url", "redirects": "1",
         "titles": "|".join(titles),
     })
@@ -79,7 +63,7 @@ def seed_wikipedia(db_path):
         for title in titles:
             page_result = fetch_pages({
                 "action": "query", "format": "json", "formatversion": "2",
-                "prop": "extracts|info|        "prop": "extracts|info|revisions", "rvprop": "ids",
+                "prop": "extracts|info|revisions", "rvprop": "ids",
                 "explaintext": "1", "inprop": "url", "redirects": "1",
                 "titles": title,
             })
