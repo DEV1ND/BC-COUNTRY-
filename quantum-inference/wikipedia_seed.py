@@ -118,6 +118,22 @@ def seed_wikipedia(db_path):
             "Korean Wikipedia API returned zero pages for both batch and per-title requests."
         )
 
+    # Per-title fallback can return the same API batch payload more than once
+    # (for example, when a mocked endpoint or an upstream cache ignores titles).
+    # Deduplicate before diagnostics/import so one page is counted exactly once.
+    unique_pages = []
+    seen_page_keys = set()
+    for page in pages:
+        page_id = str(page.get("pageid", "")).strip()
+        title_key = str(page.get("title", "")).strip().casefold()
+        url_key = str(page.get("fullurl", "")).strip()
+        key = ("page_id", page_id) if page_id else ("title_url", title_key, url_key)
+        if key in seen_page_keys:
+            continue
+        seen_page_keys.add(key)
+        unique_pages.append(page)
+    pages = unique_pages
+
     imported = 0
     skipped = 0
     skip_reasons = {}
