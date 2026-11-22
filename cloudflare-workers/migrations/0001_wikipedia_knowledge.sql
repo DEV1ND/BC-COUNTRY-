@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS pages (
   r2_key TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'pending_review'
     CHECK (status IN ('pending_review', 'approved', 'excluded')),
-  license_status TEXT NOT NULL,
-  license_name TEXT NOT NULL,
+  license_status TEXT NOT NULL CHECK (license_status = 'attribution_required'),
+  license_name TEXT NOT NULL CHECK (license_name = 'CC BY-SA 4.0'),
   attribution TEXT NOT NULL,
   revision_id TEXT,
   discovered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
