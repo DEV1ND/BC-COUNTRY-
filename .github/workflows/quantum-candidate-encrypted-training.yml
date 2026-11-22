@@ -49,8 +49,6 @@ jobs:
     permissions:
       contents: write
     env:
-      JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
-      QUANTUM_CHECKPOINT_ENCRYPTION_KEY: ${{ secrets.QUANTUM_CHECKPOINT_ENCRYPTION_KEY }}
       CORPUS: ${{ inputs.corpus }}
       ALLOW_UNVERIFIED: ${{ inputs.allow_unverified_experimental }}
       MAX_DOCUMENTS: ${{ inputs.max_documents }}
@@ -61,6 +59,9 @@ jobs:
 
       - name: Validate required secrets and trust selection
         shell: bash
+        env:
+          JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
+          QUANTUM_CHECKPOINT_ENCRYPTION_KEY: ${{ secrets.QUANTUM_CHECKPOINT_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
           test -n "$JUCKEX_WIKI_ADMIN_TOKEN" || { echo "::error::Repository secret JUCKEX_WIKI_ADMIN_TOKEN is missing."; exit 1; }
@@ -76,6 +77,8 @@ jobs:
           python -m pip install -r quantum-inference/requirements.txt cryptography
 
       - name: Export private corpus from Cloudflare Worker
+        env:
+          JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
         run: |
           umask 077
           python quantum-inference/export_wikipedia_corpus.py \
@@ -170,7 +173,7 @@ jobs:
           tag="quantum-candidate-${GITHUB_RUN_ID}"
           gh release create "$tag" /tmp/quantum-candidate.pt.enc \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$(git rev-parse HEAD)" \
             --title "$tag" \
             --notes "Encrypted Quantum Candidate checkpoint only. This public release asset is AES-256-GCM ciphertext; the decryption key is not stored in this repository. Candidate-only; not approved for Production."
           echo "Published encrypted checkpoint release: $tag"
