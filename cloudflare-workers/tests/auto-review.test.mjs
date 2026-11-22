@@ -3,11 +3,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { reviewCandidate, validateManualApproval } from "../auto_review.mjs";
 
-const body = [
-  "인공지능은 컴퓨터 과학의 한 분야이다. 이 분야는 지능적인 작업을 수행하는 시스템을 연구한다.",
-  "인공지능 기술은 여러 응용 분야에서 사용되며 다양한 연구 주제를 포함한다.",
-  "이 문서는 개념과 역사, 연구 분야 및 활용에 관한 설명을 포함한다."
-].join("\n\n").repeat(4);
+const body = Array.from({ length: 6 }, (_, i) =>
+  `인공지능은 컴퓨터 과학의 한 분야이다. 연구 주제 ${i + 1}에서는 지능적인 작업을 수행하는 시스템의 원리와 활용을 설명한다.`
+).join("\n\n");
 const valid = {
   provider: "wikipedia",
   title: "인공지능",
