@@ -52,7 +52,7 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
 </section>
 </main>
 <script>
-let adminToken="",selected=null,allPages=[];
+let adminToken="",selected=null,allPages=[],totalPending=null;
 const el=id=>document.getElementById(id);
 function showError(message){el("error").textContent=message||"";}
 async function api(path,options={}){
@@ -73,8 +73,8 @@ function renderQueue(){
  const q=el("filter").value.trim().toLocaleLowerCase("ko");
  const visible=allPages.filter(page=>String(page.title||"").toLocaleLowerCase("ko").includes(q));
  el("stats").replaceChildren();
- const count=document.createElement("span");count.className="pill";count.textContent="대기 "+allPages.length+"개";el("stats").appendChild(count);
- const shown=document.createElement("span");shown.className="pill";shown.textContent="검색 결과 "+visible.length+"개";el("stats").appendChild(shown);
+ const count=document.createElement("span");count.className="pill";count.textContent="전체 대기 "+(totalPending===null?"확인 불가":totalPending)+"개";el("stats").appendChild(count);
+ const shown=document.createElement("span");shown.className="pill";shown.textContent="불러온 "+allPages.length+"개 · 검색 결과 "+visible.length+"개";el("stats").appendChild(shown);
  for(const page of visible){
   const button=document.createElement("button");button.className="item";
   button.textContent=page.title||"(제목 없음)";
@@ -85,7 +85,9 @@ function renderQueue(){
 }
 async function loadQueue(){
  try{
-  const data=await api("/pages?status=pending_review&limit=50");
+  const [status,data]=await Promise.all([api("/status"),api("/pages?status=pending_review&limit=50")]);
+  const pending=(status.pageCounts||[]).find(row=>row.status==="pending_review");
+  totalPending=pending?Number(pending.count):null;
   allPages=data.pages||[];renderQueue();showError("");
  }catch(error){showError("목록 조회 실패: "+error.message);}
 }
@@ -110,14 +112,14 @@ function parseHttpsUrl(value,label){
 function validateReference(){
  const hint=el("urlHint"),raw=el("reference").value.trim();
  if(!raw){hint.className="hint";hint.textContent="독립적인 출처 URL을 입력해야 승인할 수 있습니다.";return false;}
- try{const parsed=parseHttpsUrl(raw,"참고자료 URL");if(parsed.hostname==="ko.wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부의 독립 출처여야 합니다.");hint.className="hint valid";hint.textContent="주소 형식 확인 완료 · 실제 내용과 문서의 사실관계도 직접 대조하세요.";return true;}catch(error){hint.className="hint invalid";hint.textContent=error.message;return false;}
+ try{const parsed=parseHttpsUrl(raw,"참고자료 URL");if(parsed.hostname==="wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부의 독립 출처여야 합니다.");hint.className="hint valid";hint.textContent="주소 형식 확인 완료 · 실제 내용과 문서의 사실관계도 직접 대조하세요.";return true;}catch(error){hint.className="hint invalid";hint.textContent=error.message;return false;}
 }
 async function approve(){
  if(!selected)return;
  const summary=el("summary").value.trim(),reference=el("reference").value.trim();
  try{
   const parsed=parseHttpsUrl(reference,"독립적인 참고자료 URL");
-  if(parsed.hostname==="ko.wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부 HTTPS 출처를 입력하세요.");
+  if(parsed.hostname==="wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부 HTTPS 출처를 입력하세요.");
   if(summary.length<20)throw new Error("사실 검토 요약을 20자 이상 작성하세요.");
   const note="검토 요약: "+summary+" | 대조 출처: "+reference;
   await api("/approve",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:selected.id,note})});
