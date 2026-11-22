@@ -9,7 +9,7 @@ from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
-from wikipedia_seed import seed_wikipedia
+from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
@@ -109,31 +109,13 @@ logger = logging.getLogger("juckex.quantum.knowledge")
 def import_korean_wikipedia_seed():
     global wikipedia_seed_status
     started_at = time.monotonic()
-    logger.info("Wikipedia knowledge seed started.")
+    logger.warning("Wikipedia knowledge seed started: requested_topics=%s", len(DEFAULT_TITLES))
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
         expected_topics = [
-            {"domain": "AI", "query": "인공지능", "expected_title": "인공지능"},
-            {"domain": "컴퓨터", "query": "컴퓨터", "expected_title": "컴퓨터"},
-            {"domain": "인터넷", "query": "인터넷", "expected_title": "인터넷"},
-            {"domain": "물리학", "query": "물리학", "expected_title": "물리학"},
-            {"domain": "화학", "query": "화학", "expected_title": "화학"},
-            {"domain": "생물학", "query": "생물학", "expected_title": "생물학"},
-            {"domain": "환경", "query": "기후 변화", "expected_title": "기후 변화"},
-            {"domain": "사회", "query": "민주주의", "expected_title": "민주주의"},
-            {"domain": "경제", "query": "경제학", "expected_title": "경제학"},
-            {"domain": "수학", "query": "수학", "expected_title": "수학"},
-            {"domain": "국가·지리", "query": "대한민국", "expected_title": "대한민국"},
-            {"domain": "천문학", "query": "태양계", "expected_title": "태양계"},
-            {"domain": "일상", "query": "시간 관리", "expected_title": "시간 관리"},
-            {"domain": "역사", "query": "역사", "expected_title": "역사"},
-            {"domain": "과학", "query": "과학", "expected_title": "과학"},
-            {"domain": "지리", "query": "지리학", "expected_title": "지리학"},
-            {"domain": "기술", "query": "기술", "expected_title": "기술"},
-            {"domain": "프로그래밍", "query": "프로그래밍 언어", "expected_title": "프로그래밍 언어"},
-            {"domain": "언어", "query": "언어학", "expected_title": "언어학"},
-            {"domain": "논리", "query": "논리학", "expected_title": "논리학"},
+            {"domain": title, "query": title, "expected_title": title}
+            for title in DEFAULT_TITLES
         ]
         for case in expected_topics:
             query = case["query"]
@@ -156,7 +138,7 @@ def import_korean_wikipedia_seed():
             "retrieval_smoke_tests": smoke_tests,
             "retrieval_tests_passed": passed,
         }
-        logger.info(
+        logger.warning(
             "Wikipedia knowledge seed completed: mode=%s returned=%s imported=%s total=%s retrieval=%s/%s elapsed=%.2fs",
             result.get("fetch_mode"), result.get("returned_pages"),
             result.get("imported_this_start"), result.get("total_documents"),
