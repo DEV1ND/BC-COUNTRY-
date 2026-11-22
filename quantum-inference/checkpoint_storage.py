@@ -60,8 +60,8 @@ def download_release_checkpoint(repository, tag, key_hex, timeout=30):
         raise RuntimeError("The pinned release does not contain the encrypted Candidate checkpoint.")
 
     download_url = asset.get("browser_download_url", "")
-    expected_prefix = f"https://github.com/{repository}/releases/download/{urllib.parse.quote(tag, safe='')}/"
-    if not isinstance(download_url, str) or not download_url.startswith(expected_prefix):
+    expected_url = f"https://github.com/{repository}/releases/download/{urllib.parse.quote(tag, safe='')}/{ASSET_NAME}"
+    if not isinstance(download_url, str) or download_url != expected_url:
         raise RuntimeError("The Candidate checkpoint asset URL is outside the expected GitHub release.")
     declared_size = asset.get("size")
     if not isinstance(declared_size, int) or declared_size < 1 or declared_size > MAX_CHECKPOINT_BYTES:
