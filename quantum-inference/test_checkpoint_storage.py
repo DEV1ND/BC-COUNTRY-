@@ -36,12 +36,27 @@ class CheckpointStorageTests(unittest.TestCase):
             "QUANTUM_CHECKPOINT_SHA256": hashlib.sha256(payload).hexdigest(),
         }
 
-    def test_local_file_without_digest_is_usable_but_unverified(self):
+    def test_local_file_without_digest_is_rejected(self):
         self.path.write_bytes(b"local-checkpoint")
         path, status = prepare_checkpoint(self.path, environ={})
+        self.assertIsNone(path)
+        self.assertEqual(status["status"], "checkpoint_sha256_required")
+
+    def test_local_file_with_matching_digest_is_usable(self):
+        payload = b"local-checkpoint"
+        self.path.write_bytes(payload)
+        env = {"QUANTUM_CHECKPOINT_SHA256": hashlib.sha256(payload).hexdigest()}
+        path, status = prepare_checkpoint(self.path, environ=env)
         self.assertEqual(path, self.path)
         self.assertEqual(status["status"], "local_file")
-        self.assertFalse(status["sha256_verified"])
+        self.assertTrue(status["sha256_verified"])
+
+    def test_local_file_with_wrong_digest_is_rejected(self):
+        self.path.write_bytes(b"local-checkpoint")
+        env = {"QUANTUM_CHECKPOINT_SHA256": "0" * 64}
+        path, status = prepare_checkpoint(self.path, environ=env)
+        self.assertIsNone(path)
+        self.assertEqual(status["status"], "local_checksum_mismatch")
 
     def test_missing_local_file_and_no_r2_configuration(self):
         path, status = prepare_checkpoint(self.path, environ={})
