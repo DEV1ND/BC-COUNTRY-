@@ -5,7 +5,7 @@ const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
 const MAX_RESULTS = 8;
 const SYNC_BATCH = 5;
-const MAX_PAGE_CHARS = 80000;
+const MAX_PAGE_CHARS = 50000;
 
 function json(data,status=200){return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});}
 async function sha256(value){
@@ -26,7 +26,7 @@ async function collectTopic(topic,env){
   const search=await wikiRequest({action:"query",list:"search",srsearch:topic.query,srnamespace:"0",srlimit:String(MAX_RESULTS),srprop:"snippet|timestamp"});
   let discovered=0,updated=0;
   for(const hit of search.query?.search||[]){
-    const detail=await wikiRequest({action:"query",prop:"extracts|info",explaintext:"1",exsectionformat:"plain",inprop:"url",pageids:String(hit.pageid)});
+    const detail=await wikiRequest({action:"query",prop:"extracts|info|revisions",explaintext:"1",exsectionformat:"plain",inprop:"url",rvprop:"ids",rvlimit:"1",pageids:String(hit.pageid)});
     const page=detail.query?.pages?.[0], text=String(page?.extract||"").trim().slice(0,MAX_PAGE_CHARS);
     if(!page||text.length<500) continue;
     const hash=await sha256(text);
