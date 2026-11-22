@@ -1,7 +1,7 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
 from knowledge_provenance import has_valid_wikipedia_attribution
-from seed_quality import summarize_seed_outcome, canonical_seed_title
+from seed_quality import summarize_seed_outcome, canonical_seed_title, should_skip_wikipedia_seed
 from pathlib import Path
 from typing import Optional
 import torch
@@ -120,7 +120,34 @@ def import_korean_wikipedia_seed():
     started_at = time.monotonic()
     logger.warning("Wikipedia knowledge seed started: requested_topics=%s", len(DEFAULT_TITLES))
     try:
-        result = seed_wikipedia(KNOWLEDGE_DB)
+        conn = knowledge_db()
+        try:
+            existing_index = build_index_status(conn, page_id_limit=5000)
+        finally:
+            conn.close()
+        force_reseed = os.getenv("QUANTUM_FORCE_WIKIPEDIA_RESEED", "").strip() == "1"
+        reuse_existing_index = should_skip_wikipedia_seed(
+            existing_index, required_documents=len(DEFAULT_TITLES), force=force_reseed
+        )
+        if reuse_existing_index:
+            result = {
+                "fetch_mode": "skipped_existing_healthy_index",
+                "requested": len(DEFAULT_TITLES),
+                "returned_pages": 0,
+                "imported_this_start": 0,
+                "total_documents": existing_index["documents"],
+                "skipped": 0,
+                "skip_reasons": {},
+                "fallback_failures": 0,
+                "page_diagnostics": [],
+                "existing_index_reused": True,
+            }
+            logger.info(
+                "Wikipedia seed skipped: reusing healthy local index documents=%s force_reseed=%s",
+                existing_index["documents"], force_reseed,
+            )
+        else:
+            result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
         expected_topics = [
             {"domain": title, "query": title, "expected_title": canonical_seed_title(title)}
@@ -141,7 +168,20 @@ def import_korean_wikipedia_seed():
                 "retrieved_anything": bool(matches),
             })
         passed = sum(1 for item in smoke_tests if item["matched"])
-        quality = summarize_seed_outcome(result, passed, len(smoke_tests))
+        if result.get("existing_index_reused"):
+            coverage = passed / len(smoke_tests) if smoke_tests else 0.0
+            quality = {
+                "status": "already_current" if passed == len(smoke_tests) else "partial",
+                "complete": bool(smoke_tests) and passed == len(smoke_tests),
+                "requested_topics": len(DEFAULT_TITLES),
+                "imported_this_start": 0,
+                "existing_documents": result["total_documents"],
+                "retrieval_tests_passed": passed,
+                "retrieval_tests_total": len(smoke_tests),
+                "retrieval_coverage": round(coverage, 4),
+            }
+        else:
+            quality = summarize_seed_outcome(result, passed, len(smoke_tests))
         wikipedia_seed_status = {
             **quality,
             **result,
@@ -157,7 +197,7 @@ def import_korean_wikipedia_seed():
             for item in smoke_tests if not item.get("matched")
         ][:8]
         logger.warning(
-            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s retrieval_failures=%s skipped=%s skip_reasons=%s fallback_failures=%s sample_skips=%s elapsed=%.2fs",
+            "Wikipedia knowledge seed %s: mode=%s returned=%s imported_this_start=%s requested=%s total=%s retrieval=%s/%s retrieval_failures=%s skipped=%s skip_reasons=%s fallback_failures=%s sample_skips=%s elapsed=%.2fs",
             quality["status"], result.get("fetch_mode"), result.get("returned_pages"),
             result.get("imported_this_start"), result.get("requested"), result.get("total_documents"),
             passed, len(smoke_tests), retrieval_failures, result.get("skipped"), result.get("skip_reasons"),
