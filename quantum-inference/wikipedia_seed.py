@@ -15,15 +15,28 @@ DEFAULT_TITLES = [
     "물리학", "화학", "생물학", "기후 변화", "민주주의",
     "경제학", "수학", "시간 관리", "역사", "과학",
     "지리학", "기술", "프로그래밍 언어", "언어학", "논리학",
+    "세포", "진화", "유전학", "지구과학", "지구",
+    "태양", "달", "행성", "원자", "화학 원소",
+    "전기", "에너지", "소프트웨어", "데이터베이스", "운영 체제",
+    "컴퓨터 네트워크", "정보 보안", "인권", "헌법", "선거",
 ]
 LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 
 
 def seed_wikipedia(db_path):
-    titles = [x.strip() for x in os.getenv(
+    raw_titles = [x.strip() for x in os.getenv(
         "QUANTUM_WIKIPEDIA_SEED_TITLES", "|".join(DEFAULT_TITLES)
-    ).split("|") if x.strip()][:30]
+    ).split("|") if x.strip()]
+    titles = []
+    seen_titles = set()
+    for title in raw_titles:
+        normalized = title.casefold()
+        if normalized not in seen_titles:
+            seen_titles.add(normalized)
+            titles.append(title)
+        if len(titles) >= 50:
+            break
     def fetch_pages(query_params):
         query_url = "https://ko.wikipedia.org/w/api.php?" + urllib.parse.urlencode(query_params)
         query_request = urllib.request.Request(
