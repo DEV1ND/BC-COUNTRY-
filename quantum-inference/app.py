@@ -126,6 +126,14 @@ def import_korean_wikipedia_seed():
             {"domain": "수학", "query": "수학", "expected_title": "수학"},
             {"domain": "국가·지리", "query": "대한민국", "expected_title": "대한민국"},
             {"domain": "천문학", "query": "태양계", "expected_title": "태양계"},
+            {"domain": "일상", "query": "시간 관리", "expected_title": "시간 관리"},
+            {"domain": "역사", "query": "역사", "expected_title": "역사"},
+            {"domain": "과학", "query": "과학", "expected_title": "과학"},
+            {"domain": "지리", "query": "지리학", "expected_title": "지리학"},
+            {"domain": "기술", "query": "기술", "expected_title": "기술"},
+            {"domain": "프로그래밍", "query": "프로그래밍 언어", "expected_title": "프로그래밍 언어"},
+            {"domain": "언어", "query": "언어학", "expected_title": "언어학"},
+            {"domain": "논리", "query": "논리학", "expected_title": "논리학"},
         ]
         for case in expected_topics:
             query = case["query"]
