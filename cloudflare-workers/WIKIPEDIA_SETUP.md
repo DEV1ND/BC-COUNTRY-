@@ -13,15 +13,15 @@ This folder contains the isolated Wikipedia discovery Worker and its D1 migratio
 
 ## D1 setup (dedicated database only)
 
-Create a separate D1 database for the Quantum Wikipedia index. Do not reuse a production JUCKEX application database.
+The existing dedicated database is named juckex-quantum-wiki-lab. It already contains the pages, settings, search_topics, and crawl_runs tables and is attached to the deployed juckex-quantum-wikipedia-explorer Worker. It is active and contains existing knowledge records. **Do not apply the fresh-install migration to that existing database and do not recreate, clear, or reset its tables.**
 
-Apply the schema in migrations/0001_wikipedia_knowledge.sql to that dedicated database. Example Wrangler command:
+The schema in migrations/0001_wikipedia_knowledge.sql is only for a brand-new, empty, isolated D1 database. Do not run it against juckex-quantum-wiki-lab. The current database already has content_hash and revision_id columns, so this PR does not require a D1 schema change.
 
 ~~~sh
 wrangler d1 execute <DEDICATED_DATABASE_NAME> --remote --file=cloudflare-workers/migrations/0001_wikipedia_knowledge.sql
 ~~~
 
-Bind that database to the Worker as DB.
+For a brand-new lab only, bind the newly created database to a separate test Worker as DB. For the existing lab, preserve its current DB binding and secrets.
 
 ## Worker configuration
 
@@ -34,7 +34,7 @@ Set these values on the dedicated Wikipedia Worker:
 
 Do not place secrets in source files or browser code. Do not point this Worker at the Production inference service.
 
-Configure a Cron Trigger only after the D1 migration and bindings are verified. A 15-minute schedule is a conservative starting point. The Worker begins paused; use the authenticated POST /start route when ready.
+The existing juckex-quantum-wikipedia-explorer Worker already has a 5-minute Cron Trigger and is running. Do not change its schedule or pause/start state as part of this source-only PR. Any future code deployment must be reviewed separately and must preserve the existing D1 binding.
 
 ## Admin endpoints
 
@@ -49,6 +49,14 @@ All endpoints except GET /health require Authorization: Bearer ADMIN_TOKEN.
 - POST /sync-approved: synchronize approved pages
 - POST /run-once: run one crawl cycle
 - POST /pause and POST /start: pause or resume scheduled collection
+
+## Existing lab state (read-only inspection on 2026-11-22)
+
+- Dedicated D1: juckex-quantum-wiki-lab
+- Existing records: 301 approved, 524 pending_review, 11 excluded
+- Recent crawl runs continue to execute; the Worker is configured for every 5 minutes
+- All 836 current records have a revision ID and a 64-character content hash
+- The deployed Worker source still uses the previous automatic-approval heuristic; this PR changes source code only and does not retroactively alter the 301 already-approved records
 
 ## Storage and deployment boundaries
 
