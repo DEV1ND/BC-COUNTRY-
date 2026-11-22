@@ -4,6 +4,7 @@ Wikipedia extracts are imported for retrieval only, never converted into SFT pai
 Each accepted page stores its source URL, CC BY-SA 4.0 license, and attribution.
 """
 import hashlib
+from html.parser import HTMLParser
 import json
 import os
 import sqlite3
@@ -23,6 +24,72 @@ DEFAULT_TITLES = [
 ]
 LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+
+class _WikipediaPlainTextParser(HTMLParser):
+    """Extract readable article prose while excluding navigation and reference chrome."""
+
+    BLOCK_TAGS = {
+        "address", "article", "blockquote", "br", "dd", "div", "dl", "dt",
+        "h1", "h2", "h3", "h4", "h5", "h6", "hr", "li", "ol", "p",
+        "pre", "section", "ul",
+    }
+    SKIP_TAGS = {"figure", "noscript", "script", "style", "svg", "sup", "table"}
+    VOID_TAGS = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr",
+    }
+    SKIP_CLASS_MARKERS = (
+        "reference", "reflist", "navbox", "infobox", "metadata", "ambox",
+        "sistersitebox", "mw-editsection", "authority-control", "catlinks",
+        "mw-jump-link", "mw-references-wrap", "mw-cite-backlink",
+        "mw-indicators", "vertical-navbox",
+    )
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self._skip_stack = []
+
+    def handle_starttag(self, tag, attrs):
+        if self._skip_stack:
+            if tag not in self.VOID_TAGS:
+                self._skip_stack.append(tag)
+            return
+        classes = dict(attrs).get("class", "").lower().split()
+        should_skip = tag in self.SKIP_TAGS or any(
+            marker in class_name
+            for class_name in classes
+            for marker in self.SKIP_CLASS_MARKERS
+        )
+        if should_skip:
+            if tag not in self.VOID_TAGS:
+                self._skip_stack.append(tag)
+            return
+        if tag in self.BLOCK_TAGS:
+            self.parts.append("\\n")
+
+    def handle_endtag(self, tag):
+        if self._skip_stack:
+            for index in range(len(self._skip_stack) - 1, -1, -1):
+                if self._skip_stack[index] == tag:
+                    del self._skip_stack[index:]
+                    break
+            return
+        if tag in self.BLOCK_TAGS:
+            self.parts.append("\\n")
+
+    def handle_data(self, data):
+        if not self._skip_stack:
+            self.parts.append(data)
+
+
+def _extract_visible_wikipedia_text(html_text):
+    parser = _WikipediaPlainTextParser()
+    parser.feed(str(html_text or ""))
+    parser.close()
+    return " ".join("".join(parser.parts).split())
+
+
 
 def is_wikipedia_url(url):
     return is_valid_wikipedia_url(url)
@@ -67,6 +134,34 @@ def seed_wikipedia(db_path):
             raise RuntimeError("Korean Wikipedia API returned an invalid pages collection.")
         return [page for page in response_pages if isinstance(page, dict)]
 
+    def fetch_parsed_text(revision_id, timeout=10):
+        params = {
+            "action": "parse", "format": "json", "formatversion": "2",
+            "prop": "text", "oldid": str(revision_id),
+            "disablelimitreport": "1", "disableeditsection": "1", "disabletoc": "1",
+        }
+        parse_url = "https://ko.wikipedia.org/w/api.php?" + urllib.parse.urlencode(params)
+        parse_request = urllib.request.Request(
+            parse_url,
+            headers={"User-Agent": "JUCKEX-Quantum-KnowledgeIndexer/1.2 (https://juckex-ai.bcsite.workers.dev)"},
+        )
+        with urllib.request.urlopen(parse_request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise RuntimeError("Korean Wikipedia parse API returned an invalid response.")
+        api_error = payload.get("error")
+        if isinstance(api_error, dict):
+            code = str(api_error.get("code", "unknown"))[:80]
+            info = " ".join(str(api_error.get("info", "")).split())[:180]
+            raise RuntimeError("Korean Wikipedia parse API error: " + code + (": " + info if info else ""))
+        parsed = payload.get("parse")
+        if not isinstance(parsed, dict):
+            raise RuntimeError("Korean Wikipedia parse API response did not contain parse data.")
+        raw_html = parsed.get("text", "")
+        if isinstance(raw_html, dict):
+            raw_html = raw_html.get("*", "")
+        return _extract_visible_wikipedia_text(raw_html), str(parsed.get("revid") or revision_id)
+
     pages = fetch_pages({
         "action": "query", "format": "json", "formatversion": "2",
         "prop": "extracts|info|revisions", "rvprop": "ids",
@@ -95,7 +190,27 @@ def seed_wikipedia(db_path):
         str(page.get("title", "")).strip().casefold()
         for page in pages if usable_page(page)
     }
-    unresolved_titles = [title for title in titles if title.casefold() not in usable_titles]
+    short_extract_titles = set()
+    for page in pages:
+        revisions = page.get("revisions") or []
+        revision_id = page.get("lastrevid") or (
+            revisions[0].get("revid") if revisions and isinstance(revisions[0], dict) else ""
+        )
+        title = str(page.get("title", "")).strip()
+        if (
+            not page.get("missing")
+            and str(page.get("pageid", "")).strip()
+            and title
+            and is_wikipedia_url(page.get("fullurl", ""))
+            and str(revision_id).strip()
+            and len(str(page.get("extract", "")).strip()) < 200
+        ):
+            short_extract_titles.add(title.casefold())
+    unresolved_titles = [
+        title for title in titles
+        if title.casefold() not in usable_titles
+        and title.casefold() not in short_extract_titles
+    ]
     if unresolved_titles:
         fetch_mode = "batch_plus_per_title_fallback" if pages else "per_title_fallback"
         for title in unresolved_titles:
@@ -133,6 +248,45 @@ def seed_wikipedia(db_path):
         seen_page_keys.add(key)
         unique_pages.append(page)
     pages = unique_pages
+
+    parse_fallback_attempted = []
+    parse_fallback_errors = []
+    for page in pages:
+        revisions = page.get("revisions") or []
+        revision_id = str(page.get("lastrevid") or (
+            revisions[0].get("revid") if revisions and isinstance(revisions[0], dict) else ""
+        )).strip()
+        title = str(page.get("title", "")).strip()
+        body = str(page.get("extract", "")).strip()
+        if (
+            page.get("missing")
+            or not str(page.get("pageid", "")).strip()
+            or not title
+            or not is_wikipedia_url(page.get("fullurl", ""))
+            or not revision_id
+            or len(body) >= 200
+        ):
+            continue
+        parse_fallback_attempted.append(title)
+        try:
+            parsed_text, parsed_revision_id = fetch_parsed_text(revision_id, timeout=10)
+            if parsed_text:
+                page["extract"] = parsed_text[:50000]
+            if parsed_revision_id:
+                page["lastrevid"] = parsed_revision_id
+        except Exception as exc:
+            parse_fallback_errors.append({
+                "title": title,
+                "error": (type(exc).__name__ + ": " + str(exc))[:180],
+            })
+
+    if parse_fallback_attempted:
+        if fetch_mode == "batch":
+            fetch_mode = "batch_plus_parse_fallback"
+        elif fetch_mode == "batch_plus_per_title_fallback":
+            fetch_mode = "batch_plus_parse_and_per_title_fallback"
+        elif fetch_mode == "per_title_fallback":
+            fetch_mode = "per_title_plus_parse_fallback"
 
     imported = 0
     skipped = 0
@@ -229,6 +383,9 @@ def seed_wikipedia(db_path):
         "fallback_errors": fallback_errors,
         "fallback_attempted": len(unresolved_titles),
         "fallback_failures": len(fallback_errors),
+        "parse_fallback_attempted": len(parse_fallback_attempted),
+        "parse_fallback_failures": len(parse_fallback_errors),
+        "parse_fallback_errors": parse_fallback_errors,
         "total_documents": int(total),
         "license": LICENSE,
         "attribution_saved": True,
