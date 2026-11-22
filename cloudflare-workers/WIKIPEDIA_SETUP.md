@@ -1,67 +1,79 @@
 # JUCKEX Quantum — Wikipedia knowledge pipeline
 
-This folder contains the isolated Wikipedia discovery Worker and its D1 migration. The D1 database is the durable source of truth; the Render inference service's SQLite index is a rebuildable cache.
+This Worker collects Korean Wikipedia material into Cloudflare D1. It is a **retrieval knowledge pipeline**, not a model-training pipeline.
 
-## Data flow
+## Data flow and trust boundaries
 
-1. A Cloudflare Cron Trigger invokes the Worker on its configured schedule.
-2. The Worker searches the Korean Wikipedia API for enabled topics and stores page text, revision ID, SHA-256 content hash, canonical URL, and CC BY-SA 4.0 attribution in D1.
-3. Automated screening may exclude clearly disallowed content or flag structural issues. **It never approves a document and is not fact-checking.**
-4. A human administrator reviews the source and content, then approves it with a meaningful review note. The Worker checks that the note, source metadata, revision ID, and SHA-256 hash are present and valid.
-5. Only approved pages are synchronized in small batches to the isolated Quantum Candidate inference service.
-6. Candidate inference uses the documents for retrieval context and citation. This process does not create SFT examples or change model weights.
+1. A Cloudflare Cron Trigger discovers pages from configured Korean Wikipedia topics.
+2. Page text, canonical URL, revision ID, SHA-256 hash, attribution, and CC BY-SA 4.0 license metadata are stored in the dedicated D1 database.
+3. Automated screening is structural triage only. It is not factual verification and cannot grant human approval.
+4. A human administrator compares the article against an independent source and records a meaningful review note.
+5. Only manually approved documents are eligible for synchronization to the isolated Quantum Candidate service.
+6. Candidate retrieval indexes those documents for context and citations. This does **not** create SFT examples, run pretraining, or change Quantum model weights.
 
-## D1 setup (dedicated database only)
+## Existing deployment — operational safety
 
-The existing dedicated database is named juckex-quantum-wiki-lab. It already contains the pages, settings, search_topics, and crawl_runs tables and is attached to the deployed juckex-quantum-wikipedia-explorer Worker. It is active and contains existing knowledge records. **Do not apply the fresh-install migration to that existing database and do not recreate, clear, or reset its tables.**
+- Worker: `juckex-quantum-wikipedia-explorer`
+- Public review console: `https://juckex-quantum-wikipedia-explorer.bcsite.workers.dev/review`
+- Dedicated D1 database: `juckex-quantum-wiki-lab`
+- D1 records last inspected: 836 total — 301 legacy auto-reviewed approvals, 524 pending review, 11 excluded.
+- The 301 legacy approvals carry `AUTO_REVIEW` notes. They are **not human-verified** and are excluded from the current sync allowlist.
+- Historical sync metadata exists for 148 records, but the previous destination cannot be established from the available audit data.
+- D1 setting `running=0`: scheduled collection is paused at the application level. The Cron Trigger remains configured; do not set `running=1` until the admin and Candidate authentication checks are complete.
+- Automatic training requests are disabled in Worker code.
+- The configured inference destination is the isolated Candidate hostname only. Candidate API-token compatibility has not yet been verified.
+- Production inference and Production model have not been intentionally modified by this workflow.
 
-The schema in migrations/0001_wikipedia_knowledge.sql is only for a brand-new, empty, isolated D1 database. Do not run it against juckex-quantum-wiki-lab. The current database already has content_hash and revision_id columns, so this PR does not require a D1 schema change.
+Do not reset, recreate, or clear the existing D1 database. Do not apply the fresh-install migration to it. Do not enable paid storage or services.
+
+## Administrator review
+
+Open `/review` on the Worker hostname. The administrator token is entered into the page and kept in browser memory only; it is not persisted in local or session storage.
+
+For API access, send `Authorization: Bearer <ADMIN_TOKEN>`. Except for `GET /health` and the public review HTML shell, endpoints require administrator authorization.
+
+- `GET /status`: counts and latest run.
+- `GET /pages?status=pending_review&limit=50`: review queue.
+- `GET /page?id=<id>`: full article detail.
+- `POST /approve` with `{"id":"...","note":"...","reference_url":"https://independent-source.example/..."}`: record human review and approve. The note must be meaningful and the reference must be HTTPS and independent of Wikipedia.
+- `POST /sync-approved`: sync only manually approved pages with a `MANUAL_APPROVAL:` reviewer note and at least 200 characters of content.
+- `POST /auto-review`: structural triage only; it must never be treated as fact-checking or manual approval.
+- `POST /pause` and `POST /start`: change the D1 running flag. Do not start automation until the safety prerequisites below are satisfied.
+- `POST /run-once`: execute one collection cycle; keep paused until explicitly ready.
+
+## Candidate inference requirements
+
+The Worker must target only `https://juckex-quantum-candidate.onrender.com`. Its `QUANTUM_API_TOKEN` secret must match the Candidate service's `QUANTUM_API_TOKEN` environment value. Secret values are not readable through the management API, so verify token configuration without exposing the token in logs or chat.
+
+Candidate endpoints used by the sync path include `/admin/knowledge/status` and `/admin/knowledge/import`. Verify Candidate `/health` and authenticated knowledge status before attempting sync. The Candidate service must remain isolated from Production.
+
+The Candidate checkpoint is experimental and its free-generation quality has not met promotion requirements. Wikipedia sync is retrieval-only; it does not train or promote a model.
+
+## Safe reactivation checklist
+
+Do not resume the Cron-driven process until all are true:
+
+- An administrator can authenticate to `/review`.
+- Candidate `/health` confirms the expected service and knowledge database.
+- Candidate authenticated `/admin/knowledge/status` succeeds with the same API token configured in the Worker.
+- A human has reviewed each document against an independent source and supplied a meaningful note.
+- A small manual sync is tested and its imported page IDs and citations are verified.
+- D1 counts and the paused state are rechecked before and after the test.
+
+If any check fails, keep `running=0`. Never promote Candidate data or weights to Production without separate evaluation and explicit approval.
+
+## D1 setup (new isolated database only)
+
+`migrations/0001_wikipedia_knowledge.sql` is only for a brand-new, empty lab database. It must not be applied to the existing knowledge database.
+
+For a new lab only:
 
 ~~~sh
-wrangler d1 execute <DEDICATED_DATABASE_NAME> --remote --file=cloudflare-workers/migrations/0001_wikipedia_knowledge.sql
+wrangler d1 execute <NEW_EMPTY_DATABASE_NAME> --remote --file=cloudflare-workers/migrations/0001_wikipedia_knowledge.sql
 ~~~
 
-For a brand-new lab only, bind the newly created database to a separate test Worker as DB. For the existing lab, preserve its current DB binding and secrets.
+Preserve the existing Worker's D1 binding and secrets during any future code deployment.
 
-## Worker configuration
+## Licensing
 
-Set these values on the dedicated Wikipedia Worker:
-
-- D1 binding: DB → the dedicated knowledge database
-- Secret ADMIN_TOKEN: a long random administrator token
-- Variable QUANTUM_INFERENCE_URL: the isolated Candidate inference service URL
-- Secret QUANTUM_API_TOKEN: the same token configured on that Candidate service
-
-Do not place secrets in source files or browser code. Do not point this Worker at the Production inference service.
-
-The existing juckex-quantum-wikipedia-explorer Worker already has a 5-minute Cron Trigger and is running. Do not change its schedule or pause/start state as part of this source-only PR. Any future code deployment must be reviewed separately and must preserve the existing D1 binding.
-
-## Admin endpoints
-
-All endpoints except GET /health require Authorization: Bearer ADMIN_TOKEN.
-
-- GET /status: crawl counts and latest run
-- GET /topics: enabled search topics
-- POST /topics with {"query":"천문학"}: add a topic
-- GET /pages?status=pending_review: review queue
-- POST /auto-review: structural screening only; never approves
-- POST /approve with {"id":"...","note":"원문과 본문을 대조해 사실관계를 확인함"}: human approval
-- POST /sync-approved: synchronize approved pages
-- POST /run-once: run one crawl cycle
-- POST /pause and POST /start: pause or resume scheduled collection
-
-## Existing lab state (read-only inspection on 2026-11-22)
-
-- Dedicated D1: juckex-quantum-wiki-lab
-- Existing records: 301 approved, 524 pending_review, 11 excluded
-- Recent crawl runs continue to execute; the Worker is configured for every 5 minutes
-- All 836 current records have a revision ID and a 64-character content hash
-- The deployed Worker source still uses the previous automatic-approval heuristic; this PR changes source code only and does not retroactively alter the 301 already-approved records
-
-## Storage and deployment boundaries
-
-- R2 is not required by this implementation.
-- D1 is the durable source. Render's local SQLite file may be lost when a Free instance restarts; the Worker reconciles its approved D1 page IDs against the Candidate index and re-sends missing documents in batches.
-- The current Render Candidate service has AutoDeploy disabled. Merging this branch does not deploy either service.
-- Do not promote Candidate data or model weights to Production.
-- Wikipedia content is licensed under CC BY-SA 4.0. Preserve title, source URL, revision information, attribution, and applicable share-alike obligations when redistributing adapted content.
+Wikipedia text is licensed under CC BY-SA 4.0. Preserve the article title, canonical source URL, revision information, attribution, and applicable share-alike obligations when redistributing adapted content. A retrieved document is not automatically accurate; important claims require independent verification.
