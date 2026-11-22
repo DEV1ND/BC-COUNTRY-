@@ -17,6 +17,9 @@ on:
       - "quantum-inference/wikipedia_pretrain.py"
       - "quantum-inference/test_wikipedia_pretrain.py"
       - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/export_wikipedia_corpus.py"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/worker-safety.test.mjs"
       - ".github/workflows/quantum-wikipedia-pretrain.yml"
 
 jobs:
