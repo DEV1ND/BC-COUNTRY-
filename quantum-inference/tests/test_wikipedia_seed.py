@@ -193,9 +193,12 @@ class WikipediaSeedTests(unittest.TestCase):
         titles[1] = titles[0].upper()
 
         def fake_urlopen(request, timeout=30):
-            captured.update(parse_qs(urlparse(request.full_url).query))
+            params = parse_qs(urlparse(request.full_url).query)
+            captured.update(params)
+            requested_titles = params.get("titles", [""])[0].split("|")
             return FakeResponse({"query": {"pages": [
-                page("1", "주제0", self.body, "12345")
+                page(str(index + 1), title, self.body, str(12345 + index))
+                for index, title in enumerate(requested_titles)
             ]}})
 
         with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "|".join(titles)}):
