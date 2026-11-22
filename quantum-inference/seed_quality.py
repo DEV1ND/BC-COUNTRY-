@@ -28,3 +28,17 @@ def summarize_seed_outcome(seed_result, retrieval_passed, retrieval_total):
         "skipped_documents": skipped,
         "fallback_failures": fallback_failures,
     }
+
+
+# Redirect/canonical titles returned by Korean Wikipedia for these seed queries.
+WIKIPEDIA_TITLE_ALIASES = {
+    "기후 변화": "기후변화",
+    "화학 원소": "원소 (화학)",
+    "운영 체제": "운영체제",
+    "컴퓨터 네트워크": "컴퓨터 망",
+}
+
+
+def canonical_seed_title(title):
+    requested = str(title or "").strip()
+    return WIKIPEDIA_TITLE_ALIASES.get(requested, requested)
