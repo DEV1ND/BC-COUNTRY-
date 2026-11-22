@@ -172,7 +172,7 @@ async function approvePage(request,env){
   const page=await env.DB.prepare("SELECT id,status,provider,title,url,domain,content,content_hash,license_status,license_name,attribution,revision_id FROM pages WHERE id=?").bind(id).first();
   if(!page)return json({error:"page_not_found"},404);
   if(page.status!=="pending_review")return json({error:"only_pending_pages_can_be_approved",status:page.status},409);
-  const validation=validateManualApproval(page,note);
+  const validation=await validateManualApproval(page,note);
   if(!validation.ok)return json({error:"manual_review_required",detail:validation.reason},422);
   await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=? AND status='pending_review'").bind("MANUAL_APPROVAL: "+note,id).run();
   return json({ok:true,id,status:"approved",license:page.license_name,revision_id:page.revision_id,notice:"수동 사실 검토 메모가 기록되었습니다. CC BY-SA 4.0 출처·저작자 표시·동일조건변경허락 의무를 준수하세요."});
