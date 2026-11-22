@@ -46,6 +46,8 @@ jobs:
   train-candidate:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: write
     env:
       CORPUS: ${{ inputs.corpus }}
       ALLOW_UNVERIFIED: ${{ inputs.allow_unverified_experimental }}
@@ -164,6 +166,20 @@ jobs:
           )
           print(json.dumps(summary, ensure_ascii=False))
           PY
+
+      - name: Publish encrypted Candidate checkpoint as a durable release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="quantum-candidate-${GITHUB_RUN_ID}"
+          gh release create "$tag" /tmp/quantum-candidate.pt.enc \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$tag" \
+            --notes "Encrypted Quantum Candidate checkpoint only. This public release asset is AES-256-GCM ciphertext; the decryption key is not stored in this repository. Candidate-only; not approved for Production."
+          echo "Published encrypted checkpoint release: $tag"
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Upload encrypted Candidate artifacts only
         uses: actions/upload-artifact@v4
