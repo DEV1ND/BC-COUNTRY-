@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "scope": "retrieval_only",
+  "description": "15개 분야 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
+  "cases": [
+    {
+      "id": "daily-life",
+      "domain": "일상 대화",
+      "question": "시간을 효율적으로 관리하는 방법",
+      "expected_titles": [
+        "시간 관리"
+      ]
+    },
+    {
+      "id": "history",
+      "domain": "역사",
+      "question": "한국의 역사와 주요 시대",
+      "expected_titles": [
+        "한국의 역사",
+        "한국사"
+      ]
+    },
+    {
+      "id": "science",
+      "domain": "과학",
+      "question": "과학의 기본 개념과 탐구 방법",
+      "expected_titles": [
+        "과학"
+      ]
+    },
+    {
+      "id": "math",
+      "domain": "수학",
+      "question": "수학의 기본 개념",
+      "expected_titles": [
+        "수학"
+      ]
+    },
+    {
+      "id": "economics",
+      "domain": "경제",
+      "question": "경제학과 자원의 배분",
+      "expected_titles": [
+        "경제학"
+      ]
+    },
+    {
+      "id": "society",
+      "domain": "사회",
+      "question": "사회 구조와 사회학",
+      "expected_titles": [
+        "사회학",
+        "사회"
+      ]
+    },
+    {
+      "id": "geography",
+      "domain": "지리",
+      "question": "지리학과 지구의 지역",
+      "expected_titles": [
+        "지리학"
+      ]
+    },
+    {
+      "id": "technology",
+      "domain": "기술",
+      "question": "기술의 발전과 응용",
+      "expected_titles": [
+        "기술"
+      ]
+    },
+    {
+      "id": "programming",
+      "domain": "프로그래밍",
+      "question": "컴퓨터 프로그래밍의 기초",
+      "expected_titles": [
+        "컴퓨터 프로그래밍",
+        "프로그래밍 언어"
+      ]
+    },
+    {
+      "id": "language",
+      "domain": "언어",
+      "question": "언어의 구조와 언어학",
+      "expected_titles": [
+        "언어학",
+        "언어"
+      ]
+    },
+    {
+      "id": "logic",
+      "domain": "논리적 추론",
+      "question": "논리학과 추론의 원리",
+      "expected_titles": [
+        "논리학"
+      ]
+    },
+    {
+      "id": "compound",
+      "domain": "복합 질문",
+      "question": "기후 변화가 경제와 사회에 미치는 영향",
+      "expected_titles": [
+        "기후 변화"
+      ]
+    },
+    {
+      "id": "long-context",
+      "domain": "긴 문맥 이해",
+      "question": "기후 변화의 원인과 영향 그리고 대응 방법을 종합적으로 정리해 줘",
+      "expected_titles": [
+        "기후 변화"
+      ]
+    },
+    {
+      "id": "fact-check",
+      "domain": "사실 확인",
+      "question": "태양계의 중심에 있는 천체",
+      "expected_titles": [
+        "태양계",
+        "태양"
+      ]
+    },
+    {
+      "id": "unknown",
+      "domain": "모르는 질문 대응",
+      "question": "가상의 제타쿼크 왕국의 918번째 왕 이름",
+      "expected_titles": []
+    }
+  ]
+}
