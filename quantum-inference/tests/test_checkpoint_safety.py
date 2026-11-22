@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 import torch
+from bpe_tokenizer import BPETokenizer
 
 
 class UnexpectedObject:
@@ -17,7 +18,13 @@ class CheckpointSafetyTests(unittest.TestCase):
         payload = {
             "state_dict": {"weight": torch.arange(6, dtype=torch.float32).reshape(2, 3)},
             "architecture": {"width": 64, "heads": 4, "layers": 2},
-            "tokenizer": {"vocab": {"<unk>": 0, "가": 1}, "merges": []},
+            "tokenizer": {
+                "format": "juckex-bpe-v1",
+                "initial_symbols": ["<", "u", "n", "k", ">", "가"],
+                "merges": [["가", "가"]],
+                "vocab_size": 8,
+                "assessment": {"source": "approved-training-extra", "training_pairs": 12, "live_model_changed": False},
+            },
             "steps": 10,
         }
         with tempfile.TemporaryDirectory() as directory:
@@ -27,6 +34,8 @@ class CheckpointSafetyTests(unittest.TestCase):
 
         self.assertEqual(loaded["architecture"]["width"], 64)
         self.assertEqual(loaded["steps"], 10)
+        tokenizer = BPETokenizer.from_dict(loaded["tokenizer"])
+        self.assertEqual(tokenizer.decode(tokenizer.encode("가가")), "가가")
         self.assertTrue(torch.equal(loaded["state_dict"]["weight"], payload["state_dict"]["weight"]))
 
     def test_arbitrary_python_object_is_rejected(self):
