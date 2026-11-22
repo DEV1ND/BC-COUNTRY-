@@ -27,7 +27,19 @@ def fetch_page(api_base, token, corpus, after, limit, access_client_id="", acces
         with urllib.request.urlopen(request, timeout=45) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f"Worker export failed with HTTP {exc.code}") from exc
+        # Keep diagnostics useful without ever echoing credentials into Actions logs.
+        body = exc.read(512).decode("utf-8", errors="replace")
+        for secret in (token, access_client_id, access_client_secret):
+            if secret:
+                body = body.replace(secret, "[REDACTED]")
+        body = body.replace("\\r", " ").replace("\\n", " ")[:300]
+        server = exc.headers.get("Server", "unknown")
+        ray = exc.headers.get("CF-Ray", "unavailable")
+        content_type = exc.headers.get("Content-Type", "unknown")
+        raise RuntimeError(
+            f"Worker export failed with HTTP {exc.code}; server={server}; "
+            f"cf_ray={ray}; content_type={content_type}; body_preview={body!r}"
+        ) from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Worker export request failed: {type(exc).__name__}") from exc
     if payload.get("corpus") != corpus:
