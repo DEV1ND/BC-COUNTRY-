@@ -1,4 +1,4 @@
-import { reviewCandidate } from "./auto_review.mjs";
+import { reviewCandidate, validateManualApproval } from "./auto_review.mjs";
 import { planMissingPageIds } from "./knowledge_sync_plan.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
@@ -60,7 +60,7 @@ async function collectTopic(topic,env){
 }
 
 async function autoReviewPending(env, limit = 15) {
-  const { results = [] } = await env.DB.prepare("SELECT id,title,url,domain,content,license_status,license_name,attribution,revision_id FROM pages WHERE status='pending_review' AND reviewer_note IS NULL ORDER BY discovered_at LIMIT ?").bind(limit).all();
+  const { results = [] } = await env.DB.prepare("SELECT id,provider,title,url,domain,content,content_hash,license_status,license_name,attribution,revision_id FROM pages WHERE status='pending_review' AND reviewer_note IS NULL ORDER BY discovered_at LIMIT ?").bind(limit).all();
   const counts = { approved: 0, excluded: 0, pending: 0, checked: results.length };
   for (const row of results) {
     const decision = reviewCandidate(row);
@@ -97,11 +97,11 @@ async function syncApproved(env){
     return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
   }
   const placeholders=missingIds.map(()=>"?").join(",");
-  const result=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' ORDER BY id").bind(...missingIds).all();
+  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' ORDER BY id").bind(...missingIds).all();
   const rows=result.results||[];
   if(rows.length!==missingIds.length)
     return {ok:false,synced:0,error:"approved_document_batch_changed_during_sync",expectedBatch:missingIds.length,selected:rows.length};
-  const docs=rows.map(row=>({page_id:row.id,title:row.title,url:row.url,text:String(row.content||"").trim(),license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"}));
+  const docs=rows.map(row=>({page_id:row.id,title:row.title,url:row.url,text:String(row.content||"").trim(),license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",revision_id:row.revision_id,content_hash:row.content_hash}));
   let response;
   try{
     response=await fetch(new URL("/admin/knowledge/import",env.QUANTUM_INFERENCE_URL),{
@@ -169,11 +169,13 @@ async function approvePage(request,env){
   let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
   const id=String(body.id||"").trim(),note=String(body.note||"").trim().slice(0,1000);
   if(!id)return json({error:"id_required"},400);
-  const page=await env.DB.prepare("SELECT id,status,license_name FROM pages WHERE id=?").bind(id).first();
+  const page=await env.DB.prepare("SELECT id,status,provider,title,url,domain,content,content_hash,license_status,license_name,attribution,revision_id FROM pages WHERE id=?").bind(id).first();
   if(!page)return json({error:"page_not_found"},404);
   if(page.status!=="pending_review")return json({error:"only_pending_pages_can_be_approved",status:page.status},409);
-  await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=?").bind(note,id).run();
-  return json({ok:true,id,status:"approved",license:page.license_name,notice:"CC BY-SA attribution and share-alike obligations still apply."});
+  const validation=validateManualApproval(page,note);
+  if(!validation.ok)return json({error:"manual_review_required",detail:validation.reason},422);
+  await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=? AND status='pending_review'").bind("MANUAL_APPROVAL: "+note,id).run();
+  return json({ok:true,id,status:"approved",license:page.license_name,revision_id:page.revision_id,notice:"수동 사실 검토 메모가 기록되었습니다. CC BY-SA 4.0 출처·저작자 표시·동일조건변경허락 의무를 준수하세요."});
 }
 function authorized(request,env){return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;}
 export default {
@@ -209,10 +211,11 @@ export default {
     if(request.method==="GET"&&url.pathname==="/export-approved"){
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,content,license_name,attribution FROM pages WHERE status='approved' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE status='approved' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
-        license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors"
+        license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
+        revision_id:row.revision_id,content_hash:row.content_hash
       })).filter(row=>row.text.length>=200);
       return json({documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
     }
