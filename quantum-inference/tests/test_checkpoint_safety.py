@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 from bpe_tokenizer import BPETokenizer
+from quantum_generation_eval import load_candidate
 
 
 class UnexpectedObject:
@@ -37,6 +38,17 @@ class CheckpointSafetyTests(unittest.TestCase):
         tokenizer = BPETokenizer.from_dict(loaded["tokenizer"])
         self.assertEqual(tokenizer.decode(tokenizer.encode("가가")), "가가")
         self.assertTrue(torch.equal(loaded["state_dict"]["weight"], payload["state_dict"]["weight"]))
+
+    def test_evaluation_loader_rejects_arbitrary_python_object(self):
+        payload = {
+            "state_dict": {"weight": torch.ones(1)},
+            "unexpected": UnexpectedObject(),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "unsafe-eval.pt"
+            torch.save(payload, path)
+            with self.assertRaises(pickle.UnpicklingError):
+                load_candidate(path)
 
     def test_arbitrary_python_object_is_rejected(self):
         payload = {"state_dict": {"weight": torch.ones(1)}, "unexpected": UnexpectedObject()}
