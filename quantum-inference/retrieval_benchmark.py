@@ -1,6 +1,22 @@
 """Deterministic retrieval benchmark metrics; does not score or train model."""
 from collections import defaultdict
+import unicodedata
 from typing import Callable, Iterable, Mapping
+
+_TITLE_ALIASES = {
+    "기후변화": "기후변화",
+    "화학원소": "원소(화학)",
+    "운영체제": "운영체제",
+    "컴퓨터네트워크": "컴퓨터망",
+}
+
+
+def normalize_retrieval_title(value):
+    """Normalize whitespace/Unicode and known Korean Wikipedia redirect titles."""
+    normalized = "".join(unicodedata.normalize("NFKC", str(value or "")).casefold().split())
+    return _TITLE_ALIASES.get(normalized, normalized)
+
+
 
 
 def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> list[dict]:
@@ -68,7 +84,7 @@ def evaluate_retrieval_cases(
     for case in rows:
         question = case["question"]
         domain = case["domain"]
-        expected_titles = {title.casefold() for title in case["expected_titles"]}
+        expected_titles = {normalize_retrieval_title(title) for title in case["expected_titles"]}
         retrieved = retrieve(question, k)
         if not isinstance(retrieved, list):
             raise ValueError(f"Retriever returned a non-list for case {case['id']}.")
@@ -80,7 +96,7 @@ def evaluate_retrieval_cases(
             raise ValueError(f"Retriever returned an empty title for case {case['id']}.")
         matched_positions = [
             position for position, title in enumerate(titles, start=1)
-            if title.casefold() in expected_titles
+            if normalize_retrieval_title(title) in expected_titles
         ]
         hit = bool(matched_positions)
         reciprocal_rank = 1.0 / matched_positions[0] if hit else 0.0
@@ -88,7 +104,7 @@ def evaluate_retrieval_cases(
             1 for title in titles if title.casefold() in expected_titles
         ) / k
         precision_returned = (
-            sum(1 for title in titles if title.casefold() in expected_titles) / len(titles)
+            sum(1 for title in titles if normalize_retrieval_title(title) in expected_titles) / len(titles)
             if titles else 0.0
         )
         correct_abstention = not expected_titles and not titles
