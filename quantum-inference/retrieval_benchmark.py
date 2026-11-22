@@ -101,7 +101,7 @@ def evaluate_retrieval_cases(
         hit = bool(matched_positions)
         reciprocal_rank = 1.0 / matched_positions[0] if hit else 0.0
         precision_at_k = sum(
-            1 for title in titles if title.casefold() in expected_titles
+            1 for title in titles if normalize_retrieval_title(title) in expected_titles
         ) / k
         precision_returned = (
             sum(1 for title in titles if normalize_retrieval_title(title) in expected_titles) / len(titles)
