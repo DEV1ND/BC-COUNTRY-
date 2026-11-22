@@ -203,6 +203,14 @@ class GenerateRequest(BaseModel):
     top_k: int = Field(default=20, ge=0, le=100)
     repetition_penalty: float = Field(default=1.08, ge=1.0, le=1.5)
 
+@app.get("/")
+def root_status():
+    """Human-readable status endpoint; does not claim a model is loaded."""
+    status = health()
+    return {"service": "JUCKEX Quantum Candidate", "health_endpoint": "/health",
+            "generation_endpoint": "/v1/generate", **status}
+
+
 @app.get("/health")
 def health():
     conn = knowledge_db()
