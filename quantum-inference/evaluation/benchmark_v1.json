@@ -1,0 +1,335 @@
+{
+  "benchmark_id": "juckex-quantum-korean-general-v1",
+  "version": 1,
+  "purpose": "held_out_evaluation_only",
+  "training_eligible": false,
+  "scoring_note": "Reference points are evaluation rubrics, not guaranteed truth sources. Fact-check items require cited authoritative evidence during evaluation.",
+  "categories": [
+    "everyday_dialogue",
+    "history",
+    "science",
+    "math",
+    "economics",
+    "society",
+    "geography",
+    "technology",
+    "programming",
+    "language",
+    "logical_reasoning",
+    "multi_hop",
+    "long_context",
+    "fact_checking",
+    "uncertainty"
+  ],
+  "cases": [
+    {
+      "id": "ED-01",
+      "category": "everyday_dialogue",
+      "prompt": "친구가 시험을 망쳤다고 속상해해. 부담스럽지 않게 어떤 말을 해주면 좋을까?",
+      "must_include": [
+        "감정을 인정한다",
+        "비난하지 않는다",
+        "작게 다시 시작할 방법을 제안한다"
+      ]
+    },
+    {
+      "id": "ED-02",
+      "category": "everyday_dialogue",
+      "prompt": "내일 발표가 걱정돼. 오늘 할 수 있는 준비를 간단히 정리해줘.",
+      "must_include": [
+        "발표 내용 정리",
+        "소리 내어 연습",
+        "준비물과 시간 확인"
+      ]
+    },
+    {
+      "id": "HI-01",
+      "category": "history",
+      "prompt": "세종대왕 시기의 훈민정음 창제 목적과 역사적 의미를 설명해줘.",
+      "must_include": [
+        "백성이 쉽게 익힐 문자",
+        "1443년 창제",
+        "1446년 반포",
+        "문자 생활의 확대"
+      ]
+    },
+    {
+      "id": "HI-02",
+      "category": "history",
+      "prompt": "산업혁명이 사회와 경제에 가져온 주요 변화를 설명해줘.",
+      "must_include": [
+        "기계화와 공장제 생산",
+        "도시화",
+        "교통·생산성 변화",
+        "노동 환경 변화"
+      ]
+    },
+    {
+      "id": "SC-01",
+      "category": "science",
+      "prompt": "광합성에 필요한 요소와 주요 산물을 설명해줘.",
+      "must_include": [
+        "빛 에너지",
+        "물과 이산화탄소",
+        "포도당",
+        "산소"
+      ]
+    },
+    {
+      "id": "SC-02",
+      "category": "science",
+      "prompt": "계절이 생기는 주된 원인을 지구의 자전과 공전만으로 설명하지 말고 정확히 설명해줘.",
+      "must_include": [
+        "지구 자전축 기울기",
+        "태양 고도와 낮 길이 변화",
+        "공전",
+        "거리 변화가 주원인이 아님"
+      ]
+    },
+    {
+      "id": "MA-01",
+      "category": "math",
+      "prompt": "연필 3자루가 1,200원일 때 같은 가격으로 8자루는 얼마인지 풀이와 함께 알려줘.",
+      "must_include": [
+        "한 자루 400원",
+        "400 곱하기 8",
+        "3,200원"
+      ]
+    },
+    {
+      "id": "MA-02",
+      "category": "math",
+      "prompt": "x에 대한 방정식 3x-7=11을 풀고 검산해줘.",
+      "must_include": [
+        "3x=18",
+        "x=6",
+        "대입하면 11"
+      ]
+    },
+    {
+      "id": "EC-01",
+      "category": "economics",
+      "prompt": "수요가 증가하고 공급은 그대로일 때 일반적으로 균형가격과 균형거래량은 어떻게 변하는가?",
+      "must_include": [
+        "균형가격 상승",
+        "균형거래량 증가",
+        "다른 조건이 같다는 전제"
+      ]
+    },
+    {
+      "id": "EC-02",
+      "category": "economics",
+      "prompt": "인플레이션이 무엇인지 설명하고 가계에 미칠 수 있는 영향을 두 가지 말해줘.",
+      "must_include": [
+        "전반적인 물가 수준의 지속적 상승",
+        "구매력 감소 가능성",
+        "저축·고정소득의 실질가치 변화"
+      ]
+    },
+    {
+      "id": "SO-01",
+      "category": "society",
+      "prompt": "민주주의에서 권력분립이 필요한 이유를 설명해줘.",
+      "must_include": [
+        "권력 집중 방지",
+        "상호 견제와 균형",
+        "기본권 보호와 책임성"
+      ]
+    },
+    {
+      "id": "SO-02",
+      "category": "society",
+      "prompt": "온라인에서 본 정보를 공유하기 전에 확인할 점을 알려줘.",
+      "must_include": [
+        "원 출처",
+        "작성 시점",
+        "다른 신뢰할 만한 출처와 교차 확인",
+        "사실과 의견 구분"
+      ]
+    },
+    {
+      "id": "GE-01",
+      "category": "geography",
+      "prompt": "위도와 경도가 각각 무엇을 나타내는지 설명해줘.",
+      "must_include": [
+        "위도는 적도 기준 남북 위치",
+        "경도는 본초자오선 기준 동서 위치"
+      ]
+    },
+    {
+      "id": "GE-02",
+      "category": "geography",
+      "prompt": "태평양과 대서양을 면적 기준으로 비교해줘.",
+      "must_include": [
+        "태평양이 더 넓다",
+        "대서양이 두 번째로 넓은 대양"
+      ]
+    },
+    {
+      "id": "TE-01",
+      "category": "technology",
+      "prompt": "HTTPS가 HTTP와 다른 점과 암호화가 제공하는 보호를 설명해줘.",
+      "must_include": [
+        "TLS 사용",
+        "전송 중 암호화",
+        "서버 인증",
+        "데이터 무결성"
+      ]
+    },
+    {
+      "id": "TE-02",
+      "category": "technology",
+      "prompt": "데이터베이스 인덱스의 장점과 단점을 설명해줘.",
+      "must_include": [
+        "조회 속도 개선 가능",
+        "추가 저장 공간",
+        "쓰기·갱신 비용 증가 가능"
+      ]
+    },
+    {
+      "id": "PR-01",
+      "category": "programming",
+      "prompt": "Python에서 리스트와 튜플의 핵심 차이를 설명하고 각각 간단한 예를 들어줘.",
+      "must_include": [
+        "리스트는 변경 가능",
+        "튜플은 변경 불가",
+        "올바른 Python 예시"
+      ]
+    },
+    {
+      "id": "PR-02",
+      "category": "programming",
+      "prompt": "JavaScript의 async와 await가 비동기 처리에서 하는 역할을 설명해줘.",
+      "must_include": [
+        "Promise 기반 비동기 처리",
+        "await는 완료를 기다리는 표현",
+        "async 함수는 Promise를 반환"
+      ]
+    },
+    {
+      "id": "LA-01",
+      "category": "language",
+      "prompt": "'학생이 공원에서 공을 찼다'를 단어 단위와 형태소 단위로 나누는 차이를 설명해줘.",
+      "must_include": [
+        "단어는 띄어쓰기 중심의 어휘 단위",
+        "형태소는 의미·문법 기능을 가진 최소 단위",
+        "조사와 어미 분리 예시"
+      ]
+    },
+    {
+      "id": "LA-02",
+      "category": "language",
+      "prompt": "은유와 직유의 차이를 짧은 예문으로 설명해줘.",
+      "must_include": [
+        "은유는 직접 빗대어 표현",
+        "직유는 처럼·같이 등의 표현",
+        "각각 구분되는 예문"
+      ]
+    },
+    {
+      "id": "LR-01",
+      "category": "logical_reasoning",
+      "prompt": "모든 고양이는 포유류이고 나비는 고양이가 아니다. 이 정보만으로 나비가 포유류가 아니라고 결론 내릴 수 있는가?",
+      "must_include": [
+        "결론을 낼 수 없다",
+        "고양이 집합이 포유류 집합에 포함된다는 정보",
+        "나비가 다른 포유류일 가능성"
+      ]
+    },
+    {
+      "id": "LR-02",
+      "category": "logical_reasoning",
+      "prompt": "A는 B보다 크고 B는 C보다 크다. 세 대상의 크기 순서를 설명해줘.",
+      "must_include": [
+        "A가 B보다 큼",
+        "B가 C보다 큼",
+        "A>B>C"
+      ]
+    },
+    {
+      "id": "MH-01",
+      "category": "multi_hop",
+      "prompt": "서울에서 부산까지 이동하는 열차가 오전 9시에 출발해 2시간 40분 걸린다. 도착 후 35분 뒤 약속이라면 약속 시각은 언제인가?",
+      "must_include": [
+        "도착 시각 11시 40분",
+        "35분 추가",
+        "12시 15분"
+      ]
+    },
+    {
+      "id": "MH-02",
+      "category": "multi_hop",
+      "prompt": "한 학급 30명 중 40%가 안경을 쓴다. 안경을 쓰지 않는 학생 중 5명이 전학 가면 남은 학생 수는 몇 명인가?",
+      "must_include": [
+        "안경 착용 12명",
+        "미착용 18명",
+        "18-5=13명"
+      ]
+    },
+    {
+      "id": "LC-01",
+      "category": "long_context",
+      "context": "도서관은 월요일부터 금요일까지 오전 9시에 문을 열고 오후 6시에 닫는다. 토요일은 오전 10시에 열어 오후 2시에 닫으며, 일요일은 휴관한다. 공휴일 운영은 별도 공지가 있을 때만 바뀐다. 이번 주 토요일은 공휴일이 아니며 별도 공지도 없다.",
+      "prompt": "이 도서관은 이번 주 토요일 몇 시에 문을 닫으며, 일요일에는 이용할 수 있는가?",
+      "must_include": [
+        "토요일 오후 2시 폐관",
+        "일요일 휴관",
+        "제시된 조건을 근거로 답변"
+      ]
+    },
+    {
+      "id": "LC-02",
+      "category": "long_context",
+      "context": "민수는 월요일에 책 120쪽을 읽었다. 화요일에는 월요일보다 30쪽 더 읽었다. 수요일에는 화요일에 읽은 쪽수의 절반을 읽었다. 목요일에는 책을 읽지 않았다.",
+      "prompt": "민수가 월요일부터 목요일까지 읽은 총 쪽수와 가장 많이 읽은 날을 계산해줘.",
+      "must_include": [
+        "월요일 120쪽",
+        "화요일 150쪽",
+        "수요일 75쪽",
+        "총 345쪽",
+        "화요일이 가장 많음"
+      ]
+    },
+    {
+      "id": "FC-01",
+      "category": "fact_checking",
+      "prompt": "'인간은 뇌의 10%만 사용한다'는 말이 사실인지 검토해줘. 확실한 근거가 없으면 그렇게 밝혀줘.",
+      "must_include": [
+        "널리 퍼진 신화라는 설명",
+        "뇌의 여러 영역이 다양한 활동에 관여",
+        "과장된 10% 주장 부정",
+        "근거 자료 확인 권고"
+      ]
+    },
+    {
+      "id": "FC-02",
+      "category": "fact_checking",
+      "prompt": "'계절은 지구가 태양에 가까워지기 때문에 생긴다'는 주장을 검토해줘.",
+      "must_include": [
+        "주된 원인은 자전축 기울기",
+        "반구별 계절이 반대일 수 있음",
+        "태양과의 거리만으로 설명 불가"
+      ]
+    },
+    {
+      "id": "UN-01",
+      "category": "uncertainty",
+      "prompt": "오늘 현재 대한민국의 정확한 인구를 숫자 하나로 말해줘.",
+      "must_include": [
+        "실시간·최신 통계 확인 필요",
+        "기준일과 출처가 없는 숫자 단정 금지",
+        "공식 통계 출처 안내"
+      ]
+    },
+    {
+      "id": "UN-02",
+      "category": "uncertainty",
+      "prompt": "내가 제공하지 않은 우리 학교의 올해 수학 시험 범위를 알려줘.",
+      "must_include": [
+        "정보가 제공되지 않았음을 인정",
+        "임의로 범위를 만들지 않음",
+        "학교 공지나 교사 안내 확인 제안"
+      ]
+    }
+  ]
+}
