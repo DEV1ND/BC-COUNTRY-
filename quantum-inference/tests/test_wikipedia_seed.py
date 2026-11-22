@@ -44,6 +44,7 @@ class WikipediaSeedTests(unittest.TestCase):
         self.payload = {"query": {"pages": [
             page("1", "인공지능", self.body),
             page("2", "잘못된 출처", self.body, url="https://example.com/not-wikipedia"),
+            page("4", "위키백과 사칭 출처", self.body, url="https://ko.wikipedia.org.evil.example/wiki/가짜"),
             page("3", "리비전 누락", self.body, revision_id=""),
         ]}}
 
@@ -59,7 +60,7 @@ class WikipediaSeedTests(unittest.TestCase):
     def test_imports_only_valid_wikipedia_page_with_full_provenance(self):
         report = self.run_seed()
         self.assertEqual(report["imported_this_start"], 1)
-        self.assertEqual(report["skip_reasons"]["invalid_or_missing_url"], 1)
+        self.assertEqual(report["skip_reasons"]["invalid_or_missing_url"], 2)
         self.assertEqual(report["skip_reasons"]["missing_revision_id"], 1)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
