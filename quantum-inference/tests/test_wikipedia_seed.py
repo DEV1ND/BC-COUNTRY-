@@ -178,6 +178,7 @@ class WikipediaSeedTests(unittest.TestCase):
         self.assertEqual(report["fetch_mode"], "batch")
         self.assertEqual(report["imported_this_start"], 2)
         self.assertNotIn("rvlimit", captured)
+        self.assertEqual(captured.get("exchars"), ["1200"])
         self.assertEqual(captured.get("titles"), ["인공지능|컴퓨터"])
 
     def test_default_seed_covers_40_unique_topics(self):
