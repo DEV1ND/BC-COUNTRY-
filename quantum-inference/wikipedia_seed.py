@@ -70,7 +70,7 @@ def seed_wikipedia(db_path):
     pages = fetch_pages({
         "action": "query", "format": "json", "formatversion": "2",
         "prop": "extracts|info|revisions", "rvprop": "ids",
-        "explaintext": "1", "inprop": "url", "redirects": "1",
+        "explaintext": "1", "exchars": "1200", "inprop": "url", "redirects": "1",
         "titles": "|".join(titles),
     })
     fetch_mode = "batch"
@@ -103,7 +103,7 @@ def seed_wikipedia(db_path):
                 page_result = fetch_pages({
                     "action": "query", "format": "json", "formatversion": "2",
                     "prop": "extracts|info|revisions", "rvprop": "ids",
-                    "explaintext": "1", "inprop": "url", "redirects": "1",
+                    "explaintext": "1", "exchars": "1200", "inprop": "url", "redirects": "1",
                     "titles": title,
                 }, timeout=10)
                 pages.extend(page_result)
