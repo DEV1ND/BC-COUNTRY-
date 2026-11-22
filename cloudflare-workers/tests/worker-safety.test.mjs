@@ -22,3 +22,17 @@ test("scheduled Wikipedia collection cannot start model training", () => {
   assert.doesNotMatch(trainingGate, /fetch\(/);
   assert.doesNotMatch(worker, /new URL\("\/admin\/training\/start"/);
 });
+
+test("review console serves a login shell without persisting the admin token", () => {
+  assert.match(worker, /url\.pathname===\"\/review\"/);
+  assert.match(worker, /let adminToken=\"\"/);
+  assert.doesNotMatch(worker, /localStorage|sessionStorage/);
+  assert.match(worker, /content-security-policy/);
+});
+
+test("full document details remain behind the admin authorization gate", () => {
+  const authGate = worker.indexOf("if(!authorized(request,env))");
+  const pageRoute = worker.indexOf('url.pathname==="/page"');
+  assert.ok(authGate >= 0 && pageRoute > authGate);
+  assert.match(worker, /SELECT id,provider,title,url,domain,content,snippet,status,license_status,license_name,attribution,revision_id,content_hash,reviewer_note,discovered_at FROM pages WHERE id=\?/);
+});
