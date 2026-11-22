@@ -15,6 +15,7 @@ from wikipedia_seed import seed_wikipedia
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from knowledge_retrieval import build_fts_query, query_terms, rank_documents
+from retrieval_benchmark import evaluate_retrieval_cases
 from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
 from knowledge_index_status import build_index_status
@@ -280,6 +281,37 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
         } for item in matches],
         "model_invoked": False,
         "model_training": False,
+        "production_model_touched": False,
+    }
+
+
+@app.get("/admin/knowledge/evaluate")
+def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=None)):
+    """Run the fixed 15-domain retrieval benchmark; never invokes or trains the model."""
+    require_admin(authorization)
+    cases_path = Path(__file__).resolve().parent / "evaluation" / "knowledge_retrieval_cases.json"
+    try:
+        dataset = json.loads(cases_path.read_text(encoding="utf-8"))
+        cases = dataset.get("cases") if isinstance(dataset, dict) else None
+        if not isinstance(cases, list):
+            raise ValueError("Evaluation dataset must contain a cases array.")
+        report = evaluate_retrieval_cases(
+            cases,
+            lambda question, limit: retrieve_knowledge(question, limit=limit),
+            k=5,
+        )
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(500, "검색 평가 데이터를 읽거나 실행하지 못했습니다: " + str(exc)[:180])
+    conn = knowledge_db()
+    try:
+        knowledge_count = int(conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0])
+    finally:
+        conn.close()
+    return {
+        "ok": True,
+        "benchmark_version": dataset.get("version"),
+        "report": report,
+        "knowledge_documents": knowledge_count,
         "production_model_touched": False,
     }
 
