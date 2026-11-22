@@ -38,3 +38,5 @@ jobs:
         run: python -m unittest -v tests/test_checkpoint_safety.py
       - name: Verify truthful model metadata
         run: python -m unittest -v tests/test_model_metadata.py
+      - name: Verify encrypted checkpoint restoration
+        run: python -m unittest -v tests/test_checkpoint_restore.py
