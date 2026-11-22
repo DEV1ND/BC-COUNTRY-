@@ -16,7 +16,7 @@ before(async () => {
     d1Databases: ["DB"],
     bindings: { ADMIN_TOKEN },
   });
-  db = mf.getD1Database("DB");
+  db = await mf.getD1Database("DB");
   const schema = [
     `CREATE TABLE pages (
       id TEXT PRIMARY KEY, provider TEXT, domain TEXT, title TEXT, url TEXT,
