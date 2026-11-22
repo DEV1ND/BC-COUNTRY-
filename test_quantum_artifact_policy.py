@@ -13,7 +13,7 @@ class QuantumArtifactPolicyTests(unittest.TestCase):
         self.assertIn(marker, lines)
         start = lines.index(marker)
         section = lines[start + 1:]
-        path_index = next((i for i, line in enumerate(section) if line.strip() == "path:"), None)
+        path_index = next((i for i, line in enumerate(section) if line.strip().startswith("path:")), None)
         self.assertIsNotNone(path_index, "artifact path list is missing")
         paths = []
         for line in section[path_index + 1:]:
