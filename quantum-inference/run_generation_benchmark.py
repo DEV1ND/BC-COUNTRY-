@@ -82,7 +82,7 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
         context = str(case.get("context", "")).strip()
         if not prompt:
             raise ValueError("Benchmark case " + str(case["id"]) + " has an empty prompt.")
-        full_prompt = (context + "\\n\\n" if context else "") + prompt
+        full_prompt = (context + "\n\n" if context else "") + prompt
         response = _request_json(
             base + "/v1/generate",
             "POST",
@@ -131,7 +131,7 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
     if output_path is not None:
         destination = Path(output_path)
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        destination.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         report["output_path"] = str(destination)
     return report
 
