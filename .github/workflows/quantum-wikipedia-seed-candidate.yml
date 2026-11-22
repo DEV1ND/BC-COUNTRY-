@@ -31,6 +31,10 @@ on:
     branches:
       - quantum-candidate-security-hardening
     paths:
+      - "quantum-inference/tests/test_model_metadata.py"
+      - "quantum-inference/model_metadata.py"
+      - "quantum-inference/tests/test_run_generation_benchmark.py"
+      - "quantum-inference/run_generation_benchmark.py"
       - "quantum-inference/app.py"
       - "quantum-inference/retrieval_benchmark.py"
       - "quantum-inference/evaluation/knowledge_retrieval_cases.json"
