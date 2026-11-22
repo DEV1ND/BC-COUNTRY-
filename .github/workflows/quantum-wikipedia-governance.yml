@@ -1,0 +1,41 @@
+name: Quantum Wikipedia governance
+
+on:
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "cloudflare-workers/**"
+      - "quantum-inference/app.py"
+      - "quantum-inference/wikipedia_seed.py"
+      - "quantum-inference/tests/test_wikipedia_seed.py"
+      - ".github/workflows/quantum-wikipedia-governance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  wikipedia-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compile Python sources
+        run: |
+          python -m py_compile quantum-inference/app.py
+          python -m py_compile quantum-inference/wikipedia_seed.py
+          python -m py_compile quantum-inference/tests/test_wikipedia_seed.py
+      - name: Test Wikipedia importer and D1 schema
+        run: python -m unittest discover -s quantum-inference/tests -p "test_wikipedia_seed.py" -v
+      - name: Check Worker JavaScript syntax
+        run: |
+          node --check cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs
+          node --check cloudflare-workers/auto_review.mjs
+          node --check cloudflare-workers/knowledge_sync_plan.mjs
+      - name: Test human review and sync contracts
+        run: node --test cloudflare-workers/tests/*.test.mjs
