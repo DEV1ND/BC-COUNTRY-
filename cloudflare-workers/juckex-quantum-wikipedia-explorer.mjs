@@ -102,7 +102,7 @@ async function loadQueue(append=false){
   }
   const seen=new Set(allPages.map(page=>String(page.id)));
   for(const page of data.pages||[])if(!seen.has(String(page.id))){allPages.push(page);seen.add(String(page.id));}
-  nextCursor=data.next_cursor||null;hasMore===false;
+  nextCursor=data.next_cursor||null;
   hasMore=Boolean(data.has_more)&&!!nextCursor;
   renderQueue();showError("");
  }catch(error){showError("목록 조회 실패: "+error.message);}
@@ -345,9 +345,9 @@ export default {
       const beforeTime=String(url.searchParams.get("before_time")||"");
       const beforeId=String(url.searchParams.get("before_id")||"");
       if(Boolean(beforeTime)!==Boolean(beforeId))return json({error:"incomplete_pagination_cursor"},400);
-      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at,reviewer_note FROM pages WHERE status=? AND (?='' OR discovered_at<? OR (discovered_at=? AND id<?)) ORDER BY discovered_at DESC,id DESC LIMIT ?").bind(status,beforeTime,beforeTime,beforeTime,beforeId,limit).all();
-      const pages=rows.results||[],last=pages.length?pages[pages.length-1]:null;
-      return json({pages,next_cursor:last?{discovered_at:last.discovered_at,id:last.id}:null,has_more:pages.length===limit});
+      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at,reviewer_note FROM pages WHERE status=? AND (?='' OR discovered_at<? OR (discovered_at=? AND id<?)) ORDER BY discovered_at DESC,id DESC LIMIT ?").bind(status,beforeTime,beforeTime,beforeTime,beforeId,limit+1).all();
+      const fetched=rows.results||[],hasMore=fetched.length>limit,pages=fetched.slice(0,limit),last=pages.length?pages[pages.length-1]:null;
+      return json({pages,next_cursor:last?{discovered_at:last.discovered_at,id:last.id}:null,has_more:hasMore});
     }
     if(request.method==="GET"&&url.pathname==="/export-candidate"){
       const corpus=String(url.searchParams.get("corpus")||"unverified");
