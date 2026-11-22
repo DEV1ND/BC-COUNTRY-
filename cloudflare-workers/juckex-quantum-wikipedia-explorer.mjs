@@ -26,7 +26,7 @@ button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:10px;align-
 #article{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:#0b1018;border:1px solid #273144;border-radius:10px;padding:15px;font-size:13px}
 a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;overflow-wrap:anywhere}.field{display:grid;gap:7px;margin:13px 0}.label{font-size:12px;color:#c4cddd;font-weight:650}
 .notice{color:#e8c985;background:#2a2418;border:1px solid #655333;padding:12px;border-radius:10px;font-size:13px}
-#error{color:#ffaaaa;min-height:22px;font-size:13px}#detail[hidden],#login[hidden]{display:none}.hint{color:var(--muted);font-size:12px}.valid{color:#9bd6a8}.invalid{color:#ffaaaa}.search{margin-top:12px}.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid #354158;border-radius:999px;padding:4px 9px;color:#c8d2e1;font-size:11px}
+#error{color:#ffaaaa;min-height:22px;font-size:13px}#detail[hidden],#login[hidden]{display:none}.hint{color:var(--muted);font-size:12px}.valid{color:#9bd6a8}.invalid{color:#ffaaaa}.search{margin-top:12px}.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid #354158;border-radius:999px;padding:4px 9px;color:#c8d2e1;font-size:11px}.more{width:100%}
 @media(max-width:820px){.grid{grid-template-columns:1fr}#queue{max-height:240px}.top{align-items:flex-start;flex-direction:column}main{padding:20px 12px 40px}}
 </style>
 </head>
@@ -38,7 +38,7 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
 </section>
 <div id="error" role="status"></div>
 <section id="workspace" class="grid" hidden>
- <aside class="card"><div class="row" style="justify-content:space-between"><strong>검토 대기 문서</strong><button id="refresh">새로고침</button></div><div class="stats" id="stats"></div><input id="filter" class="search" type="search" placeholder="문서 제목 검색"><div class="hint">최대 50개 표시 · 자동 검토 결과는 사실 확인 완료를 뜻하지 않습니다.</div><div id="queue" style="margin-top:14px"></div></aside>
+ <aside class="card"><div class="row" style="justify-content:space-between"><strong>검토 대기 문서</strong><button id="refresh">새로고침</button></div><div class="stats" id="stats"></div><input id="filter" class="search" type="search" placeholder="문서 제목 검색"><div class="hint">최대 50개 표시 · 자동 검토 결과는 사실 확인 완료를 뜻하지 않습니다.</div><div id="queue" style="margin-top:14px"></div><button id="loadMore" class="more" style="width:100%;margin-top:12px;background:#182131;border-color:#344158;color:#d7e0ef" disabled>다음 문서 불러오기</button></aside>
  <section id="detail" class="card" hidden>
   <h2 id="title" style="margin:0 0 8px;font-size:21px"></h2>
   <div class="meta">원문: <a id="source" target="_blank" rel="noopener noreferrer"></a></div>
@@ -52,7 +52,7 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
 </section>
 </main>
 <script>
-let adminToken="",selected=null,allPages=[],totalPending=null;
+let adminToken="",selected=null,allPages=[],totalPending=null,nextCursor=null,hasMore=false,loadingMore=false;
 const el=id=>document.getElementById(id);
 function showError(message){el("error").textContent=message||"";}
 async function api(path,options={}){
@@ -83,13 +83,34 @@ function renderQueue(){
  }
  if(!visible.length){const p=document.createElement("p");p.className="meta";p.textContent=allPages.length?"검색 결과가 없습니다.":"검토 대기 문서가 없습니다.";queue.appendChild(p);}
 }
-async function loadQueue(){
+async function loadQueue(append=false){
+ if(loadingMore)return;
+ loadingMore=true;el("loadMore").disabled=true;el("loadMore").textContent="불러오는 중…";
  try{
-  const [status,data]=await Promise.all([api("/status"),api("/pages?status=pending_review&limit=50")]);
-  const pending=(status.pageCounts||[]).find(row=>row.status==="pending_review");
-  totalPending=pending?Number(pending.count):null;
-  allPages=data.pages||[];renderQueue();showError("");
+  const query=new URLSearchParams({status:"pending_review",limit:"50"});
+  if(append&&nextCursor){
+   query.set("before_time",nextCursor.discovered_at);
+   query.set("before_id",nextCursor.id);
+  }
+  const requests=[api("/pages?"+query.toString())];
+  if(!append)requests.push(api("/status"));
+  const results=await Promise.all(requests),data=results[0];
+  if(!append){
+   const pending=(results[1].pageCounts||[]).find(row=>row.status==="pending_review");
+   totalPending=pending?Number(pending.count):null;
+   allPages=[];
+  }
+  const seen=new Set(allPages.map(page=>String(page.id)));
+  for(const page of data.pages||[])if(!seen.has(String(page.id))){allPages.push(page);seen.add(String(page.id));}
+  nextCursor=data.next_cursor||null;hasMore===false;
+  hasMore=Boolean(data.has_more)&&!!nextCursor;
+  renderQueue();showError("");
  }catch(error){showError("목록 조회 실패: "+error.message);}
+ finally{
+  loadingMore=false;
+  el("loadMore").disabled=!hasMore;
+  el("loadMore").textContent=hasMore?"다음 문서 불러오기":"모든 문서를 불러왔습니다.";
+ }
 }
 async function openPage(id){
  try{
@@ -128,7 +149,8 @@ async function approve(){
 }
 el("connect").addEventListener("click",connect);
 el("token").addEventListener("keydown",event=>{if(event.key==="Enter")connect();});
-el("refresh").addEventListener("click",loadQueue);
+el("refresh").addEventListener("click",()=>loadQueue(false));
+el("loadMore").addEventListener("click",()=>loadQueue(true));
 el("filter").addEventListener("input",renderQueue);
 el("reference").addEventListener("input",validateReference);
 el("approve").addEventListener("click",approve);
@@ -320,9 +342,12 @@ export default {
     if(request.method==="GET"&&url.pathname==="/pages"){
       const status=String(url.searchParams.get("status")||"pending_review");
       const limit=Math.min(50,Math.max(1,Number(url.searchParams.get("limit")||20)));
-      const cursor=String(url.searchParams.get("before")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at,reviewer_note FROM pages WHERE status=? AND (?='' OR discovered_at<?) ORDER BY discovered_at DESC LIMIT ?").bind(status,cursor,cursor,limit).all();
-      return json({pages:rows.results||[]});
+      const beforeTime=String(url.searchParams.get("before_time")||"");
+      const beforeId=String(url.searchParams.get("before_id")||"");
+      if(Boolean(beforeTime)!==Boolean(beforeId))return json({error:"incomplete_pagination_cursor"},400);
+      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at,reviewer_note FROM pages WHERE status=? AND (?='' OR discovered_at<? OR (discovered_at=? AND id<?)) ORDER BY discovered_at DESC,id DESC LIMIT ?").bind(status,beforeTime,beforeTime,beforeTime,beforeId,limit).all();
+      const pages=rows.results||[],last=pages.length?pages[pages.length-1]:null;
+      return json({pages,next_cursor:last?{discovered_at:last.discovered_at,id:last.id}:null,has_more:pages.length===limit});
     }
     if(request.method==="GET"&&url.pathname==="/export-candidate"){
       const corpus=String(url.searchParams.get("corpus")||"unverified");
