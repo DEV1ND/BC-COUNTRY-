@@ -1,6 +1,11 @@
 name: Quantum Candidate encrypted training
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/quantum-candidate-encrypted-training.yml"
   workflow_dispatch:
     inputs:
       dry_run:
