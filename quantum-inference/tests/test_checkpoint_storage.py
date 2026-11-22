@@ -67,6 +67,22 @@ class CheckpointStorageTests(unittest.TestCase):
         self.assertIn(f"/releases/tags/{TAG}", mocked_open.call_args_list[0].args[0].full_url)
 
     @patch("checkpoint_storage.urllib.request.urlopen")
+    def test_rejects_oversized_asset_before_download(self, mocked_open):
+        release = {
+            "tag_name": TAG,
+            "draft": False,
+            "assets": [{
+                "name": ASSET_NAME,
+                "size": 512 * 1024 * 1024 + 1,
+                "browser_download_url": f"https://github.com/{REPO}/releases/download/{TAG}/{ASSET_NAME}",
+            }],
+        }
+        mocked_open.return_value = FakeResponse(json.dumps(release).encode("utf-8"))
+        with self.assertRaises(RuntimeError):
+            download_release_checkpoint(REPO, TAG, KEY)
+        self.assertEqual(mocked_open.call_count, 1)
+
+    @patch("checkpoint_storage.urllib.request.urlopen")
     def test_rejects_unexpected_asset_host(self, mocked_open):
         ciphertext = encrypted_payload()
         release = {
