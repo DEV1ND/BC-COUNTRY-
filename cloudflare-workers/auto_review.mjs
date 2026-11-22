@@ -50,7 +50,7 @@ export async function validateManualApproval(row, reviewerNote) {
   const note = String(reviewerNote || "").trim();
   if (note.length < 20)
     return { ok: false, reason: "사실 확인 요약을 20자 이상 작성해야 합니다." };
-  const referenceUrls = note.match(/https:\\/\\/[^\\s<>"']+/g) || [];
+  const referenceUrls = note.match(/https:\/\/[^\s<>"']+/g) || [];
   const hasIndependentReference = referenceUrls.some(value => {
     try {
       const reference = new URL(value.replace(/[),.;]+$/, ""));
