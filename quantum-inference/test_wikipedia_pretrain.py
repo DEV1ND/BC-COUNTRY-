@@ -56,7 +56,7 @@ class CorpusValidationTests(unittest.TestCase):
     def test_hash_mismatch_is_rejected(self):
         bad = row("1")
         bad["content_hash"] = "0" * 64
-        docs, rejected = load_corpus(self.write_rows([bad, row("2")]), False)
+        docs, rejected = load_corpus(self.write_rows([bad, row("2"), row("3")]), False)
         self.assertEqual(len(docs), 1)
         self.assertEqual(rejected["invalid_metadata"], 1)
 
