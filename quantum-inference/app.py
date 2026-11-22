@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3, hashlib
+import os, json, re, sqlite3, hashlib, io
 from pathlib import Path
 from typing import Optional
 import torch
@@ -19,6 +19,7 @@ from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
 from knowledge_index_status import build_index_status
 from model_metadata import build_model_metadata
+from checkpoint_storage import download_release_checkpoint
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -36,6 +37,7 @@ BLOCK = 256
 DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
 CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
+CHECKPOINT_RELEASE_TAG = os.getenv("QUANTUM_CHECKPOINT_RELEASE_TAG", "").strip()
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
 
 class BPECandidate(nn.Module):
@@ -62,10 +64,19 @@ def banned_ngram_tokens(tokens, n=3):
     return {tokens[i+n-1] for i in range(len(tokens)-n+1) if tuple(tokens[i:i+n-1]) == prefix}
 
 def load_model():
-    if not CHECKPOINT.exists():
+    if CHECKPOINT.exists():
+        # Local files are retained for isolated development and manual testing.
+        payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=True)
+    elif CHECKPOINT_RELEASE_TAG:
+        # Public release assets contain AES-256-GCM ciphertext only; the key stays in Render secrets.
+        encrypted_checkpoint = download_release_checkpoint(
+            "DEV1ND/BC-COUNTRY-",
+            CHECKPOINT_RELEASE_TAG,
+            os.getenv("QUANTUM_CHECKPOINT_ENCRYPTION_KEY", ""),
+        )
+        payload = torch.load(io.BytesIO(encrypted_checkpoint), map_location=DEVICE, weights_only=True)
+    else:
         return None, None, None
-    # Candidate checkpoints must contain only tensors and primitive metadata; reject arbitrary pickle globals.
-    payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=True)
     arch = payload["architecture"]
     tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
     model = BPECandidate(len(tokenizer.vocab), int(arch["width"]), int(arch["heads"]), int(arch["layers"]))
@@ -74,6 +85,7 @@ def load_model():
     return model, tokenizer, payload
 
 model, tokenizer, checkpoint_meta = load_model()
+CHECKPOINT_SOURCE = "local_file" if CHECKPOINT.exists() else ("github_release" if CHECKPOINT_RELEASE_TAG else "missing")
 MODEL_METADATA = build_model_metadata(model, checkpoint_meta)
 MODEL_PARAMETER_COUNT = MODEL_METADATA["model_parameters"]
 MODEL_ARCHITECTURE = MODEL_METADATA["model_architecture"]
@@ -204,6 +216,8 @@ def health():
             "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
+            "checkpoint_source": CHECKPOINT_SOURCE,
+            "checkpoint_release_tag": CHECKPOINT_RELEASE_TAG or None,
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 

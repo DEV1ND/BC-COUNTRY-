@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.0
 numpy==2.2.1
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.10.0+cpu
+cryptography==46.0.3
