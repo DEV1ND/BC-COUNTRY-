@@ -277,7 +277,7 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
 
 @app.get("/admin/knowledge/evaluate")
 def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=None)):
-    """Run the fixed 15-domain retrieval benchmark; never invokes or trains the model."""
+    """Run the fixed 27-domain retrieval benchmark; never invokes or trains the model."""
     require_admin(authorization)
     cases_path = Path(__file__).resolve().parent / "evaluation" / "knowledge_retrieval_cases.json"
     try:
