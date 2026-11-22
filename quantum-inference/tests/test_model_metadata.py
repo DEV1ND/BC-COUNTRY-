@@ -24,6 +24,8 @@ class ModelMetadataTests(unittest.TestCase):
     def test_missing_checkpoint_is_not_misrepresented_as_loaded(self):
         result = build_model_metadata(None, None)
         self.assertEqual(result["model"], "Quantum BPE Candidate (checkpoint missing)")
+        self.assertFalse(result["model_loaded"])
+        self.assertFalse(result["generation_ready"])
         self.assertEqual(result["model_parameters"], 0)
         self.assertIsNone(result["model_architecture"])
         self.assertIsNone(result["training_objective"])
@@ -36,6 +38,8 @@ class ModelMetadataTests(unittest.TestCase):
         }
         result = build_model_metadata(model, checkpoint)
         self.assertEqual(result["model"], "Quantum BPE Candidate")
+        self.assertTrue(result["model_loaded"])
+        self.assertTrue(result["generation_ready"])
         self.assertEqual(result["model_parameters"], 200)
         self.assertEqual(result["model_architecture"], checkpoint["architecture"])
         self.assertEqual(result["training_objective"], "causal_next_token_prediction")
