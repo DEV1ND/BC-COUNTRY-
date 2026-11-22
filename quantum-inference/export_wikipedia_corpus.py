@@ -42,7 +42,7 @@ def export_corpus(api_base, token, corpus, destination, limit=10):
     destination.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_path = tempfile.mkstemp(prefix=destination.name + ".", suffix=".tmp",
                                      dir=str(destination.parent))
-    os.fchmod(fd, 0o600)
+    if hasattr(os, "fchmod"):\n        os.fchmod(fd, 0o600)
     count = 0
     seen = set()
     after = ""
