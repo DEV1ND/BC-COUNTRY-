@@ -1,5 +1,6 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
+from threading import Thread
 from knowledge_provenance import has_valid_wikipedia_attribution
 from seed_quality import summarize_seed_outcome, canonical_seed_title, should_skip_wikipedia_seed
 from pathlib import Path
@@ -105,6 +106,21 @@ MODEL_ARCHITECTURE = MODEL_METADATA["model_architecture"]
 MODEL_TRAINING_OBJECTIVE = MODEL_METADATA["training_objective"]
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
+wikipedia_seed_thread = None
+
+
+@app.on_event("startup")
+def launch_korean_wikipedia_seed():
+    """Start optional knowledge refresh without delaying the HTTP listener."""
+    global wikipedia_seed_status, wikipedia_seed_thread
+    wikipedia_seed_status = {"status": "running", "imported_this_start": 0}
+    wikipedia_seed_thread = Thread(
+        target=_import_korean_wikipedia_seed,
+        name="quantum-wikipedia-seed",
+        daemon=True,
+    )
+    wikipedia_seed_thread.start()
+    logger.info("Wikipedia knowledge seed scheduled in background.")
 logger = logging.getLogger("juckex.quantum.knowledge")
 logger.info(
     "Quantum Candidate checkpoint status=%s model_loaded=%s parameters=%s source=%s",
@@ -114,8 +130,7 @@ logger.info(
     CHECKPOINT_SOURCE,
 )
 
-@app.on_event("startup")
-def import_korean_wikipedia_seed():
+def _import_korean_wikipedia_seed():
     global wikipedia_seed_status
     started_at = time.monotonic()
     logger.warning("Wikipedia knowledge seed started: requested_topics=%s", len(DEFAULT_TITLES))
