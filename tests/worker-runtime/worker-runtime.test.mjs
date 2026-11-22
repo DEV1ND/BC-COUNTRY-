@@ -95,6 +95,9 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   assert.equal(new Set(ids).size, 103);
   assert.deepEqual(ids, [...ids].sort((a, b) => b.localeCompare(a)));
 
+  // Remove pagination-only fixtures so they cannot consume the export endpoint's first-page limit.
+  await db.prepare("DELETE FROM pages WHERE id BETWEEN '001' AND '103'").run();
+
   // Approval rejects missing independent evidence, then accepts a valid human-review record.
   const content = "Quantum runtime approval fixture. ".repeat(12);
   const hash = createHash("sha256").update(content.trim()).digest("hex");
