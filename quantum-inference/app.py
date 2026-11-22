@@ -1,6 +1,7 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
 from knowledge_provenance import has_valid_wikipedia_attribution
+from seed_quality import summarize_seed_outcome
 from pathlib import Path
 from typing import Optional
 import torch
@@ -133,16 +134,16 @@ def import_korean_wikipedia_seed():
                 "retrieved_anything": bool(matches),
             })
         passed = sum(1 for item in smoke_tests if item["matched"])
+        quality = summarize_seed_outcome(result, passed, len(smoke_tests))
         wikipedia_seed_status = {
-            "status": "completed",
+            **quality,
             **result,
             "retrieval_smoke_tests": smoke_tests,
-            "retrieval_tests_passed": passed,
         }
         logger.warning(
-            "Wikipedia knowledge seed completed: mode=%s returned=%s imported=%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s elapsed=%.2fs",
-            result.get("fetch_mode"), result.get("returned_pages"),
-            result.get("imported_this_start"), result.get("total_documents"),
+            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s elapsed=%.2fs",
+            quality["status"], result.get("fetch_mode"), result.get("returned_pages"),
+            result.get("imported_this_start"), result.get("requested"), result.get("total_documents"),
             passed, len(smoke_tests), result.get("skipped"), result.get("skip_reasons"),
             result.get("fallback_failures"), time.monotonic() - started_at,
         )
