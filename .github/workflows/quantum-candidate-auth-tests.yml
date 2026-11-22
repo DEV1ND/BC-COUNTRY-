@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - quantum-candidate-security-hardening
+      - quantum-candidate-r2-storage
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-auth-tests.yml"
