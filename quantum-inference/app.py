@@ -18,6 +18,7 @@ from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
 from knowledge_index_status import build_index_status
+from model_metadata import build_model_metadata
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -73,15 +74,10 @@ def load_model():
     return model, tokenizer, payload
 
 model, tokenizer, checkpoint_meta = load_model()
-MODEL_PARAMETER_COUNT = (
-    sum(parameter.numel() for parameter in model.parameters())
-    if model is not None else 0
-)
-MODEL_ARCHITECTURE = checkpoint_meta.get("architecture") if checkpoint_meta else None
-MODEL_TRAINING_OBJECTIVE = (
-    checkpoint_meta.get("training_metadata", {}).get("objective")
-    if checkpoint_meta else None
-)
+MODEL_METADATA = build_model_metadata(model, checkpoint_meta)
+MODEL_PARAMETER_COUNT = MODEL_METADATA["model_parameters"]
+MODEL_ARCHITECTURE = MODEL_METADATA["model_architecture"]
+MODEL_TRAINING_OBJECTIVE = MODEL_METADATA["training_objective"]
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
 
