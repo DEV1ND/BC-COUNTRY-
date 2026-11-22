@@ -107,6 +107,39 @@ class WikipediaSeedTests(unittest.TestCase):
         self.assertEqual(report["skip_reasons"]["extract_too_short"], 1)
 
 
+    def test_empty_batch_retries_each_title(self):
+        from urllib.parse import parse_qs, urlparse
+
+        calls = []
+        titles = ["인공지능", "컴퓨터"]
+
+        def fake_urlopen(request, timeout=30):
+            requested = parse_qs(urlparse(request.full_url).query).get("titles", [""])[0]
+            calls.append(requested)
+            if "|" in requested:
+                return FakeResponse({"query": {"pages": []}})
+            return FakeResponse({"query": {"pages": [
+                page(str(100 + len(calls)), requested, self.body, "12345")
+            ]}})
+
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "|".join(titles)}):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                report = seed_wikipedia(self.db_path)
+
+        self.assertEqual(report["fetch_mode"], "per_title_fallback")
+        self.assertEqual(report["returned_pages"], 2)
+        self.assertEqual(report["imported_this_start"], 2)
+        self.assertEqual(report["total_documents"], 2)
+        self.assertEqual(calls, ["인공지능|컴퓨터", "인공지능", "컴퓨터"])
+
+    def test_api_error_is_not_reported_as_empty_success(self):
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "인공지능"}):
+            with patch("urllib.request.urlopen",
+                       return_value=FakeResponse({"error": {"code": "ratelimited", "info": "slow down"}})):
+                with self.assertRaisesRegex(RuntimeError, "ratelimited"):
+                    seed_wikipedia(self.db_path)
+
+
 class WikipediaD1MigrationTests(unittest.TestCase):
     def test_d1_schema_creates_expected_tables_and_constraints(self):
         migration = Path(__file__).resolve().parents[2] / "cloudflare-workers" / "migrations" / "0001_wikipedia_knowledge.sql"
