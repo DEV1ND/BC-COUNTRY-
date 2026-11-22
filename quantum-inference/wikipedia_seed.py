@@ -23,6 +23,20 @@ DEFAULT_TITLES = [
 LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 
+def is_wikipedia_url(url):
+    try:
+        parsed = urllib.parse.urlsplit(str(url or "").strip())
+        return (
+            parsed.scheme == "https"
+            and parsed.netloc == "ko.wikipedia.org"
+            and parsed.path.startswith("/wiki/")
+            and not parsed.query
+            and not parsed.fragment
+        )
+    except ValueError:
+        return False
+
+
 
 def seed_wikipedia(db_path):
     raw_titles = [x.strip() for x in os.getenv(
@@ -79,7 +93,7 @@ def seed_wikipedia(db_path):
             not page.get("missing")
             and bool(str(page.get("pageid", "")).strip())
             and bool(str(page.get("title", "")).strip())
-            and str(page.get("fullurl", "")).startswith("https://ko.wikipedia.org/wiki/")
+            and is_wikipedia_url(page.get("fullurl", ""))
             and len(str(page.get("extract", "")).strip()) >= 200
             and bool(str(revision_id).strip())
         )
@@ -159,7 +173,7 @@ def seed_wikipedia(db_path):
             if not title:
                 skip("missing_title", title, page_id, url, len(body))
                 continue
-            if not url.startswith("https://ko.wikipedia.org/wiki/"):
+            if not is_wikipedia_url(url):
                 skip("invalid_or_missing_url", title, page_id, url, len(body))
                 continue
             if len(body) < 200:
