@@ -26,7 +26,7 @@ class GenerationSourcesTests(unittest.TestCase):
                 "title": "인공지능",
                 "url": "https://ko.wikipedia.org/wiki/인공지능",
                 "license": "CC BY-SA 4.0",
-                "attribution": "Wikipedia contributors; title and URL retained",
+                "attribution": source()["attribution"],
             }],
         )
 
