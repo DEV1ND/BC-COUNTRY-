@@ -55,7 +55,7 @@ export async function validateManualApproval(row, reviewerNote) {
     try {
       const reference = new URL(value.replace(/[),.;]+$/, ""));
       return reference.protocol === "https:" &&
-        reference.hostname !== "ko.wikipedia.org" &&
+        reference.hostname !== "wikipedia.org" &&
         !reference.hostname.endsWith(".wikipedia.org");
     } catch {
       return false;
