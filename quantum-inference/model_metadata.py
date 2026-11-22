@@ -6,6 +6,8 @@ def build_model_metadata(model, checkpoint_meta):
     if model is None:
         return {
             "model": "Quantum BPE Candidate (checkpoint missing)",
+            "model_loaded": False,
+            "generation_ready": False,
             "model_parameters": 0,
             "model_architecture": None,
             "training_objective": None,
@@ -22,6 +24,8 @@ def build_model_metadata(model, checkpoint_meta):
 
     return {
         "model": "Quantum BPE Candidate",
+        "model_loaded": True,
+        "generation_ready": True,
         "model_parameters": int(parameters),
         "model_architecture": architecture,
         "training_objective": training.get("objective"),
