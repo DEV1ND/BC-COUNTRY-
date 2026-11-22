@@ -140,12 +140,17 @@ def import_korean_wikipedia_seed():
             **result,
             "retrieval_smoke_tests": smoke_tests,
         }
+        sample_skips = [
+            {"title": item.get("title"), "extract_characters": item.get("extract_characters")}
+            for item in result.get("page_diagnostics", [])
+            if item.get("reason") != "imported"
+        ][:8]
         logger.warning(
-            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s elapsed=%.2fs",
+            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s sample_skips=%s elapsed=%.2fs",
             quality["status"], result.get("fetch_mode"), result.get("returned_pages"),
             result.get("imported_this_start"), result.get("requested"), result.get("total_documents"),
             passed, len(smoke_tests), result.get("skipped"), result.get("skip_reasons"),
-            result.get("fallback_failures"), time.monotonic() - started_at,
+            result.get("fallback_failures"), sample_skips, time.monotonic() - started_at,
         )
     except Exception as exc:
         # Keep inference available even if Wikimedia is temporarily unavailable.
