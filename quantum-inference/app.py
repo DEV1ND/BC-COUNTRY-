@@ -1,6 +1,6 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
-from urllib.parse import urlsplit
+from knowledge_provenance import has_valid_wikipedia_attribution
 from pathlib import Path
 from typing import Optional
 import torch
@@ -332,13 +332,8 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
             actual_hash=hashlib.sha256(body.encode("utf-8")).hexdigest()
             if not page_id or not title or not body or len(body)<200 or len(body)>50000:
                 raise HTTPException(422, "문서 식별자·제목·본문 길이를 확인하세요.")
-            try:
-                parsed_url = urlsplit(url)
-                valid_wikipedia_url = (parsed_url.scheme == "https" and parsed_url.netloc == "ko.wikipedia.org" and parsed_url.path.startswith("/wiki/") and not parsed_url.query and not parsed_url.fragment)
-            except ValueError:
-                valid_wikipedia_url = False
-            if not valid_wikipedia_url or license_name!="CC BY-SA 4.0" or not attribution:
-                raise HTTPException(422, "허용된 출처·라이선스·저작자 표시가 필요합니다.")
+            if not has_valid_wikipedia_attribution(title, url, license_name, attribution):
+                raise HTTPException(422, "위키백과 URL·문서 제목·CC BY-SA 4.0 저작자 표시가 모두 필요합니다.")
             if not revision_id or not re.fullmatch(r"[0-9]+", revision_id):
                 raise HTTPException(422, "위키백과 원문 리비전 ID가 필요합니다.")
             if not re.fullmatch(r"[a-f0-9]{64}", content_hash) or content_hash != actual_hash:
