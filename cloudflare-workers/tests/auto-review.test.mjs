@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { reviewCandidate, validateManualApproval } from "../auto_review.mjs";
 
 const body = [
@@ -13,7 +14,7 @@ const valid = {
   url: "https://ko.wikipedia.org/wiki/인공지능",
   domain: "ko.wikipedia.org",
   content: body,
-  content_hash: "a".repeat(64),
+  content_hash: createHash("sha256").update(body, "utf8").digest("hex"),
   license_status: "attribution_required",
   license_name: "CC BY-SA 4.0",
   attribution: "Wikipedia contributors; title, URL and license retained",
@@ -38,18 +39,19 @@ test("missing revision/hash provenance remains pending", () => {
   assert.match(result.reason, /리비전·해시/);
 });
 
-test("manual approval requires a meaningful fact-check note", () => {
-  assert.equal(validateManualApproval(valid, "확인").ok, false);
-  assert.equal(validateManualApproval(valid, "문서 본문과 원문 출처를 대조 확인함").ok, true);
+test("manual approval requires a meaningful fact-check note", async () => {
+  assert.equal((await validateManualApproval(valid, "확인")).ok, false);
+  assert.equal((await validateManualApproval(valid, "문서 본문과 원문 출처를 대조 확인함")).ok, true);
 });
 
-test("manual approval rejects a non-Wikipedia URL", () => {
-  const result = validateManualApproval({ ...valid, url: "https://example.com/page" }, "문서 본문과 원문 출처를 대조 확인함");
+test("manual approval rejects a non-Wikipedia URL", async () => {
+  const result = await validateManualApproval({ ...valid, url: "https://example.com/page" }, "문서 본문과 원문 출처를 대조 확인함");
   assert.equal(result.ok, false);
   assert.match(result.reason, /원문 URL/);
 });
 
-test("manual approval rejects an altered body hash", () => {
-  const result = validateManualApproval({ ...valid, content_hash: "b".repeat(64) }, "문서 본문과 원문 출처를 대조 확인함");
-  assert.equal(result.ok, true); // The D1 hash is checked by the inference importer against the body bytes.
+test("manual approval rejects an altered body hash", async () => {
+  const result = await validateManualApproval({ ...valid, content_hash: "b".repeat(64) }, "문서 본문과 원문 출처를 대조 확인함");
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /SHA-256/);
 });
