@@ -3,6 +3,11 @@ name: Quantum Candidate encrypted training
 on:
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: "먼저 테스트만 실행하고 학습은 건너뜀 (기본값: true)"
+        required: true
+        type: boolean
+        default: true
       corpus:
         description: "학습 코퍼스 신뢰 등급"
         required: true
@@ -43,7 +48,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Candidate safety preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: quantum-inference
+    steps:
+      - name: Checkout isolated Candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: quantum-candidate-security-hardening
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU-only test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
+          python -m pip install cryptography==46.0.3
+      - name: Compile Candidate source
+        run: python -m compileall -q .
+      - name: Run checkpoint and metadata safety tests
+        run: python -m unittest -v tests/test_checkpoint_safety.py tests/test_checkpoint_storage.py tests/test_model_metadata.py
+      - name: Run pretraining data integrity tests
+        run: python -m unittest -v test_wikipedia_pretrain.py
+
   train-candidate:
+    name: Candidate training (explicit opt-in)
+    needs: preflight
+    if: ${{ inputs.dry_run == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
