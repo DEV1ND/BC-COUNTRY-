@@ -8,6 +8,11 @@ on:
         required: true
         type: boolean
         default: true
+      confirm_candidate_training:
+        description: "실제 Candidate 학습을 별도로 승인 (기본값: false; dry_run=false도 함께 필요)"
+        required: true
+        type: boolean
+        default: false
       corpus:
         description: "학습 코퍼스 신뢰 등급"
         required: true
@@ -79,7 +84,7 @@ jobs:
   train-candidate:
     name: Candidate training (explicit opt-in)
     needs: preflight
-    if: ${{ inputs.dry_run == false }}
+    if: ${{ inputs.dry_run == false && inputs.confirm_candidate_training == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
