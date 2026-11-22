@@ -6,6 +6,9 @@ on:
       - "quantum-inference/wikipedia_pretrain.py"
       - "quantum-inference/test_wikipedia_pretrain.py"
       - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/export_wikipedia_corpus.py"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/worker-safety.test.mjs"
       - ".github/workflows/quantum-wikipedia-pretrain.yml"
   push:
     branches:
@@ -24,5 +27,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python -m py_compile quantum-inference/wikipedia_pretrain.py quantum-inference/bpe_tokenizer.py
+      - run: python -m py_compile quantum-inference/wikipedia_pretrain.py quantum-inference/export_wikipedia_corpus.py quantum-inference/bpe_tokenizer.py
       - run: python -m unittest discover -s quantum-inference -p 'test_wikipedia_pretrain.py'
+      - run: node --test cloudflare-workers/tests/worker-safety.test.mjs
