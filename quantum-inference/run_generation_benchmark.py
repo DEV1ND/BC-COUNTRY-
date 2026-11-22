@@ -77,6 +77,8 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
 
     started = datetime.now(timezone.utc).isoformat()
     results = []
+    generation_invocations = 0
+    approved_qa_retrieval_cases = 0
     for case in cases:
         prompt = str(case.get("prompt", "")).strip()
         context = str(case.get("context", "")).strip()
@@ -92,6 +94,15 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
         answer = response.get("answer")
         if not isinstance(answer, str):
             raise RuntimeError("Candidate response for " + str(case["id"]) + " has no answer string.")
+        if response.get("is_live_inference") is not True:
+            raise RuntimeError("Candidate response for " + str(case["id"]) + " is not marked as live inference.")
+        if response.get("model") not in ("quantum-approved-knowledge", "quantum-bpe-candidate"):
+            raise RuntimeError("Candidate returned an unrecognized model identity for " + str(case["id"]) + ".")
+        response_mode = response.get("response_mode", "candidate_generation")
+        if response_mode == "approved_qa_retrieval":
+            approved_qa_retrieval_cases += 1
+        else:
+            generation_invocations += 1
         results.append({
             "id": case["id"],
             "category": case["category"],
@@ -99,7 +110,7 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
             "context": context or None,
             "answer": answer,
             "response_model": response.get("model"),
-            "response_mode": response.get("response_mode", "candidate_generation"),
+            "response_mode": response_mode,
             "must_include_rubric": case.get("must_include", []),
             "human_review_status": "pending",
         })
@@ -124,7 +135,9 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
         "human_review_required": True,
         "automatic_quality_score": None,
         "results": results,
-        "model_invoked": True,
+        "model_invoked": generation_invocations > 0,
+        "generation_invocations": generation_invocations,
+        "approved_qa_retrieval_cases": approved_qa_retrieval_cases,
         "model_training": False,
         "production_model_touched": False,
     }
@@ -150,6 +163,8 @@ def main():
     )
     print(json.dumps({
         "cases_completed": report["cases_completed"],
+        "generation_invocations": report["generation_invocations"],
+        "approved_qa_retrieval_cases": report["approved_qa_retrieval_cases"],
         "human_review_required": report["human_review_required"],
         "automatic_quality_score": report["automatic_quality_score"],
         "output_path": report["output_path"],
