@@ -20,7 +20,7 @@ from knowledge_retrieval import build_fts_query, query_terms, rank_documents
 from retrieval_benchmark import evaluate_retrieval_cases
 from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
-from knowledge_index_status import build_index_status
+from knowledge_index_status import build_index_status, rebuild_knowledge_fts
 from model_metadata import build_model_metadata
 from checkpoint_storage import download_release_checkpoint
 
