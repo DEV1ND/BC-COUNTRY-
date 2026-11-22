@@ -32,7 +32,7 @@ def fetch_page(api_base, token, corpus, after, limit, access_client_id="", acces
         for secret in (token, access_client_id, access_client_secret):
             if secret:
                 body = body.replace(secret, "[REDACTED]")
-        body = body.replace("\\r", " ").replace("\\n", " ")[:300]
+        body = body.replace("\r", " ").replace("\n", " ")[:300]
         server = exc.headers.get("Server", "unknown")
         ray = exc.headers.get("CF-Ray", "unavailable")
         content_type = exc.headers.get("Content-Type", "unknown")
