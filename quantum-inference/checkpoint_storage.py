@@ -47,7 +47,7 @@ def prepare_checkpoint(
 
     if path.is_file():
         if not expected:
-            return path, {"status": "local_file", "sha256_verified": False}
+            return None, {"status": "checkpoint_sha256_required"}
         if _verified(path, expected):
             return path, {"status": "local_file", "sha256_verified": True}
 
