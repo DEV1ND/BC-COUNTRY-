@@ -24,12 +24,12 @@ class SeedQualityTests(unittest.TestCase):
     def test_zero_requested_is_not_success(self):
         self.assertFalse(summarize_seed_outcome({},0,0)["complete"])
 
-if __name__=="__main__": unittest.main()
-
-
     def test_canonical_seed_title_aliases(self):
         self.assertEqual(canonical_seed_title("기후 변화"), "기후변화")
         self.assertEqual(canonical_seed_title("화학 원소"), "원소 (화학)")
         self.assertEqual(canonical_seed_title("운영 체제"), "운영체제")
         self.assertEqual(canonical_seed_title("컴퓨터 네트워크"), "컴퓨터 망")
         self.assertEqual(canonical_seed_title("인공지능"), "인공지능")
+
+
+if __name__=="__main__": unittest.main()
