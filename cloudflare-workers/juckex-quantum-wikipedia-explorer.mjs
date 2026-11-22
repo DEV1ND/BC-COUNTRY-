@@ -1,5 +1,5 @@
 import { reviewCandidate, validateManualApproval } from "./auto_review.mjs";
-import { planMissingPageIds } from "./knowledge_sync_plan.mjs";
+import { planMissingPageIds, isCandidateInferenceTarget } from "./knowledge_sync_plan.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -75,7 +75,8 @@ async function autoReviewPending(env, limit = 15) {
 }
 
 async function syncApproved(env){
-  if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN) return {ok:false,synced:0,error:"inference_sync_not_configured"};
+  if(!env.QUANTUM_API_TOKEN || !isCandidateInferenceTarget(env.QUANTUM_INFERENCE_URL))
+    return {ok:false,synced:0,error:"candidate_inference_target_required"};
   const headers={"authorization":"Bearer "+env.QUANTUM_API_TOKEN};
   let cacheStatus;
   try{
@@ -88,8 +89,8 @@ async function syncApproved(env){
   if(!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
     return {ok:false,synced:0,error:"inference_status_missing_complete_page_ids",detail:"Deploy the compatible inference status endpoint before enabling ID-based reconciliation."};
   const cachedIds=new Set(cacheStatus.page_ids.map(value=>String(value)));
-  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND length(content)>=200").first();
-  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND length(content)>=200 ORDER BY id").all();
+  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200").first();
+  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200 ORDER BY id").all();
   const approvedIds=(approved.results||[]).map(row=>String(row.id));
   const missingIds=planMissingPageIds(approvedIds,cachedIds,SYNC_BATCH);
   const rebuilding=cachedIds.size<Number(expected?.count||0);
@@ -97,7 +98,7 @@ async function syncApproved(env){
     return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
   }
   const placeholders=missingIds.map(()=>"?").join(",");
-  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' ORDER BY id").bind(...missingIds).all();
+  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' ORDER BY id").bind(...missingIds).all();
   const rows=result.results||[];
   if(rows.length!==missingIds.length)
     return {ok:false,synced:0,error:"approved_document_batch_changed_during_sync",expectedBatch:missingIds.length,selected:rows.length};
@@ -122,29 +123,8 @@ async function syncApproved(env){
   }
   return {ok:true,synced:marked,inference:importResult,rebuilding,cacheDocumentsBefore:cachedIds.size,expectedDocuments:expected?.count||0};
 }
-async function maybeStartIncrementalTraining(env){
-  if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN)
-    return {started:false,reason:"inference_training_not_configured"};
-  const count=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND synced_at IS NOT NULL").first();
-  if((count?.count||0)<10) return {started:false,reason:"need_at_least_10_approved_synced_pages",documents:count?.count||0};
-  const previous=await env.DB.prepare("SELECT value FROM settings WHERE key='training_last_requested_at'").first();
-  if(previous?.value){
-    const due=await env.DB.prepare("SELECT CASE WHEN datetime(?) <= datetime('now','-1 day') THEN 1 ELSE 0 END AS due").bind(previous.value).first();
-    if(!due?.due) return {started:false,reason:"daily_training_interval_not_reached",documents:count.count};
-  }
-  let response;
-  try{
-    response=await fetch(new URL("/admin/training/start",env.QUANTUM_INFERENCE_URL),{
-      method:"POST",headers:{"authorization":"Bearer "+env.QUANTUM_API_TOKEN},
-      signal:AbortSignal.timeout(15000)
-    });
-  }catch(e){return {started:false,reason:"training_service_unreachable",detail:String(e.message||e)};}
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok) return {started:false,reason:"training_service_rejected",status:response.status,detail:result};
-  if(result.started){
-    await env.DB.prepare("INSERT INTO settings(key,value) VALUES('training_last_requested_at',datetime('now')) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
-  }
-  return {...result,documents:count.count};
+async function maybeStartIncrementalTraining(){
+  return {started:false,reason:"automatic_training_disabled",note:"Wikipedia retrieval updates never modify Quantum model weights."};
 }
 async function runCycle(env){
   const state=await env.DB.prepare("SELECT value FROM settings WHERE key='running'").first();
@@ -184,7 +164,7 @@ export default {
     if(request.method==="GET"&&url.pathname==="/health")return json({ok:true,service:"quantum-wikipedia-explorer",isolated:true,provider:"ko.wikipedia.org"});
     if(!authorized(request,env))return json({error:"unauthorized"},401);
     if(request.method==="GET"&&url.pathname==="/training-status"){
-      if(!env.QUANTUM_INFERENCE_URL||!env.QUANTUM_API_TOKEN)return json({error:"training_service_not_configured"},503);
+      if(!env.QUANTUM_API_TOKEN||!isCandidateInferenceTarget(env.QUANTUM_INFERENCE_URL))return json({error:"candidate_inference_target_required"},503);
       try{
         const response=await fetch(new URL("/admin/training/status",env.QUANTUM_INFERENCE_URL),{
           headers:{"authorization":"Bearer "+env.QUANTUM_API_TOKEN},signal:AbortSignal.timeout(15000)
