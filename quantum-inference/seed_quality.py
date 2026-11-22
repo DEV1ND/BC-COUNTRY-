@@ -44,7 +44,7 @@ def canonical_seed_title(title):
     return WIKIPEDIA_TITLE_ALIASES.get(requested, requested)
 
 
-def should_skip_wikipedia_seed(index_status, required_documents=1, force=False):
+def should_skip_wikipedia_seed(index_status, required_documents=1, force=False, required_titles=None):
     """Reuse an already healthy local index; never skip an explicitly forced refresh."""
     if force or not isinstance(index_status, dict):
         return False
@@ -54,6 +54,11 @@ def should_skip_wikipedia_seed(index_status, required_documents=1, force=False):
     except (TypeError, ValueError):
         return False
     integrity = index_status.get("integrity")
+    if required_titles:
+        available_titles = {str(title or "").strip().casefold() for title in index_status.get("titles", [])}
+        expected_titles = {str(title or "").strip().casefold() for title in required_titles if str(title or "").strip()}
+        if not expected_titles or not expected_titles.issubset(available_titles):
+            return False
     return (
         documents >= required
         and index_status.get("schema_complete") is True
