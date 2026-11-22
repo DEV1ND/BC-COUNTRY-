@@ -12,7 +12,7 @@ def source(**overrides):
         "url": "https://ko.wikipedia.org/wiki/인공지능",
         "text": "인공지능은 기계가 지능적인 작업을 수행하도록 하는 기술 분야다. " * 12,
         "license": "CC BY-SA 4.0",
-        "attribution": "Wikipedia contributors; title and URL retained",
+        "attribution": "Wikipedia contributors, 인공지능, https://ko.wikipedia.org/wiki/인공지능; licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).",
     }
     row.update(overrides)
     return row
@@ -33,13 +33,22 @@ class GenerationSourcesTests(unittest.TestCase):
     def test_invalid_url_license_or_attribution_is_not_cited(self):
         rows = [
             source(url="https://example.com/fake"),
+            source(url="https://ko.wikipedia.org.evil.example/wiki/인공지능"),
             source(license="CC BY 3.0"),
-            source(attribution=" "),
+            source(attribution="출처 표기만 있고 라이선스 정보 없음"),
             source(title=""),
             source(text=""),
         ]
         self.assertEqual(serialize_knowledge_sources(rows), [])
         self.assertEqual(build_knowledge_context(rows), "")
+
+    def test_attribution_must_include_title_url_and_license_terms(self):
+        self.assertEqual(
+            serialize_knowledge_sources([
+                source(attribution="Wikipedia contributors; source page")
+            ]),
+            [],
+        )
 
     def test_duplicate_sources_are_deduplicated(self):
         row = source()
