@@ -19,6 +19,7 @@ from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
 from knowledge_index_status import build_index_status
 from model_metadata import build_model_metadata
+from checkpoint_restore import restore_checkpoint
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -72,6 +73,20 @@ def load_model():
     model.load_state_dict(payload["state_dict"], strict=True)
     model.eval()
     return model, tokenizer, payload
+
+CHECKPOINT_RESTORE_STATUS = "not_configured"
+CHECKPOINT_RESTORE_ERROR = None
+try:
+    restore_result = restore_checkpoint(
+        CHECKPOINT,
+        os.getenv("QUANTUM_CHECKPOINT_URL", ""),
+        os.getenv("QUANTUM_CHECKPOINT_ENCRYPTION_KEY", ""),
+    )
+    CHECKPOINT_RESTORE_STATUS = restore_result["status"]
+except Exception as exc:
+    # Do not expose URLs, response bodies, or secret-related details in health output.
+    CHECKPOINT_RESTORE_STATUS = "failed"
+    CHECKPOINT_RESTORE_ERROR = type(exc).__name__
 
 model, tokenizer, checkpoint_meta = load_model()
 MODEL_METADATA = build_model_metadata(model, checkpoint_meta)
@@ -201,6 +216,8 @@ def health():
             "model_parameters": MODEL_PARAMETER_COUNT,
             "model_architecture": MODEL_ARCHITECTURE,
             "training_objective": MODEL_TRAINING_OBJECTIVE,
+            "checkpoint_restore_status": CHECKPOINT_RESTORE_STATUS,
+            "checkpoint_restore_error": CHECKPOINT_RESTORE_ERROR,
             "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
