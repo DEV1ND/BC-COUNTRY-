@@ -42,3 +42,20 @@ def build_index_status(conn, page_id_limit=5000):
         and invalid_provenance==0 and fts_available and missing_fts==0 and orphan_fts==0)
     return {"documents":count,"page_ids":page_ids,"page_ids_complete":count<=len(page_ids),
         "schema_complete":True,"integrity":integrity}
+
+
+
+def rebuild_knowledge_fts(conn):
+    """Rebuild the FTS5 mirror from canonical documents inside the caller's transaction."""
+    conn.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+        page_id UNINDEXED,title,text,tokenize='unicode61')""")
+    conn.execute("DELETE FROM knowledge_fts")
+    conn.execute("""INSERT INTO knowledge_fts(page_id,title,text)
+        SELECT page_id,title,text FROM knowledge_docs ORDER BY page_id""")
+    source_count=int(conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0])
+    indexed_count=int(conn.execute("SELECT COUNT(DISTINCT page_id) FROM knowledge_fts").fetchone()[0])
+    return {
+        "source_documents":source_count,
+        "indexed_documents":indexed_count,
+        "complete":source_count==indexed_count,
+    }
