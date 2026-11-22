@@ -89,6 +89,47 @@ class WikipediaSeedTests(unittest.TestCase):
             self.assertEqual(row[1], hashlib.sha256(changed.encode("utf-8")).hexdigest())
             self.assertEqual(row[2], changed)
 
+    def test_empty_extract_uses_revision_parse_fallback(self):
+        from urllib.parse import parse_qs, urlparse
+
+        calls = []
+
+        def fake_urlopen(request, timeout=30):
+            params = parse_qs(urlparse(request.full_url).query)
+            calls.append(params)
+            if params.get("action") == ["query"]:
+                return FakeResponse({"query": {"pages": [
+                    page("1", "인공지능", "", "12345")
+                ]}})
+            self.assertEqual(params.get("oldid"), ["12345"])
+            html = (
+                '<div class="mw-parser-output">'
+                '<table class="infobox"><tr><td>숨김 표 내용</td></tr></table>'
+                '<p>' + self.body + '</p>'
+                '<sup class="reference">숨김 각주</sup>'
+                '<div class="navbox">숨김 내비게이션</div>'
+                '</div>'
+            )
+            return FakeResponse({"parse": {
+                "title": "인공지능", "pageid": 1, "revid": 12345, "text": html
+            }})
+
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "인공지능"}):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                report = seed_wikipedia(self.db_path)
+
+        self.assertEqual(report["fetch_mode"], "batch_plus_parse_fallback")
+        self.assertEqual(report["parse_fallback_attempted"], 1)
+        self.assertEqual(report["parse_fallback_failures"], 0)
+        self.assertEqual(report["imported_this_start"], 1)
+        with sqlite3.connect(self.db_path) as conn:
+            stored = conn.execute("SELECT text FROM knowledge_docs WHERE page_id='1'").fetchone()[0]
+        self.assertIn("인공지능은", stored)
+        self.assertNotIn("숨김 표 내용", stored)
+        self.assertNotIn("숨김 각주", stored)
+        self.assertNotIn("숨김 내비게이션", stored)
+        self.assertEqual([call.get("action", [""])[0] for call in calls], ["query", "parse"])
+
     def test_existing_legacy_schema_is_migrated_in_place(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""CREATE TABLE knowledge_docs (
