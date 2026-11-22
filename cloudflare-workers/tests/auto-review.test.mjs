@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { reviewCandidate, validateManualApproval } from "../auto_review.mjs";
 
 const body = Array.from({ length: 6 }, (_, i) =>
-  `인공지능은 컴퓨터 과학의 한 분야이다. 연구 주제 ${i + 1}에서는 지능적인 작업을 수행하는 시스템의 원리와 활용을 설명한다.`
+  `인공지능은 컴퓨터 과학의 한 분야이며 연구 주제 ${i + 1}의 개념을 설명한다. 이 단락 ${i + 1}에서는 지능적인 작업을 수행하는 시스템의 원리와 활용을 다룬다.`
 ).join("\n\n");
 const valid = {
   provider: "wikipedia",
