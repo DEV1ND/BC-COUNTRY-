@@ -297,7 +297,8 @@ def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=N
         raise HTTPException(500, "검색 평가 데이터를 읽거나 실행하지 못했습니다: " + str(exc)[:180])
     conn = knowledge_db()
     try:
-        knowledge_count = int(conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0])
+        index_status = build_index_status(conn, page_id_limit=5000)
+        knowledge_count = index_status["documents"]
     finally:
         conn.close()
     return {
@@ -305,7 +306,11 @@ def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=N
         "benchmark_version": dataset.get("version"),
         "report": report,
         "knowledge_documents": knowledge_count,
+        "knowledge_index_integrity": index_status.get("integrity"),
+        "knowledge_index_schema_complete": index_status.get("schema_complete", False),
         "production_model_touched": False,
+        "model_invoked": False,
+        "model_training": False,
     }
 
 
