@@ -84,8 +84,18 @@ def load_model():
     model.eval()
     return model, tokenizer, payload
 
-model, tokenizer, checkpoint_meta = load_model()
-CHECKPOINT_SOURCE = "local_file" if CHECKPOINT.exists() else ("github_release" if CHECKPOINT_RELEASE_TAG else "missing")
+CHECKPOINT_LOAD_ERROR = None
+try:
+    model, tokenizer, checkpoint_meta = load_model()
+except Exception as exc:
+    # A failed Candidate restore must not crash the API process or masquerade as a loaded model.
+    model, tokenizer, checkpoint_meta = None, None, None
+    CHECKPOINT_LOAD_ERROR = f"{type(exc).__name__}: {str(exc)[:240]}"
+
+CHECKPOINT_SOURCE = "local_file" if model is not None and CHECKPOINT.exists() else (
+    "github_release" if model is not None and CHECKPOINT_RELEASE_TAG else
+    ("restore_failed" if CHECKPOINT_LOAD_ERROR else "missing")
+)
 MODEL_METADATA = build_model_metadata(model, checkpoint_meta)
 MODEL_PARAMETER_COUNT = MODEL_METADATA["model_parameters"]
 MODEL_ARCHITECTURE = MODEL_METADATA["model_architecture"]
@@ -226,6 +236,7 @@ def health():
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
             "checkpoint_source": CHECKPOINT_SOURCE,
             "checkpoint_release_tag": CHECKPOINT_RELEASE_TAG or None,
+            "checkpoint_load_error": CHECKPOINT_LOAD_ERROR,
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 
