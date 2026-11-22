@@ -55,7 +55,7 @@ class _WikipediaPlainTextParser(HTMLParser):
             if tag not in self.VOID_TAGS:
                 self._skip_stack.append(tag)
             return
-        classes = dict(attrs).get("class", "").lower().split()
+        classes = str(dict(attrs).get("class") or "").lower().split()
         should_skip = tag in self.SKIP_TAGS or any(
             marker in class_name
             for class_name in classes
@@ -66,7 +66,7 @@ class _WikipediaPlainTextParser(HTMLParser):
                 self._skip_stack.append(tag)
             return
         if tag in self.BLOCK_TAGS:
-            self.parts.append("\\n")
+            self.parts.append("\n")
 
     def handle_endtag(self, tag):
         if self._skip_stack:
@@ -76,7 +76,7 @@ class _WikipediaPlainTextParser(HTMLParser):
                     break
             return
         if tag in self.BLOCK_TAGS:
-            self.parts.append("\\n")
+            self.parts.append("\n")
 
     def handle_data(self, data):
         if not self._skip_stack:
