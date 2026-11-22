@@ -145,11 +145,15 @@ def import_korean_wikipedia_seed():
             for item in result.get("page_diagnostics", [])
             if item.get("reason") != "imported"
         ][:8]
+        retrieval_failures = [
+            {"domain": item.get("domain"), "query": item.get("query"), "retrieved_titles": item.get("titles")}
+            for item in smoke_tests if not item.get("matched")
+        ][:8]
         logger.warning(
-            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s skipped=%s skip_reasons=%s fallback_failures=%s sample_skips=%s elapsed=%.2fs",
+            "Wikipedia knowledge seed %s: mode=%s returned=%s imported=%s/%s total=%s retrieval=%s/%s retrieval_failures=%s skipped=%s skip_reasons=%s fallback_failures=%s sample_skips=%s elapsed=%.2fs",
             quality["status"], result.get("fetch_mode"), result.get("returned_pages"),
             result.get("imported_this_start"), result.get("requested"), result.get("total_documents"),
-            passed, len(smoke_tests), result.get("skipped"), result.get("skip_reasons"),
+            passed, len(smoke_tests), retrieval_failures, result.get("skipped"), result.get("skip_reasons"),
             result.get("fallback_failures"), sample_skips, time.monotonic() - started_at,
         )
     except Exception as exc:
