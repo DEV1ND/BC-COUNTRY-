@@ -106,6 +106,13 @@ MODEL_TRAINING_OBJECTIVE = MODEL_METADATA["training_objective"]
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
 logger = logging.getLogger("juckex.quantum.knowledge")
+logger.info(
+    "Quantum Candidate checkpoint status=%s model_loaded=%s parameters=%s source=%s",
+    "loaded" if model is not None else ("restore_failed" if CHECKPOINT_LOAD_ERROR else "missing"),
+    model is not None,
+    MODEL_PARAMETER_COUNT,
+    CHECKPOINT_SOURCE,
+)
 
 @app.on_event("startup")
 def import_korean_wikipedia_seed():
@@ -244,6 +251,8 @@ def health():
     try: knowledge_count = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
     finally: conn.close()
     return {"ok": True, "model_loaded": model is not None,
+            "generation_ready": MODEL_METADATA["generation_ready"],
+            "checkpoint_status": "loaded" if model is not None else ("restore_failed" if CHECKPOINT_LOAD_ERROR else "missing"),
             "model": "Quantum BPE Candidate" if model is not None else "Quantum BPE Candidate (checkpoint missing)",
             "model_parameters": MODEL_PARAMETER_COUNT,
             "model_architecture": MODEL_ARCHITECTURE,
