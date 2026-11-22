@@ -1,5 +1,5 @@
 import { reviewCandidate, validateManualApproval } from "./auto_review.mjs";
-import { planMissingPageIds, isCandidateInferenceTarget } from "./knowledge_sync_plan.mjs";
+import { planMissingPageIds, isCandidateInferenceTarget, buildSyncPreview } from "./knowledge_sync_plan.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -227,6 +227,39 @@ async function syncApproved(env){
   }
   return {ok:true,synced:marked,inference:importResult,rebuilding,cacheDocumentsBefore:cachedIds.size,expectedDocuments:expected?.count||0};
 }
+async function previewApprovedSync(env) {
+  if (!env.QUANTUM_API_TOKEN || !isCandidateInferenceTarget(env.QUANTUM_INFERENCE_URL))
+    return {ok:false,dryRun:true,error:"candidate_inference_target_required",writes_performed:false};
+  let cacheStatus;
+  try {
+    const response = await fetch(new URL("/admin/knowledge/status", env.QUANTUM_INFERENCE_URL), {
+      headers: {"authorization":"Bearer "+env.QUANTUM_API_TOKEN},
+      signal: AbortSignal.timeout(15000)
+    });
+    cacheStatus = await response.json().catch(() => ({}));
+    if (!response.ok)
+      return {ok:false,dryRun:true,error:"inference_status_rejected",status:response.status,writes_performed:false};
+  } catch (error) {
+    return {ok:false,dryRun:true,error:"inference_status_unreachable",detail:String(error.message||error),writes_performed:false};
+  }
+  if (!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
+    return {ok:false,dryRun:true,error:"inference_status_missing_complete_page_ids",writes_performed:false};
+  const approved = await env.DB.prepare(
+    "SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200 ORDER BY id"
+  ).all();
+  const approvedIds = (approved.results||[]).map(row => String(row.id));
+  const preview = buildSyncPreview(approvedIds, cacheStatus.page_ids, SYNC_BATCH);
+  return {
+    ok:true,
+    dryRun:true,
+    ...preview,
+    candidateKnowledgeDocuments:Number(cacheStatus.documents||0),
+    candidateIndexHealthy:cacheStatus.integrity?.healthy===true,
+    writes_performed:false,
+    note:"D1과 Candidate 데이터는 변경하지 않았습니다. 실제 동기화는 별도 POST /sync-approved 요청에서만 실행됩니다."
+  };
+}
+
 async function maybeStartIncrementalTraining(){
   return {started:false,reason:"automatic_training_disabled",note:"Wikipedia retrieval updates never modify Quantum model weights."};
 }
@@ -352,6 +385,7 @@ export default {
     if(request.method==="POST"&&url.pathname==="/run-once")return json(await runCycle(env));
     if(request.method==="POST"&&url.pathname==="/auto-review"){let body={};try{body=await request.json();}catch{} const limit=Math.min(50,Math.max(1,Number(body.limit||20))); return json({ok:true,review:await autoReviewPending(env,limit)});}
     if(request.method==="POST"&&url.pathname==="/approve")return approvePage(request,env);
+    if(request.method==="GET"&&url.pathname==="/sync-preview")return json(await previewApprovedSync(env));
     if(request.method==="POST"&&url.pathname==="/sync-approved")return json(await syncApproved(env));
     return json({error:"not_found"},404);
   },
