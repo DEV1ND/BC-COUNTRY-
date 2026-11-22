@@ -57,7 +57,7 @@ class CorpusValidationTests(unittest.TestCase):
         bad = row("1")
         bad["content_hash"] = "0" * 64
         docs, rejected = load_corpus(self.write_rows([bad, row("2"), row("3")]), False)
-        self.assertEqual(len(docs), 1)
+        self.assertEqual(len(docs), 2)
         self.assertEqual(rejected["invalid_metadata"], 1)
 
     def test_split_is_stable_and_keeps_documents_separate(self):
