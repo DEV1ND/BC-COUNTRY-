@@ -321,12 +321,12 @@ export default {
       // Legacy export route is deliberately restricted to explicit human approvals.
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,reviewer_note FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
         license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
         revision_id:row.revision_id,content_hash:row.content_hash,status:"approved",
-        reviewer_note:"MANUAL_APPROVAL: legacy export compatibility"
+        reviewer_note:row.reviewer_note||""
       })).filter(row=>row.text.length>=200);
       return json({documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
     }
