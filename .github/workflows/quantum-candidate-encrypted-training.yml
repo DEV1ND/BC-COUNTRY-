@@ -175,7 +175,7 @@ jobs:
           tag="quantum-candidate-${GITHUB_RUN_ID}"
           gh release create "$tag" /tmp/quantum-candidate.pt.enc \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$(git rev-parse HEAD)" \
             --title "$tag" \
             --notes "Encrypted Quantum Candidate checkpoint only. This public release asset is AES-256-GCM ciphertext; the decryption key is not stored in this repository. Candidate-only; not approved for Production."
           echo "Published encrypted checkpoint release: $tag"
