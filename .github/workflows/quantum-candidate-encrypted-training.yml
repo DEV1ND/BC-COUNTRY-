@@ -112,14 +112,14 @@ jobs:
       - name: Install isolated CPU training dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r quantum-inference/requirements.txt
+          python -m pip install -r requirements.txt
 
       - name: Export private corpus from Cloudflare Worker
         env:
           JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
         run: |
           umask 077
-          python quantum-inference/export_wikipedia_corpus.py \
+          python export_wikipedia_corpus.py \
             --api https://juckex-quantum-wikipedia-explorer.bcsite.workers.dev \
             --corpus "$CORPUS" \
             --output /tmp/quantum-corpus-full.jsonl
@@ -159,7 +159,7 @@ jobs:
           if [[ "$CORPUS" == "unverified" ]]; then
             args+=(--allow-unverified-experimental)
           fi
-          python quantum-inference/wikipedia_pretrain.py "${args[@]}"
+          python wikipedia_pretrain.py "${args[@]}"
 
       - name: Encrypt checkpoint and detailed report before artifact upload
         env:
