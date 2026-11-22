@@ -25,4 +25,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m py_compile quantum-inference/wikipedia_pretrain.py quantum-inference/bpe_tokenizer.py
-      - run: python -m unittest quantum-inference/test_wikipedia_pretrain.py
+      - run: python -m unittest discover -s quantum-inference -p 'test_wikipedia_pretrain.py'
