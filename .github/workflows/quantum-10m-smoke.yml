@@ -59,14 +59,15 @@ jobs:
           }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Upload 10M smoke-test artifacts
+      # This repository is public. Never attach model weights to its workflow artifacts.
+      # Keep only non-weight experiment metadata here until a private checkpoint store is verified.
+      - name: Upload experiment reports only (no model checkpoint)
         uses: actions/upload-artifact@v4
         with:
-          name: juckex-quantum-10m-smoke
+          name: juckex-quantum-10m-report
           path: |
             bpe_candidate_report.json
             bpe_candidate.json
-            bpe_candidate_checkpoint.pt
             bpe_generation_seed_20261123.json
           if-no-files-found: error
           retention-days: 14
