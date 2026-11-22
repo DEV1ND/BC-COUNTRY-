@@ -4,12 +4,15 @@ on:
   pull_request:
     branches:
       - quantum-data-repair
+      - quantum-candidate-security-hardening
+      - quantum-candidate-r2-storage
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-auth-tests.yml"
   push:
     branches:
       - quantum-candidate-security-hardening
+      - quantum-candidate-r2-storage
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-auth-tests.yml"
@@ -27,5 +30,5 @@ jobs:
           python-version: "3.12"
       - name: Compile candidate Python sources
         run: python -m compileall -q .
-      - name: Run auth policy tests
-        run: python -m unittest -v test_auth_policy.py
+      - name: Run candidate security and storage tests
+        run: python -m unittest -v test_auth_policy.py test_checkpoint_storage.py
