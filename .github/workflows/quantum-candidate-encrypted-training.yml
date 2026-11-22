@@ -1,0 +1,180 @@
+name: Quantum Candidate encrypted training
+
+on:
+  workflow_dispatch:
+    inputs:
+      corpus:
+        description: "학습 코퍼스 신뢰 등급"
+        required: true
+        type: choice
+        options:
+          - manual
+          - unverified
+        default: manual
+      allow_unverified_experimental:
+        description: "미검증 문서를 사실 검증이 아닌 실험용 언어 코퍼스로 사용한다는 점을 확인"
+        required: true
+        type: boolean
+        default: false
+      max_documents:
+        description: "초기 실험 문서 수 상한"
+        required: true
+        type: choice
+        options:
+          - "10"
+          - "25"
+          - "50"
+        default: "25"
+      steps:
+        description: "학습 스텝 (초기 실험은 50 권장)"
+        required: true
+        type: choice
+        options:
+          - "25"
+          - "50"
+          - "100"
+        default: "50"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantum-candidate-encrypted-training
+  cancel-in-progress: false
+
+jobs:
+  train-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
+      QUANTUM_CHECKPOINT_ENCRYPTION_KEY: ${{ secrets.QUANTUM_CHECKPOINT_ENCRYPTION_KEY }}
+      CORPUS: ${{ inputs.corpus }}
+      ALLOW_UNVERIFIED: ${{ inputs.allow_unverified_experimental }}
+      MAX_DOCUMENTS: ${{ inputs.max_documents }}
+      TRAIN_STEPS: ${{ inputs.steps }}
+    steps:
+      - name: Checkout Candidate source
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets and trust selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$JUCKEX_WIKI_ADMIN_TOKEN" || { echo "::error::Repository secret JUCKEX_WIKI_ADMIN_TOKEN is missing."; exit 1; }
+          [[ "$QUANTUM_CHECKPOINT_ENCRYPTION_KEY" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::QUANTUM_CHECKPOINT_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes)."; exit 1; }
+          if [[ "$CORPUS" == "unverified" && "$ALLOW_UNVERIFIED" != "true" ]]; then
+            echo "::error::Unverified documents require explicit experimental-corpus acknowledgement."
+            exit 1
+          fi
+
+      - name: Install isolated CPU training dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r quantum-inference/requirements.txt cryptography
+
+      - name: Export private corpus from Cloudflare Worker
+        run: |
+          umask 077
+          python quantum-inference/export_wikipedia_corpus.py \
+            --api https://juckex-quantum-wikipedia-explorer.bcsite.workers.dev \
+            --corpus "$CORPUS" \
+            --output /tmp/quantum-corpus-full.jsonl
+
+      - name: Select deterministic pilot subset
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          source = Path("/tmp/quantum-corpus-full.jsonl")
+          target = Path("/tmp/quantum-corpus-pilot.jsonl")
+          limit = int(os.environ["MAX_DOCUMENTS"])
+          rows = [json.loads(line) for line in source.read_text(encoding="utf-8").splitlines() if line.strip()]
+          rows.sort(key=lambda row: str(row.get("page_id", "")))
+          rows = rows[:limit]
+          if len(rows) < 2:
+              raise SystemExit(f"Candidate training requires at least 2 eligible documents; found {len(rows)}.")
+          with target.open("w", encoding="utf-8") as output:
+              for row in rows:
+                  output.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+          os.chmod(target, 0o600)
+          print(f"Selected {len(rows)} documents for the bounded pilot run.")
+          PY
+
+      - name: Train isolated Candidate checkpoint
+        run: |
+          args=(
+            --corpus /tmp/quantum-corpus-pilot.jsonl
+            --output /tmp/quantum-candidate.pt
+            --report /tmp/quantum-candidate-report.json
+            --steps "$TRAIN_STEPS"
+            --width 64
+            --heads 4
+            --layers 2
+            --vocab-size 1024
+          )
+          if [[ "$CORPUS" == "unverified" ]]; then
+            args+=(--allow-unverified-experimental)
+          fi
+          python quantum-inference/wikipedia_pretrain.py "${args[@]}"
+
+      - name: Encrypt checkpoint and detailed report before artifact upload
+        env:
+          ENCRYPTION_KEY: ${{ secrets.QUANTUM_CHECKPOINT_ENCRYPTION_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+          key = bytes.fromhex(os.environ["ENCRYPTION_KEY"])
+          cipher = AESGCM(key)
+          for source_name, output_name in (
+              ("/tmp/quantum-candidate.pt", "quantum-candidate.pt.enc"),
+              ("/tmp/quantum-candidate-report.json", "quantum-candidate-report.json.enc"),
+          ):
+              source = Path(source_name)
+              nonce = os.urandom(12)
+              aad = output_name.encode("utf-8")
+              encrypted = b"JQENC1" + nonce + cipher.encrypt(nonce, source.read_bytes(), aad)
+              target = Path("/tmp") / output_name
+              target.write_bytes(encrypted)
+              os.chmod(target, 0o600)
+          report = json.loads(Path("/tmp/quantum-candidate-report.json").read_text(encoding="utf-8"))
+          summary = {
+              "model": report["model"],
+              "parameters": report["parameters"],
+              "steps_requested": report["steps_requested"],
+              "best_validation_loss": report["best_validation_loss"],
+              "document_count": report["dataset"]["document_count"],
+              "train_document_count": report["dataset"]["train_document_count"],
+              "validation_document_count": report["dataset"]["validation_document_count"],
+              "trust_counts": report["dataset"]["trust_counts"],
+              "rejected_rows": report["dataset"]["rejected_rows"],
+              "promotion_eligible": False,
+              "production_model_touched": False,
+              "checkpoint_encrypted": True,
+          }
+          Path("/tmp/quantum-candidate-summary.json").write_text(
+              json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(summary, ensure_ascii=False))
+          PY
+
+      - name: Upload encrypted Candidate artifacts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-candidate-encrypted-${{ github.run_id }}
+          path: |
+            /tmp/quantum-candidate.pt.enc
+            /tmp/quantum-candidate-report.json.enc
+            /tmp/quantum-candidate-summary.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove plaintext corpus and checkpoint from runner
+        if: always()
+        shell: bash
+        run: |
+          rm -f /tmp/quantum-corpus-full.jsonl /tmp/quantum-corpus-pilot.jsonl
+          rm -f /tmp/quantum-candidate.pt /tmp/quantum-candidate-report.json
+          rm -f /tmp/quantum-candidate.pt.enc /tmp/quantum-candidate-report.json.enc /tmp/quantum-candidate-summary.json
