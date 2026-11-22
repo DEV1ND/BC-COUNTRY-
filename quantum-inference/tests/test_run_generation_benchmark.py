@@ -51,7 +51,7 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
                 "model_parameters": 273086,
                 "checkpoint_source": "github_release",
             }
-            answer = {"answer": "토요일 오후 2시에 닫습니다.", "model": "quantum-bpe-candidate"}
+            answer = {"answer": "토요일 오후 2시에 닫습니다.", "model": "quantum-bpe-candidate", "is_live_inference": True}
             with patch("urllib.request.urlopen", side_effect=[FakeResponse(health), FakeResponse(answer)]) as mocked:
                 report = run_benchmark(
                     "https://candidate.example",
