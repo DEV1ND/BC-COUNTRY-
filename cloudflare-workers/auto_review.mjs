@@ -48,8 +48,21 @@ export function reviewCandidate(row) {
 
 export async function validateManualApproval(row, reviewerNote) {
   const note = String(reviewerNote || "").trim();
-  if (note.length < 12)
-    return { ok: false, reason: "사실 확인 내용을 12자 이상 검토 메모로 남겨야 합니다." };
+  if (note.length < 20)
+    return { ok: false, reason: "사실 확인 요약을 20자 이상 작성해야 합니다." };
+  const referenceUrls = note.match(/https:\/\/[^\s<>"']+/g) || [];
+  const hasIndependentReference = referenceUrls.some(value => {
+    try {
+      const reference = new URL(value.replace(/[),.;]+$/, ""));
+      return reference.protocol === "https:" &&
+        reference.hostname !== "ko.wikipedia.org" &&
+        !reference.hostname.endsWith(".wikipedia.org");
+    } catch {
+      return false;
+    }
+  });
+  if (!hasIndependentReference)
+    return { ok: false, reason: "위키백과 외부의 독립적인 HTTPS 대조 출처를 검토 메모에 포함해야 합니다." };
   const url = String(row.url || "");
   if (row.provider !== "wikipedia" || row.domain !== "ko.wikipedia.org" ||
       !url.startsWith("https://ko.wikipedia.org/wiki/"))
