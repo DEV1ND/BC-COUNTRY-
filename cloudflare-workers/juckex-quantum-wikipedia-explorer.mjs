@@ -6,7 +6,7 @@ const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTR
 const MAX_RESULTS = 8;
 const SYNC_BATCH = 5;
 const MAX_PAGE_CHARS = 50000;
-const REVIEW_HTML = \`<!doctype html>
+const REVIEW_HTML = `<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -109,7 +109,7 @@ el("token").addEventListener("keydown",event=>{if(event.key==="Enter")connect();
 el("refresh").addEventListener("click",loadQueue);
 el("approve").addEventListener("click",approve);
 el("skip").addEventListener("click",()=>{selected=null;el("detail").hidden=true;});
-</script></body></html>\`;
+</script></body></html>`;
 
 function json(data,status=200){return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});}
 async function sha256(value){
