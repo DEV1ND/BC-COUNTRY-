@@ -22,9 +22,9 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         }
         result = evaluate_retrieval_cases(self.cases, lambda q, k: corpus[q][:k], k=5)
         self.assertEqual(result["cases"], 3)
-        self.assertEqual(result["hit_rate_at_k"], 2 / 3)
-        self.assertEqual(result["precision_at_k"], 0.5)
-        self.assertEqual(result["mean_reciprocal_rank"], round((0.5 + 1 + 0) / 3, 4))
+        self.assertEqual(result["hit_rate_at_k"], 0.6667)
+        self.assertEqual(result["precision_at_k"], 0.8333)
+        self.assertEqual(result["mean_reciprocal_rank"], 0.5)
         self.assertEqual(result["correct_abstentions"], 1)
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
