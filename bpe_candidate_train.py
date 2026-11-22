@@ -323,7 +323,11 @@ def main():
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
-    parameter_count = sum(p.numel() for p in candidate.parameters())
+    parameter_count = sum(p.numel() for p in candidate.parameters() if p.requires_grad)
+    non_parameter_buffer_elements = sum(buffer.numel() for buffer in candidate.buffers())
+    checkpoint_tensor_elements = sum(tensor.numel() for tensor in candidate.state_dict().values())
+    if checkpoint_tensor_elements != parameter_count + non_parameter_buffer_elements:
+        raise RuntimeError("체크포인트 텐서 수와 학습 파라미터·버퍼 수가 일치하지 않습니다.")
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
@@ -435,6 +439,10 @@ def main():
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
         "candidate_parameters": parameter_count,
+        "trainable_parameter_count": parameter_count,
+        "non_parameter_buffer_elements": non_parameter_buffer_elements,
+        "checkpoint_tensor_elements": checkpoint_tensor_elements,
+        "parameter_count_definition": "학습 가능한 파라미터만 포함하며 register_buffer 텐서는 별도 기록",
         "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
         "final_training_loss": round(losses[-1], 5),
         "live_char_model_bits_per_character": round(live_bpc, 5),
