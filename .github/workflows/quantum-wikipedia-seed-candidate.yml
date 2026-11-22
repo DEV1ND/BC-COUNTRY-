@@ -12,6 +12,10 @@ on:
       - "quantum-inference/retrieval_benchmark.py"
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/generation_sources.py"
+      - "quantum-inference/knowledge_provenance.py"
+      - "quantum-inference/knowledge_index_status.py"
+      - "quantum-inference/tests/test_knowledge_provenance.py"
+      - "quantum-inference/tests/test_knowledge_index_status.py"
       - "quantum-inference/tests/test_wikipedia_seed.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
       - "quantum-inference/tests/test_generation_sources.py"
@@ -52,10 +56,14 @@ jobs:
           python -m py_compile quantum-inference/tests/test_retrieval_benchmark.py
           python -m py_compile quantum-inference/knowledge_retrieval.py
           python -m py_compile quantum-inference/generation_sources.py
+          python -m py_compile quantum-inference/knowledge_provenance.py
+          python -m py_compile quantum-inference/knowledge_index_status.py
+          python -m py_compile quantum-inference/tests/test_knowledge_provenance.py
+          python -m py_compile quantum-inference/tests/test_knowledge_index_status.py
           python -m py_compile quantum-inference/tests/test_wikipedia_seed.py
           python -m py_compile quantum-inference/tests/test_knowledge_retrieval.py
           python -m py_compile quantum-inference/tests/test_generation_sources.py
       - name: Run isolated knowledge and retrieval tests
         run: |
           cd quantum-inference
-          python -m unittest tests.test_wikipedia_seed tests.test_knowledge_retrieval tests.test_generation_sources tests.test_retrieval_benchmark -v
+          python -m unittest tests.test_wikipedia_seed tests.test_knowledge_retrieval tests.test_generation_sources tests.test_retrieval_benchmark tests.test_knowledge_provenance tests.test_knowledge_index_status -v
