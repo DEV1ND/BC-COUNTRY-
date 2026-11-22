@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from wikipedia_seed import seed_wikipedia, LICENSE
+from wikipedia_seed import seed_wikipedia, LICENSE, DEFAULT_TITLES
 
 
 class FakeResponse:
@@ -152,6 +152,34 @@ class WikipediaSeedTests(unittest.TestCase):
         self.assertEqual(report["imported_this_start"], 2)
         self.assertNotIn("rvlimit", captured)
         self.assertEqual(captured.get("titles"), ["인공지능|컴퓨터"])
+
+    def test_default_seed_covers_40_unique_topics(self):
+        self.assertEqual(len(DEFAULT_TITLES), 40)
+        self.assertEqual(len({title.casefold() for title in DEFAULT_TITLES}), 40)
+        self.assertIn("데이터베이스", DEFAULT_TITLES)
+        self.assertIn("인권", DEFAULT_TITLES)
+
+    def test_requested_titles_are_deduplicated_and_capped_at_50(self):
+        from urllib.parse import parse_qs, urlparse
+
+        captured = {}
+        titles = [f"주제{i}" for i in range(55)]
+        titles[1] = titles[0].upper()
+
+        def fake_urlopen(request, timeout=30):
+            captured.update(parse_qs(urlparse(request.full_url).query))
+            return FakeResponse({"query": {"pages": [
+                page("1", "주제0", self.body, "12345")
+            ]}})
+
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "|".join(titles)}):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                report = seed_wikipedia(self.db_path)
+
+        requested = captured["titles"][0].split("|")
+        self.assertEqual(len(requested), 50)
+        self.assertEqual(len(set(title.casefold() for title in requested)), 50)
+        self.assertEqual(report["requested"], 50)
 
     def test_api_error_is_not_reported_as_empty_success(self):
         with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "인공지능"}):
