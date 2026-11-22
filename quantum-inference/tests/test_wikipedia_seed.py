@@ -132,6 +132,27 @@ class WikipediaSeedTests(unittest.TestCase):
         self.assertEqual(report["total_documents"], 2)
         self.assertEqual(calls, ["인공지능|컴퓨터", "인공지능", "컴퓨터"])
 
+    def test_batch_query_omits_revision_limit_incompatible_with_multiple_titles(self):
+        from urllib.parse import parse_qs, urlparse
+
+        captured = {}
+
+        def fake_urlopen(request, timeout=30):
+            captured.update(parse_qs(urlparse(request.full_url).query))
+            return FakeResponse({"query": {"pages": [
+                page("1", "인공지능", self.body, "12345"),
+                page("2", "컴퓨터", self.body, "12346"),
+            ]}})
+
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "인공지능|컴퓨터"}):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                report = seed_wikipedia(self.db_path)
+
+        self.assertEqual(report["fetch_mode"], "batch")
+        self.assertEqual(report["imported_this_start"], 2)
+        self.assertNotIn("rvlimit", captured)
+        self.assertEqual(captured.get("titles"), ["인공지능|컴퓨터"])
+
     def test_api_error_is_not_reported_as_empty_success(self):
         with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "인공지능"}):
             with patch("urllib.request.urlopen",
