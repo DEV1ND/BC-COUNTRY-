@@ -111,10 +111,14 @@ jobs:
         shell: bash
         env:
           JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           QUANTUM_CHECKPOINT_ENCRYPTION_KEY: ${{ secrets.QUANTUM_CHECKPOINT_ENCRYPTION_KEY }}
         run: |
           set -euo pipefail
           test -n "$JUCKEX_WIKI_ADMIN_TOKEN" || { echo "::error::Repository secret JUCKEX_WIKI_ADMIN_TOKEN is missing."; exit 1; }
+          test -n "$CF_ACCESS_CLIENT_ID" || { echo "::error::Repository secret CF_ACCESS_CLIENT_ID is missing."; exit 1; }
+          test -n "$CF_ACCESS_CLIENT_SECRET" || { echo "::error::Repository secret CF_ACCESS_CLIENT_SECRET is missing."; exit 1; }
           [[ "$QUANTUM_CHECKPOINT_ENCRYPTION_KEY" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::QUANTUM_CHECKPOINT_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes)."; exit 1; }
           if [[ "$CORPUS" == "unverified" && "$ALLOW_UNVERIFIED" != "true" ]]; then
             echo "::error::Unverified documents require explicit experimental-corpus acknowledgement."
@@ -129,6 +133,8 @@ jobs:
       - name: Export private corpus from Cloudflare Worker
         env:
           JUCKEX_WIKI_ADMIN_TOKEN: ${{ secrets.JUCKEX_WIKI_ADMIN_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           umask 077
           python quantum-inference/export_wikipedia_corpus.py \
