@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from retrieval_benchmark import evaluate_retrieval_cases, validate_retrieval_cases
+from retrieval_benchmark import evaluate_retrieval_cases, validate_retrieval_cases, normalize_retrieval_title
+from wikipedia_seed import DEFAULT_TITLES
 
 
 class RetrievalBenchmarkTests(unittest.TestCase):
@@ -32,6 +33,33 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(result["domain_metrics"]["과학"]["hit_rate_at_k"], 1.0)
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
+
+    def test_wikipedia_title_aliases_match_expected_titles(self):
+        cases = [
+            {"id": "climate", "domain": "과학", "question": "기후 변화",
+             "expected_titles": ["기후 변화"]},
+            {"id": "os", "domain": "기술", "question": "운영 체제",
+             "expected_titles": ["운영 체제"]},
+        ]
+        retrieved = {
+            "기후 변화": [{"title": "기후변화"}],
+            "운영 체제": [{"title": "운영체제"}],
+        }
+        report = evaluate_retrieval_cases(cases, lambda q, k: retrieved[q], k=3)
+        self.assertEqual(report["hit_rate_at_k"], 1.0)
+        self.assertEqual(report["mean_reciprocal_rank"], 1.0)
+
+    def test_all_expected_titles_exist_in_seed_topic_catalog(self):
+        path = Path(__file__).resolve().parents[1] / "evaluation" / "knowledge_retrieval_cases.json"
+        dataset = json.loads(path.read_text(encoding="utf-8"))
+        available = {normalize_retrieval_title(title) for title in DEFAULT_TITLES}
+        missing = [
+            (case["id"], title)
+            for case in dataset["cases"]
+            for title in case["expected_titles"]
+            if normalize_retrieval_title(title) not in available
+        ]
+        self.assertEqual(missing, [])
 
     def test_limits_k_and_retrieved_results(self):
         result = evaluate_retrieval_cases(
