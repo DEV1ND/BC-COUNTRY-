@@ -349,8 +349,9 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
             try:
                 conn.execute("DELETE FROM knowledge_fts WHERE page_id=?",(page_id,))
                 conn.execute("INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",(page_id,title,body))
-            except sqlite3.OperationalError:
-                pass
+            except sqlite3.OperationalError as exc:
+                conn.rollback()
+                raise HTTPException(503, "검색 인덱스 저장에 실패해 전체 가져오기를 취소했습니다.") from exc
             imported += 1
         conn.commit()
     finally: conn.close()
@@ -365,6 +366,28 @@ def knowledge_status(authorization: Optional[str] = Header(default=None)):
     finally:
         conn.close()
     return {"ok":True,**status,"storage":"local-cache-rebuildable"}
+
+
+@app.post("/admin/knowledge/reindex")
+def rebuild_knowledge_index(authorization: Optional[str] = Header(default=None)):
+    """Rebuild only the derived FTS index; canonical knowledge documents are preserved."""
+    require_admin(authorization)
+    conn=knowledge_db()
+    try:
+        result=rebuild_knowledge_fts(conn)
+        if not result["complete"]:
+            conn.rollback()
+            raise HTTPException(500, "검색 인덱스 문서 수가 원본과 일치하지 않습니다.")
+        conn.commit()
+    except HTTPException:
+        raise
+    except sqlite3.Error as exc:
+        conn.rollback()
+        raise HTTPException(503, "검색 인덱스를 재구축하지 못했습니다.") from exc
+    finally:
+        conn.close()
+    return {"ok":True,**result,"source_documents_unchanged":True,"model_invoked":False,
+            "model_training":False,"production_model_touched":False}
 
 @app.post("/admin/training/start")
 def training_start(authorization: Optional[str] = Header(default=None)):
