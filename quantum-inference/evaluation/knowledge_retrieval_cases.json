@@ -1,7 +1,7 @@
 {
   "version": 1,
   "scope": "retrieval_only",
-  "description": "25개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
+  "description": "27개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
   "cases": [
     {
       "id": "daily-life",
@@ -46,7 +46,7 @@
     {
       "id": "society",
       "domain": "사회",
-      "question": "사회 구조와 사회학",
+      "question": "민주주의의 기본 원리와 사회 구조",
       "expected_titles": [
         "민주주의"
       ]
