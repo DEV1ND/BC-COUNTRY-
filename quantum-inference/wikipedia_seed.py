@@ -3,6 +3,7 @@
 Wikipedia extracts are imported for retrieval only, never converted into SFT pairs.
 Each accepted page stores its source URL, CC BY-SA 4.0 license, and attribution.
 """
+import hashlib
 import json
 import os
 import sqlite3
@@ -26,7 +27,9 @@ def seed_wikipedia(db_path):
         "action": "query",
         "format": "json",
         "formatversion": "2",
-        "prop": "extracts|info",
+        "prop": "extracts|info|revisions",
+        "rvprop": "ids",
+        "rvlimit": "1",
         "explaintext": "1",
         "inprop": "url",
         "redirects": "1",
@@ -59,7 +62,13 @@ def seed_wikipedia(db_path):
         conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_docs (
             page_id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
             text TEXT NOT NULL, license TEXT NOT NULL, attribution TEXT NOT NULL,
+            revision_id TEXT, content_hash TEXT,
             imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(knowledge_docs)")}
+        if "revision_id" not in columns:
+            conn.execute("ALTER TABLE knowledge_docs ADD COLUMN revision_id TEXT")
+        if "content_hash" not in columns:
+            conn.execute("ALTER TABLE knowledge_docs ADD COLUMN content_hash TEXT")
         conn.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
             page_id UNINDEXED,title,text,tokenize='unicode61')""")
 
@@ -68,6 +77,11 @@ def seed_wikipedia(db_path):
             title = str(page.get("title", "")).strip()
             url = str(page.get("fullurl", "")).strip()
             body = str(page.get("extract", "")).strip()[:50000]
+            revisions = page.get("revisions") or []
+            revision_id = str(page.get("lastrevid") or (
+                revisions[0].get("revid") if revisions and isinstance(revisions[0], dict) else ""
+            )).strip()
+            content_hash = hashlib.sha256(body.encode("utf-8")).hexdigest() if body else ""
 
             if page.get("missing") or not page_id:
                 skip("missing_or_no_page_id", title, page_id, url, len(body))
@@ -81,18 +95,22 @@ def seed_wikipedia(db_path):
             if len(body) < 200:
                 skip("extract_too_short", title, page_id, url, len(body))
                 continue
+            if not revision_id:
+                skip("missing_revision_id", title, page_id, url, len(body))
+                continue
 
             attribution = (
                 "Wikipedia contributors, " + title + ", " + url +
                 "; licensed under CC BY-SA 4.0 (" + LICENSE_URL + ")."
             )
             conn.execute("""INSERT INTO knowledge_docs
-                (page_id,title,url,text,license,attribution)
-                VALUES(?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
+                (page_id,title,url,text,license,attribution,revision_id,content_hash)
+                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
                 title=excluded.title,url=excluded.url,text=excluded.text,
                 license=excluded.license,attribution=excluded.attribution,
+                revision_id=excluded.revision_id,content_hash=excluded.content_hash,
                 imported_at=CURRENT_TIMESTAMP""",
-                (page_id, title, url, body, LICENSE, attribution))
+                (page_id, title, url, body, LICENSE, attribution, revision_id, content_hash))
             conn.execute("DELETE FROM knowledge_fts WHERE page_id=?", (page_id,))
             conn.execute(
                 "INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",
