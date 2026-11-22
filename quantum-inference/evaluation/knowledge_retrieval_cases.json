@@ -1,7 +1,7 @@
 {
   "version": 1,
   "scope": "retrieval_only",
-  "description": "15개 분야 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
+  "description": "25개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
   "cases": [
     {
       "id": "daily-life",
@@ -121,6 +121,102 @@
       "domain": "모르는 질문 대응",
       "question": "가상의 제타쿼크 왕국의 918번째 왕 이름",
       "expected_titles": []
+    },
+    {
+      "id": "biology",
+      "domain": "생명과학",
+      "question": "세포의 구조와 기능",
+      "expected_titles": [
+        "세포"
+      ]
+    },
+    {
+      "id": "evolution",
+      "domain": "진화",
+      "question": "생물의 진화 과정",
+      "expected_titles": [
+        "진화"
+      ]
+    },
+    {
+      "id": "genetics",
+      "domain": "유전학",
+      "question": "유전과 유전자의 원리",
+      "expected_titles": [
+        "유전학"
+      ]
+    },
+    {
+      "id": "earth-science",
+      "domain": "지구과학",
+      "question": "지구과학의 기본 분야",
+      "expected_titles": [
+        "지구과학"
+      ]
+    },
+    {
+      "id": "sun",
+      "domain": "태양",
+      "question": "태양의 특징과 역할",
+      "expected_titles": [
+        "태양"
+      ]
+    },
+    {
+      "id": "moon",
+      "domain": "달",
+      "question": "달의 특징과 위상",
+      "expected_titles": [
+        "달"
+      ]
+    },
+    {
+      "id": "atom",
+      "domain": "원자",
+      "question": "원자의 구조와 구성",
+      "expected_titles": [
+        "원자"
+      ]
+    },
+    {
+      "id": "energy",
+      "domain": "에너지",
+      "question": "에너지의 종류와 보존",
+      "expected_titles": [
+        "에너지"
+      ]
+    },
+    {
+      "id": "software",
+      "domain": "소프트웨어",
+      "question": "소프트웨어의 개념과 종류",
+      "expected_titles": [
+        "소프트웨어"
+      ]
+    },
+    {
+      "id": "database",
+      "domain": "데이터베이스",
+      "question": "데이터베이스의 역할과 구조",
+      "expected_titles": [
+        "데이터베이스"
+      ]
+    },
+    {
+      "id": "information-security",
+      "domain": "정보 보안",
+      "question": "정보 보안의 기본 개념",
+      "expected_titles": [
+        "정보 보안"
+      ]
+    },
+    {
+      "id": "human-rights",
+      "domain": "인권",
+      "question": "인권의 기본 개념과 의미",
+      "expected_titles": [
+        "인권"
+      ]
     }
   ]
 }
