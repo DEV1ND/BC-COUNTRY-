@@ -13,14 +13,14 @@
 
 ## 현재 체크포인트 상태
 
-체크포인트 파일은 저장소에 커밋하지 않습니다. 현재 Candidate 브랜치의 파일 목록에는 `bpe_candidate_checkpoint.pt`가 없고 GitHub Releases에도 암호화된 Candidate 체크포인트 릴리스가 확인되지 않았습니다. 따라서 Render의 실행 파일 경로만으로 모델이 로드된다고 볼 수 없습니다.
+체크포인트 파일은 저장소에 평문으로 커밋하지 않습니다. GitHub Releases에는 `quantum-candidate-45010825022` 태그의 암호화된 `quantum-candidate.pt.enc` 자산이 존재합니다. 다만 릴리스 자산이 존재한다는 사실만으로 Render 인스턴스에서 복원에 성공했다고 볼 수는 없습니다.
 
-- 체크포인트가 없으면 `/health`는 `model_loaded: false`와 파라미터 수 0을 반환합니다.
-- 이 상태에서 `/v1/generate`는 정상 답변을 생성하지 않고 HTTP 503으로 거부합니다.
-- 실제 추론 검증은 비공개 Candidate 체크포인트를 안전하게 연결한 뒤 수행해야 합니다.
-- 비밀키나 체크포인트를 공개 저장소에 커밋하지 않습니다.
+- `/health`의 `model_loaded`와 `generation_ready`가 모두 `true`여야 추론 준비 상태입니다.
+- `model_parameters`, `model_architecture`, `checkpoint_source`, `checkpoint_load_error`를 실제 런타임에서 확인합니다.
+- 체크포인트 복원 실패 또는 누락 시 `/v1/generate`는 정상 생성 대신 HTTP 503으로 거부합니다.
+- 비밀키나 복호화된 체크포인트를 공개 저장소에 커밋하지 않습니다.
 
-`QUANTUM_CHECKPOINT_PATH`는 비공개로 마운트된 Candidate 체크포인트 경로를 가리켜야 합니다. 암호화된 GitHub Release를 사용할 경우 `QUANTUM_CHECKPOINT_RELEASE_TAG`와 Render Secret의 `QUANTUM_CHECKPOINT_ENCRYPTION_KEY`가 필요합니다. 이 값은 채팅이나 저장소에 공개하지 않습니다.
+Render에서는 `QUANTUM_CHECKPOINT_RELEASE_TAG`에 고정된 릴리스 태그와 Secret `QUANTUM_CHECKPOINT_ENCRYPTION_KEY`가 필요합니다. 로컬 파일 방식이면 `QUANTUM_CHECKPOINT_PATH`가 Candidate 체크포인트 파일을 정확히 가리켜야 합니다. 이 값은 채팅이나 저장소에 공개하지 않습니다.
 
 ## 모델 규모 및 품질
 
