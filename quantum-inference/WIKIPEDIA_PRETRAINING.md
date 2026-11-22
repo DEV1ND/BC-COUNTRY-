@@ -37,3 +37,23 @@ The checkpoint uses the same `state_dict`, `tokenizer`, and `architecture` keys 
 Documents are deterministically split by page ID before tokenizer merge training; validation documents do not contribute merge counts. The exact title, URL, revision, hash, attribution, license, and trust classification are retained in the checkpoint manifest. Preserve applicable CC BY-SA 4.0 attribution and share-alike requirements when redistributing source material or adaptations; model-weight licensing implications need separate review.
 
 Validation loss only measures next-token prediction on the held-out text. It is not semantic accuracy, factual accuracy, or a promotion gate. Run independent Korean/domain evaluations and human review before considering any Candidate deployment. Production is never modified by this script.
+
+
+## Exporting from the private Cloudflare Worker
+
+The Worker exposes an admin-authenticated, paginated `/export-candidate` endpoint. It has two explicit trust classes:
+
+- `--corpus manual`: only `approved` rows with a `MANUAL_APPROVAL:` review record.
+- `--corpus unverified`: only `pending_review` rows, labeled `unverified_experimental` by the training pipeline.
+
+Legacy `AUTO_REVIEW` approvals are excluded from both. The endpoint returns at most 10 documents per request and does not change D1 state. Export locally with Python's standard library:
+
+```bash
+export JUCKEX_WIKI_ADMIN_TOKEN='(set this in your local shell; do not paste it into chat)'
+python quantum-inference/export_wikipedia_corpus.py \
+  --api https://juckex-quantum-wikipedia-explorer.bcsite.workers.dev \
+  --corpus unverified \
+  --output ./private/wiki-unverified.jsonl
+```
+
+Use `--corpus manual` for the human-reviewed set. The exporter creates the output with owner-only permissions and never prints or stores the token. Keep the JSONL file private and remove it securely when no longer needed. This download is a read-only D1 operation; it does not start training or upload the corpus anywhere.
