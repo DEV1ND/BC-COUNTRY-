@@ -1,7 +1,7 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
 import os, json, re, sqlite3, hashlib, io, logging, time
 from knowledge_provenance import has_valid_wikipedia_attribution
-from seed_quality import summarize_seed_outcome
+from seed_quality import summarize_seed_outcome, canonical_seed_title
 from pathlib import Path
 from typing import Optional
 import torch
@@ -116,7 +116,7 @@ def import_korean_wikipedia_seed():
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
         expected_topics = [
-            {"domain": title, "query": title, "expected_title": title}
+            {"domain": title, "query": title, "expected_title": canonical_seed_title(title)}
             for title in DEFAULT_TITLES
         ]
         for case in expected_topics:
