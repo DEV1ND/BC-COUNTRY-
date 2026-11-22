@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
 from wikipedia_seed import seed_wikipedia
+from checkpoint_storage import prepare_checkpoint
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
@@ -34,7 +35,8 @@ APPROVED_QA_ROWS = load_approved_qa()
 BLOCK = 256
 DEVICE = torch.device("cpu")
 torch.set_num_threads(max(1, min(2, int(os.getenv("TORCH_THREADS", "1")))))
-CHECKPOINT = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
+CHECKPOINT_PATH = Path(os.getenv("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt"))
+CHECKPOINT, CHECKPOINT_STORAGE_STATUS = prepare_checkpoint(CHECKPOINT_PATH)
 API_TOKEN = os.getenv("QUANTUM_API_TOKEN", "")
 
 class BPECandidate(nn.Module):
@@ -61,7 +63,7 @@ def banned_ngram_tokens(tokens, n=3):
     return {tokens[i+n-1] for i in range(len(tokens)-n+1) if tuple(tokens[i:i+n-1]) == prefix}
 
 def load_model():
-    if not CHECKPOINT.exists():
+    if CHECKPOINT is None or not CHECKPOINT.exists():
         return None, None, None
     payload = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
     arch = payload["architecture"]
@@ -187,6 +189,7 @@ def health():
     return {"ok": True, "model_loaded": model is not None,
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
+            "checkpoint_storage": CHECKPOINT_STORAGE_STATUS,
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
