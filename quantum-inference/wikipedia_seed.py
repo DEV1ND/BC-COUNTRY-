@@ -9,6 +9,7 @@ import os
 import sqlite3
 import urllib.parse
 import urllib.request
+from knowledge_provenance import is_valid_wikipedia_url
 
 DEFAULT_TITLES = [
     "인공지능", "컴퓨터", "인터넷", "대한민국", "태양계",
@@ -24,17 +25,7 @@ LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 
 def is_wikipedia_url(url):
-    try:
-        parsed = urllib.parse.urlsplit(str(url or "").strip())
-        return (
-            parsed.scheme == "https"
-            and parsed.netloc == "ko.wikipedia.org"
-            and parsed.path.startswith("/wiki/")
-            and not parsed.query
-            and not parsed.fragment
-        )
-    except ValueError:
-        return False
+    return is_valid_wikipedia_url(url)
 
 
 
