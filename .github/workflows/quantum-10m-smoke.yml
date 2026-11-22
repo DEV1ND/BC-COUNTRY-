@@ -70,7 +70,6 @@ jobs:
           path: |
             bpe_candidate_report.json
             bpe_candidate.json
-            bpe_candidate_checkpoint.pt
             bpe_generation_seed_20261123.json
             quantum_decoding_sweep.json
           if-no-files-found: error
