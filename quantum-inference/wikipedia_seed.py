@@ -13,7 +13,8 @@ import urllib.request
 DEFAULT_TITLES = [
     "인공지능", "컴퓨터", "인터넷", "대한민국", "태양계",
     "물리학", "화학", "생물학", "기후 변화", "민주주의",
-    "경제학", "수학",
+    "경제학", "수학", "시간 관리", "역사", "과학",
+    "지리학", "기술", "프로그래밍 언어", "언어학", "논리학",
 ]
 LICENSE = "CC BY-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
