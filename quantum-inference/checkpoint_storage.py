@@ -44,8 +44,10 @@ def download_release_checkpoint(repository, tag, key_hex, timeout=30):
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             release_raw = response.read(2 * 1024 * 1024 + 1)
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"GitHub release metadata request failed with HTTP status {exc.code}.") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
-        raise RuntimeError("Could not retrieve the pinned Quantum Candidate release metadata.") from exc
+        raise RuntimeError("GitHub release metadata request failed due to a network or TLS error.") from exc
     if len(release_raw) > 2 * 1024 * 1024:
         raise RuntimeError("GitHub release metadata exceeded the safety limit.")
 
