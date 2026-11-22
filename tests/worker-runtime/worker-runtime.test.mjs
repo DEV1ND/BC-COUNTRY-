@@ -17,32 +17,19 @@ before(async () => {
     bindings: { ADMIN_TOKEN },
   });
   db = mf.getD1Database("DB");
-  await db.exec(`
-    CREATE TABLE pages (
-      id TEXT PRIMARY KEY,
-      provider TEXT,
-      domain TEXT,
-      title TEXT,
-      url TEXT,
-      content TEXT,
-      snippet TEXT,
-      status TEXT NOT NULL,
-      license_status TEXT,
-      license_name TEXT,
-      attribution TEXT,
-      revision_id TEXT,
-      content_hash TEXT,
-      reviewer_note TEXT,
-      discovered_at TEXT,
-      last_seen_at TEXT,
-      synced_at TEXT,
-      reviewed_at TEXT,
-      sync_error TEXT
-    );
-    CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
-    CREATE TABLE search_topics (query TEXT PRIMARY KEY, enabled INTEGER DEFAULT 1, last_searched_at TEXT, last_error TEXT);
-    CREATE TABLE crawl_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, discovered INTEGER, updated INTEGER, synced INTEGER, errors TEXT, ran_at TEXT);
-  `);
+  const schema = [
+    `CREATE TABLE pages (
+      id TEXT PRIMARY KEY, provider TEXT, domain TEXT, title TEXT, url TEXT,
+      content TEXT, snippet TEXT, status TEXT NOT NULL, license_status TEXT,
+      license_name TEXT, attribution TEXT, revision_id TEXT, content_hash TEXT,
+      reviewer_note TEXT, discovered_at TEXT, last_seen_at TEXT, synced_at TEXT,
+      reviewed_at TEXT, sync_error TEXT
+    )`,
+    "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)",
+    "CREATE TABLE search_topics (query TEXT PRIMARY KEY, enabled INTEGER DEFAULT 1, last_searched_at TEXT, last_error TEXT)",
+    "CREATE TABLE crawl_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, discovered INTEGER, updated INTEGER, synced INTEGER, errors TEXT, ran_at TEXT)",
+  ];
+  for (const statement of schema) await db.prepare(statement).run();
 });
 
 after(async () => {
@@ -140,5 +127,5 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   assert.match(stored.reviewer_note, /^MANUAL_APPROVAL:/);
 
   // Fixture cleanup is confined to the ephemeral Miniflare database.
-  await db.exec("DELETE FROM pages");
+  await db.prepare("DELETE FROM pages").run();
 });
