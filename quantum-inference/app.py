@@ -73,6 +73,15 @@ def load_model():
     return model, tokenizer, payload
 
 model, tokenizer, checkpoint_meta = load_model()
+MODEL_PARAMETER_COUNT = (
+    sum(parameter.numel() for parameter in model.parameters())
+    if model is not None else 0
+)
+MODEL_ARCHITECTURE = checkpoint_meta.get("architecture") if checkpoint_meta else None
+MODEL_TRAINING_OBJECTIVE = (
+    checkpoint_meta.get("training_metadata", {}).get("objective")
+    if checkpoint_meta else None
+)
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
 
@@ -192,7 +201,11 @@ def health():
     try: knowledge_count = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
     finally: conn.close()
     return {"ok": True, "model_loaded": model is not None,
-            "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
+            "model": "Quantum BPE Candidate" if model is not None else "Quantum BPE Candidate (checkpoint missing)",
+            "model_parameters": MODEL_PARAMETER_COUNT,
+            "model_architecture": MODEL_ARCHITECTURE,
+            "training_objective": MODEL_TRAINING_OBJECTIVE,
+            "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
             "wikipedia_seed": wikipedia_seed_status,
@@ -356,7 +369,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         if step >= 5 and "\n\n" in decoded:
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
-    return {"answer": answer, "model": "quantum-bpe-10m-candidate",
+    return {"answer": answer, "model": "quantum-bpe-candidate",
+            "model_parameters": MODEL_PARAMETER_COUNT,
             "is_live_inference": True,
             "knowledge_sources": knowledge_sources,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
