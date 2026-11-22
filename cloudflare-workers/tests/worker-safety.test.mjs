@@ -54,3 +54,18 @@ test("legacy export excludes auto-review approvals", () => {
   assert.match(route, /reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
   assert.doesNotMatch(route, /AUTO_REVIEW/);
 });
+
+
+test("sync preview is authenticated and strictly read-only", () => {
+  const authGate = worker.indexOf("if(!authorized(request,env))");
+  const route = worker.indexOf('url.pathname==="/sync-preview"');
+  assert.ok(authGate >= 0 && route > authGate);
+  const start = worker.indexOf("async function previewApprovedSync");
+  const end = worker.indexOf("async function maybeStartIncrementalTraining", start);
+  assert.ok(start >= 0 && end > start);
+  const preview = worker.slice(start, end);
+  assert.match(preview, /dryRun:true/);
+  assert.match(preview, /writes_performed:false/);
+  assert.match(preview, /reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
+  assert.doesNotMatch(preview, /\.run\(|\.batch\(/);
+});
