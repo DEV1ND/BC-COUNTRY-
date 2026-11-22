@@ -16,3 +16,18 @@ export function planMissingPageIds(approvedIds, cachedIds, limit = 5) {
   }
   return missing;
 }
+
+
+export function isCandidateInferenceTarget(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" &&
+      url.hostname === "juckex-quantum-candidate.onrender.com" &&
+      (url.port === "" || url.port === "443") &&
+      url.username === "" && url.password === "" &&
+      (url.pathname === "/" || url.pathname === "") &&
+      url.search === "" && url.hash === "";
+  } catch {
+    return false;
+  }
+}
