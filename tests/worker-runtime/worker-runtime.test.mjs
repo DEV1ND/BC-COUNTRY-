@@ -126,6 +126,42 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   assert.equal(stored.status, "approved");
   assert.match(stored.reviewer_note, /^MANUAL_APPROVAL:/);
 
+  // The document detail route returns the selected record without exposing unrelated rows.
+  const detailResponse = await request("/page?id=manual-fixture");
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json();
+  assert.equal(detail.page_id, "manual-fixture");
+  assert.equal(detail.content, content.trim());
+
+  // Candidate export must include only explicitly human-approved documents.
+  const pendingContent = "Pending candidate export fixture. ".repeat(12);
+  await db.prepare(`
+    INSERT INTO pages (id,title,url,content,status,license_name,revision_id,content_hash,discovered_at)
+    VALUES ('pending-export','대기 문서','https://ko.wikipedia.org/wiki/Pending',?1,'pending_review','CC BY-SA 4.0','rev-pending','hash-pending','2026-01-03T00:00:00.000Z')
+  `).bind(pendingContent).run();
+  const approvedUnreviewedContent = "Approved without manual review fixture. ".repeat(12);
+  await db.prepare(`
+    INSERT INTO pages (id,title,url,content,status,license_name,revision_id,content_hash,discovered_at)
+    VALUES ('approved-unreviewed','자동 승인 문서','https://ko.wikipedia.org/wiki/Unreviewed',?1,'approved','CC BY-SA 4.0','rev-unreviewed','hash-unreviewed','2026-01-04T00:00:00.000Z')
+  `).bind(approvedUnreviewedContent).run();
+
+  const manualExportResponse = await request("/export-candidate?corpus=manual");
+  assert.equal(manualExportResponse.status, 200);
+  const manualExport = await manualExportResponse.json();
+  assert.deepEqual(manualExport.documents.map(doc => doc.page_id), ["manual-fixture"]);
+
+  const unverifiedExportResponse = await request("/export-candidate?corpus=unverified");
+  assert.equal(unverifiedExportResponse.status, 200);
+  const unverifiedExport = await unverifiedExportResponse.json();
+  assert.deepEqual(unverifiedExport.documents.map(doc => doc.page_id), ["pending-export"]);
+
+  const invalidCorpus = await request("/export-candidate?corpus=approved");
+  assert.equal(invalidCorpus.status, 400);
+  assert.equal((await invalidCorpus.json()).error, "corpus_must_be_manual_or_unverified");
+
+  const legacyExport = await (await request("/export-approved")).json();
+  assert.deepEqual(legacyExport.documents.map(doc => doc.page_id), ["manual-fixture"]);
+
   // Fixture cleanup is confined to the ephemeral Miniflare database.
   await db.prepare("DELETE FROM pages").run();
 });
