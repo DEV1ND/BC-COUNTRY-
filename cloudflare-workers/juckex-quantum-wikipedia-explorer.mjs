@@ -26,7 +26,7 @@ button:disabled{opacity:.45;cursor:not-allowed}.row{display:flex;gap:10px;align-
 #article{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:#0b1018;border:1px solid #273144;border-radius:10px;padding:15px;font-size:13px}
 a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;overflow-wrap:anywhere}.field{display:grid;gap:7px;margin:13px 0}.label{font-size:12px;color:#c4cddd;font-weight:650}
 .notice{color:#e8c985;background:#2a2418;border:1px solid #655333;padding:12px;border-radius:10px;font-size:13px}
-#error{color:#ffaaaa;min-height:22px;font-size:13px}#detail[hidden],#login[hidden]{display:none}
+#error{color:#ffaaaa;min-height:22px;font-size:13px}#detail[hidden],#login[hidden]{display:none}.hint{color:var(--muted);font-size:12px}.valid{color:#9bd6a8}.invalid{color:#ffaaaa}.search{margin-top:12px}.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid #354158;border-radius:999px;padding:4px 9px;color:#c8d2e1;font-size:11px}
 @media(max-width:820px){.grid{grid-template-columns:1fr}#queue{max-height:240px}.top{align-items:flex-start;flex-direction:column}main{padding:20px 12px 40px}}
 </style>
 </head>
@@ -38,7 +38,7 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
 </section>
 <div id="error" role="status"></div>
 <section id="workspace" class="grid" hidden>
- <aside class="card"><div class="row" style="justify-content:space-between"><strong>검토 대기 문서</strong><button id="refresh">새로고침</button></div><div id="queue" style="margin-top:14px"></div></aside>
+ <aside class="card"><div class="row" style="justify-content:space-between"><strong>검토 대기 문서</strong><button id="refresh">새로고침</button></div><div class="stats" id="stats"></div><input id="filter" class="search" type="search" placeholder="문서 제목 검색"><div class="hint">최대 50개 표시 · 자동 검토 결과는 사실 확인 완료를 뜻하지 않습니다.</div><div id="queue" style="margin-top:14px"></div></aside>
  <section id="detail" class="card" hidden>
   <h2 id="title" style="margin:0 0 8px;font-size:21px"></h2>
   <div class="meta">원문: <a id="source" target="_blank" rel="noopener noreferrer"></a></div>
@@ -46,13 +46,13 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
   <div id="article"></div>
   <div class="notice" style="margin-top:14px">승인 전 확인: 문서의 핵심 주장과 수치·날짜를 독립적인 신뢰 출처와 대조하세요. 자동 점수는 사실 정확도를 보증하지 않습니다.</div>
   <div class="field"><label class="label" for="summary">사실 검토 요약</label><textarea id="summary" placeholder="어떤 핵심 내용을 어떤 근거로 확인했는지 적어주세요."></textarea></div>
-  <div class="field"><label class="label" for="reference">독립적인 HTTPS 대조 출처</label><input id="reference" type="url" placeholder="https://..."></div>
+  <div class="field"><label class="label" for="reference">독립적인 HTTPS 대조 출처</label><input id="reference" type="url" inputmode="url" autocomplete="url" placeholder="https://example.org/article"><div id="urlHint" class="hint">위키백과가 아닌 독립 출처의 전체 주소를 입력하세요.</div></div>
   <div class="row"><button id="approve">검토 완료 및 승인</button><button id="skip" style="background:#182131;border-color:#344158;color:#d7e0ef">보류</button></div>
  </section>
 </section>
 </main>
 <script>
-let adminToken="",selected=null;
+let adminToken="",selected=null,allPages=[];
 const el=id=>document.getElementById(id);
 function showError(message){el("error").textContent=message||"";}
 async function api(path,options={}){
@@ -68,36 +68,56 @@ async function connect(){
  try{await api("/status");el("login").hidden=true;el("workspace").hidden=false;showError("");await loadQueue();}
  catch(error){adminToken="";showError("연결 실패: "+error.message);}
 }
+function renderQueue(){
+ const queue=el("queue");queue.replaceChildren();
+ const q=el("filter").value.trim().toLocaleLowerCase("ko");
+ const visible=allPages.filter(page=>String(page.title||"").toLocaleLowerCase("ko").includes(q));
+ el("stats").replaceChildren();
+ const count=document.createElement("span");count.className="pill";count.textContent="대기 "+allPages.length+"개";el("stats").appendChild(count);
+ const shown=document.createElement("span");shown.className="pill";shown.textContent="검색 결과 "+visible.length+"개";el("stats").appendChild(shown);
+ for(const page of visible){
+  const button=document.createElement("button");button.className="item";
+  button.textContent=page.title||"(제목 없음)";
+  const small=document.createElement("small");small.textContent="리비전 "+(page.revision_id||"없음")+" · "+(page.discovered_at||"");
+  button.appendChild(small);button.addEventListener("click",()=>openPage(page.id));queue.appendChild(button);
+ }
+ if(!visible.length){const p=document.createElement("p");p.className="meta";p.textContent=allPages.length?"검색 결과가 없습니다.":"검토 대기 문서가 없습니다.";queue.appendChild(p);}
+}
 async function loadQueue(){
  try{
   const data=await api("/pages?status=pending_review&limit=50");
-  const queue=el("queue");queue.replaceChildren();
-  for(const page of data.pages||[]){
-   const button=document.createElement("button");button.className="item";
-   button.textContent=page.title||"(제목 없음)";
-   const small=document.createElement("small");small.textContent="리비전 "+(page.revision_id||"없음")+" · "+(page.discovered_at||"");
-   button.appendChild(small);button.addEventListener("click",()=>openPage(page.id));queue.appendChild(button);
-  }
-  if(!(data.pages||[]).length){const p=document.createElement("p");p.className="meta";p.textContent="검토 대기 문서가 없습니다.";queue.appendChild(p);}
-  showError("");
+  allPages=data.pages||[];renderQueue();showError("");
  }catch(error){showError("목록 조회 실패: "+error.message);}
 }
 async function openPage(id){
  try{
   selected=await api("/page?id="+encodeURIComponent(id));
   el("title").textContent=selected.title;
-  el("source").href=selected.url;el("source").textContent=selected.url;
+  const sourceUrl=parseHttpsUrl(selected.url,"위키백과 원문 주소");
+  el("source").href=sourceUrl.href;el("source").textContent=sourceUrl.href;
   el("provenance").textContent="리비전: "+selected.revision_id+" · SHA-256: "+selected.content_hash+" · 라이선스: "+selected.license_name;
   el("article").textContent=selected.content;
   el("summary").value="";el("reference").value="";el("detail").hidden=false;showError("");
  }catch(error){showError("문서 조회 실패: "+error.message);}
 }
+function parseHttpsUrl(value,label){
+ const raw=String(value||"").trim();
+ if(!raw)throw new Error(label+"를 입력하세요.");
+ let parsed;try{parsed=new URL(raw);}catch{throw new Error("주소 형식이 올바르지 않습니다. https://로 시작하는 전체 URL을 입력하세요.");}
+ if(parsed.protocol!=="https:"||!parsed.hostname||parsed.hostname.includes(" "))throw new Error("HTTPS 형식의 완전한 웹 주소를 입력하세요.");
+ return parsed;
+}
+function validateReference(){
+ const hint=el("urlHint"),raw=el("reference").value.trim();
+ if(!raw){hint.className="hint";hint.textContent="독립적인 출처 URL을 입력해야 승인할 수 있습니다.";return false;}
+ try{const parsed=parseHttpsUrl(raw,"참고자료 URL");if(parsed.hostname==="ko.wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부의 독립 출처여야 합니다.");hint.className="hint valid";hint.textContent="주소 형식 확인 완료 · 실제 내용과 문서의 사실관계도 직접 대조하세요.";return true;}catch(error){hint.className="hint invalid";hint.textContent=error.message;return false;}
+}
 async function approve(){
  if(!selected)return;
  const summary=el("summary").value.trim(),reference=el("reference").value.trim();
  try{
-  const parsed=new URL(reference);
-  if(parsed.protocol!=="https:"||parsed.hostname.endsWith("wikipedia.org"))throw new Error("위키백과 외부 HTTPS 출처를 입력하세요.");
+  const parsed=parseHttpsUrl(reference,"독립적인 참고자료 URL");
+  if(parsed.hostname==="ko.wikipedia.org"||parsed.hostname.endsWith(".wikipedia.org"))throw new Error("위키백과 외부 HTTPS 출처를 입력하세요.");
   if(summary.length<20)throw new Error("사실 검토 요약을 20자 이상 작성하세요.");
   const note="검토 요약: "+summary+" | 대조 출처: "+reference;
   await api("/approve",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:selected.id,note})});
@@ -107,6 +127,8 @@ async function approve(){
 el("connect").addEventListener("click",connect);
 el("token").addEventListener("keydown",event=>{if(event.key==="Enter")connect();});
 el("refresh").addEventListener("click",loadQueue);
+el("filter").addEventListener("input",renderQueue);
+el("reference").addEventListener("input",validateReference);
 el("approve").addEventListener("click",approve);
 el("skip").addEventListener("click",()=>{selected=null;el("detail").hidden=true;});
 </script></body></html>`;
@@ -297,7 +319,7 @@ export default {
       const status=String(url.searchParams.get("status")||"pending_review");
       const limit=Math.min(50,Math.max(1,Number(url.searchParams.get("limit")||20)));
       const cursor=String(url.searchParams.get("before")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at FROM pages WHERE status=? AND (?='' OR discovered_at<?) ORDER BY discovered_at DESC LIMIT ?").bind(status,cursor,cursor,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,snippet,status,license_name,revision_id,discovered_at,last_seen_at,synced_at,reviewer_note FROM pages WHERE status=? AND (?='' OR discovered_at<?) ORDER BY discovered_at DESC LIMIT ?").bind(status,cursor,cursor,limit).all();
       return json({pages:rows.results||[]});
     }
     if(request.method==="GET"&&url.pathname==="/export-candidate"){
