@@ -1,6 +1,6 @@
 """Citation-safe formatting helpers for Quantum's retrieved Wikipedia context."""
 from typing import Iterable, Mapping
-from urllib.parse import urlsplit
+from knowledge_provenance import has_valid_wikipedia_attribution
 
 
 WIKIPEDIA_PREFIX = "https://ko.wikipedia.org/wiki/"
@@ -13,27 +13,7 @@ def _is_citable(item: Mapping) -> bool:
     attribution = str(item.get("attribution") or "").strip()
     title = str(item.get("title") or "").strip()
     text = str(item.get("text") or "").strip()
-    try:
-        parsed = urlsplit(url)
-        valid_url = (
-            parsed.scheme == "https"
-            and parsed.netloc == "ko.wikipedia.org"
-            and parsed.path.startswith("/wiki/")
-            and not parsed.query
-            and not parsed.fragment
-        )
-    except ValueError:
-        valid_url = False
-    return (
-        bool(title)
-        and bool(text)
-        and valid_url
-        and license_name == WIKIPEDIA_LICENSE
-        and title in attribution
-        and url in attribution
-        and WIKIPEDIA_LICENSE in attribution
-        and "https://creativecommons.org/licenses/by-sa/4.0/" in attribution
-    )
+    return bool(text) and has_valid_wikipedia_attribution(title, url, license_name, attribution)
 
 
 def serialize_knowledge_sources(items: Iterable[Mapping]) -> list[dict]:
