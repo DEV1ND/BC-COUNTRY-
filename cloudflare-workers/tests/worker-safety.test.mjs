@@ -36,3 +36,21 @@ test("full document details remain behind the admin authorization gate", () => {
   assert.ok(authGate >= 0 && pageRoute > authGate);
   assert.match(worker, /SELECT id,provider,title,url,domain,content,snippet,status,license_status,license_name,attribution,revision_id,content_hash,reviewer_note,discovered_at FROM pages WHERE id=\?/);
 });
+
+
+test("Candidate corpus export separates manual and unverified documents", () => {
+  assert.match(worker, /url\.pathname==="\/export-candidate"/);
+  assert.match(worker, /status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
+  assert.match(worker, /status='pending_review'/);
+  assert.match(worker, /corpus_must_be_manual_or_unverified/);
+  assert.match(worker, /reviewer_note:row\.reviewer_note\|\|""/);
+});
+
+test("legacy export excludes auto-review approvals", () => {
+  const routeStart = worker.indexOf('url.pathname==="/export-approved"');
+  const routeEnd = worker.indexOf('url.pathname==="/topics"', routeStart);
+  assert.ok(routeStart >= 0 && routeEnd > routeStart);
+  const route = worker.slice(routeStart, routeEnd);
+  assert.match(route, /reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
+  assert.doesNotMatch(route, /AUTO_REVIEW/);
+});
