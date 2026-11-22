@@ -80,6 +80,8 @@ jobs:
         run: python -m unittest -v tests/test_checkpoint_safety.py tests/test_checkpoint_storage.py tests/test_model_metadata.py
       - name: Run pretraining data integrity tests
         run: python -m unittest -v test_wikipedia_pretrain.py
+      - name: Validate held-out general evaluation benchmark
+        run: python -m unittest -v tests/test_evaluation_benchmark.py
 
   train-candidate:
     name: Candidate training (explicit opt-in)
