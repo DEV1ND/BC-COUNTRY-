@@ -71,3 +71,18 @@ decrypt("quantum-candidate-report.json.enc", "candidate_wikipedia_pretrain_repor
 현재 Candidate Render 서비스에는 영구 체크포인트 저장 공간이 확인되지 않았습니다. 따라서 복호화된 파일을 Render에 자동 배포하거나 Production에 연결하지 않습니다. 별도의 안전한 영구 저장소가 준비되고 체크포인트 로딩/추론 평가가 통과한 뒤에도, Candidate 검증과 사용자 승인 전에는 Production 승격을 하지 않습니다.
 
 위키백과의 CC BY-SA 4.0 출처·저작자 표시 및 적용되는 동일조건변경허락 의무를 보존해야 합니다. 암호화 아티팩트는 7일 뒤 만료되므로 필요한 파일은 관리자가 안전한 장소에 보관해야 합니다.
+
+
+## 5. Candidate Render의 재시작 복원 설정
+
+Render Free에는 영구 디스크가 없으므로 Candidate 서버가 재시작할 때 암호화된 GitHub Release 체크포인트를 다시 받아야 합니다.
+
+학습 Workflow가 생성한 릴리스의 파일 주소를 Candidate Render 서비스 환경 변수에 설정합니다.
+
+- `QUANTUM_CHECKPOINT_URL`: `https://github.com/DEV1ND/BC-COUNTRY-/releases/download/quantum-candidate-RUN_ID/quantum-candidate.pt.enc` 형식의 실제 릴리스 파일 URL
+- `QUANTUM_CHECKPOINT_ENCRYPTION_KEY`: GitHub Actions의 동일한 64자리 키. Render 대시보드에서 직접 설정하며 대화나 코드에 입력하지 않습니다.
+- `QUANTUM_API_TOKEN`: 기존 Candidate 인증 토큰 유지
+
+이 기능은 Candidate 서버가 시작할 때만 복원하며 기존 로컬 체크포인트를 덮어쓰지 않습니다. 복원 실패 시 서버는 체크포인트 미로드 상태로 남고, 모델이 작동한다고 표시하지 않습니다. `/health`에서 `model_loaded`, 실제 파라미터 수, `checkpoint_restore_status`를 확인합니다.
+
+Production 서비스에는 이 환경 변수를 설정하지 않습니다.
