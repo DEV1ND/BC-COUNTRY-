@@ -42,3 +42,21 @@ WIKIPEDIA_TITLE_ALIASES = {
 def canonical_seed_title(title):
     requested = str(title or "").strip()
     return WIKIPEDIA_TITLE_ALIASES.get(requested, requested)
+
+
+def should_skip_wikipedia_seed(index_status, required_documents=1, force=False):
+    """Reuse an already healthy local index; never skip an explicitly forced refresh."""
+    if force or not isinstance(index_status, dict):
+        return False
+    try:
+        required = max(1, int(required_documents))
+        documents = int(index_status.get("documents", 0) or 0)
+    except (TypeError, ValueError):
+        return False
+    integrity = index_status.get("integrity")
+    return (
+        documents >= required
+        and index_status.get("schema_complete") is True
+        and isinstance(integrity, dict)
+        and integrity.get("healthy") is True
+    )
