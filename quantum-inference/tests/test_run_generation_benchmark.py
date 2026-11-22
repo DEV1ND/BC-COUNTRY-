@@ -61,6 +61,9 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
                 )
 
             self.assertEqual(report["cases_completed"], 1)
+            self.assertEqual(report["generation_invocations"], 1)
+            self.assertEqual(report["approved_qa_retrieval_cases"], 0)
+            self.assertTrue(report["model_invoked"])
             self.assertTrue(report["human_review_required"])
             self.assertIsNone(report["automatic_quality_score"])
             self.assertFalse(report["model_training"])
@@ -72,6 +75,23 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
             saved = output_path.read_text(encoding="utf-8")
             self.assertNotIn("test-secret-token", saved)
             self.assertTrue(output_path.read_bytes().endswith(b"\n"))
+
+    def test_approved_qa_retrieval_is_not_counted_as_model_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dataset_path = Path(tmp) / "benchmark.json"
+            dataset_path.write_text(json.dumps(self.dataset, ensure_ascii=False), encoding="utf-8")
+            health = {"generation_ready": True, "model_loaded": True}
+            answer = {
+                "answer": "검수된 답변",
+                "model": "quantum-approved-knowledge",
+                "response_mode": "approved_qa_retrieval",
+                "is_live_inference": True,
+            }
+            with patch("urllib.request.urlopen", side_effect=[FakeResponse(health), FakeResponse(answer)]):
+                report = run_benchmark("https://candidate.example", "token", dataset_path)
+            self.assertFalse(report["model_invoked"])
+            self.assertEqual(report["generation_invocations"], 0)
+            self.assertEqual(report["approved_qa_retrieval_cases"], 1)
 
     def test_refuses_to_send_prompts_when_model_is_not_ready(self):
         with tempfile.TemporaryDirectory() as tmp:
