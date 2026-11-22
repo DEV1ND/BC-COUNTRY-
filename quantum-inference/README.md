@@ -16,7 +16,7 @@ Set `QUANTUM_CHECKPOINT_PATH` to the mounted local path of the candidate checkpo
 Optional `QUANTUM_API_TOKEN` requires `Authorization: Bearer <token>`.
 
 ## Important
-The 10,020,720-parameter checkpoint is an experimental candidate. It passed tensor-loading checks but its free-generation quality is poor and it must not replace production.
+The training report lists 10,020,720 parameters, while a direct sum of checkpoint tensors gives 10,086,256; this 65,536-parameter discrepancy remains unresolved. The checkpoint is experimental, its free-generation quality is poor, and it must not replace production.
 
 ## Private R2 checkpoint loading
 
@@ -38,3 +38,13 @@ The endpoint is built as `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` and the
 Optional `QUANTUM_CHECKPOINT_MAX_BYTES` defaults to 134217728 (128 MiB). The health response reports checkpoint source and verification status without exposing credentials.
 
 R2 is not enabled/configured in the connected Cloudflare account yet. This code only prepares the candidate service; it does not create a bucket, issue credentials, or deploy anything.
+
+
+### Current 10M candidate artifact
+
+- GitHub Actions artifact: `juckex-quantum-10m-smoke` (artifact ID `14687421512`)
+- Expiration: 2026-12-05
+- Checkpoint SHA-256: `f95c918ab0e3fca63b40c857a49cf05c337caefaacfa746f89e1fa1617057d05`
+- Reported parameter count: 10,020,720; direct checkpoint tensor sum: 10,086,256 (unresolved discrepancy)
+
+Set `QUANTUM_CHECKPOINT_SHA256` to the digest above for this exact checkpoint. Recalculate the digest whenever the checkpoint is regenerated.
