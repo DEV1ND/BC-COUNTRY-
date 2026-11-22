@@ -66,6 +66,8 @@ class KnowledgeIndexStatusTests(unittest.TestCase):
             s=build_index_status(conn)
             self.assertFalse(s["schema_complete"])
             self.assertFalse(s["integrity"]["checked"])
+            self.assertEqual(s["page_ids"], ["legacy"])
+            self.assertEqual(s["titles"], [])
         finally: conn.close()
 
 if __name__=="__main__": unittest.main()
