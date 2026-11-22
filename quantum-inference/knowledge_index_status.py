@@ -7,11 +7,18 @@ def build_index_status(conn, page_id_limit=5000):
     """Return a read-only, bounded manifest and document/FTS integrity counts."""
     limit = max(1, min(int(page_id_limit), 5000))
     count = int(conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0])
-    rows = conn.execute("SELECT page_id,title FROM knowledge_docs ORDER BY page_id LIMIT ?", (limit,)).fetchall()
-    page_ids = [str(row[0]) for row in rows]
-    titles = [str(row[1] or "").strip() for row in rows]
     required = {"page_id","title","url","text","license","attribution","revision_id","content_hash"}
     columns = {row[1] for row in conn.execute("PRAGMA table_info(knowledge_docs)")}
+    if "page_id" in columns and "title" in columns:
+        rows = conn.execute("SELECT page_id,title FROM knowledge_docs ORDER BY page_id LIMIT ?", (limit,)).fetchall()
+        page_ids = [str(row[0]) for row in rows]
+        titles = [str(row[1] or "").strip() for row in rows]
+    elif "page_id" in columns:
+        rows = conn.execute("SELECT page_id FROM knowledge_docs ORDER BY page_id LIMIT ?", (limit,)).fetchall()
+        page_ids = [str(row[0]) for row in rows]
+        titles = []
+    else:
+        page_ids, titles = [], []
     if not required.issubset(columns):
         return {"documents":count,"page_ids":page_ids,"titles":titles,"page_ids_complete":count<=len(page_ids),
                 "schema_complete":False,"integrity":{"checked":False,"reason":"legacy_schema_missing_columns"}}
