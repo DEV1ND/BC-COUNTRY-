@@ -1,0 +1,28 @@
+name: Quantum Candidate pretraining pipeline checks
+
+on:
+  pull_request:
+    paths:
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - ".github/workflows/quantum-wikipedia-pretrain.yml"
+  push:
+    branches:
+      - quantum-candidate-wikipedia-pretrain
+    paths:
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - ".github/workflows/quantum-wikipedia-pretrain.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m py_compile quantum-inference/wikipedia_pretrain.py quantum-inference/bpe_tokenizer.py
+      - run: python -m unittest quantum-inference/test_wikipedia_pretrain.py
