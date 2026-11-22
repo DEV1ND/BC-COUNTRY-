@@ -1,7 +1,7 @@
 import hashlib, sqlite3, sys, unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from knowledge_index_status import build_index_status
+from knowledge_index_status import build_index_status, rebuild_knowledge_fts
 from knowledge_provenance import WIKIPEDIA_LICENSE, WIKIPEDIA_LICENSE_URL
 
 class KnowledgeIndexStatusTests(unittest.TestCase):
@@ -42,6 +42,22 @@ class KnowledgeIndexStatusTests(unittest.TestCase):
         s=build_index_status(self.conn)
         self.assertFalse(s["integrity"]["fts_available"])
         self.assertFalse(s["integrity"]["healthy"])
+
+    def test_rebuild_repairs_missing_and_stale_fts_rows(self):
+        self.conn.execute("DELETE FROM knowledge_fts WHERE page_id='page-b'")
+        self.conn.execute("INSERT INTO knowledge_fts VALUES('orphan','잘못된 문서','고아 색인')")
+        result=rebuild_knowledge_fts(self.conn)
+        self.assertEqual(result,{"source_documents":3,"indexed_documents":3,"complete":True})
+        status=build_index_status(self.conn)
+        self.assertTrue(status["integrity"]["healthy"])
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM knowledge_fts").fetchone()[0],3)
+
+    def test_rebuild_creates_missing_fts_table(self):
+        self.conn.execute("DROP TABLE knowledge_fts")
+        result=rebuild_knowledge_fts(self.conn)
+        self.assertTrue(result["complete"])
+        self.assertEqual(result["indexed_documents"],3)
+
     def test_legacy_schema_is_reported(self):
         conn=sqlite3.connect(":memory:")
         try:
