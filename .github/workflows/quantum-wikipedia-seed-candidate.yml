@@ -6,6 +6,7 @@ on:
       - quantum-candidate-security-hardening
     paths:
       - "quantum-inference/wikipedia_seed.py"
+      - "quantum-inference/app.py"
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/generation_sources.py"
       - "quantum-inference/tests/test_wikipedia_seed.py"
@@ -17,6 +18,7 @@ on:
       - quantum-candidate-security-hardening
     paths:
       - "quantum-inference/wikipedia_seed.py"
+      - "quantum-inference/app.py"
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/generation_sources.py"
       - "quantum-inference/tests/test_wikipedia_seed.py"
@@ -38,6 +40,7 @@ jobs:
       - name: Compile knowledge modules and tests
         run: |
           python -m py_compile quantum-inference/wikipedia_seed.py
+          python -m py_compile quantum-inference/app.py
           python -m py_compile quantum-inference/knowledge_retrieval.py
           python -m py_compile quantum-inference/generation_sources.py
           python -m py_compile quantum-inference/tests/test_wikipedia_seed.py
