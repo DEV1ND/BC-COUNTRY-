@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3, hashlib, io
+import os, json, re, sqlite3, hashlib, io, logging, time
 from pathlib import Path
 from typing import Optional
 import torch
@@ -102,10 +102,13 @@ MODEL_ARCHITECTURE = MODEL_METADATA["model_architecture"]
 MODEL_TRAINING_OBJECTIVE = MODEL_METADATA["training_objective"]
 app = FastAPI(title="JUCKEX Quantum isolated inference", version="0.1.0")
 wikipedia_seed_status = {"status": "pending", "imported_this_start": 0}
+logger = logging.getLogger("juckex.quantum.knowledge")
 
 @app.on_event("startup")
 def import_korean_wikipedia_seed():
     global wikipedia_seed_status
+    started_at = time.monotonic()
+    logger.info("Wikipedia knowledge seed started.")
     try:
         result = seed_wikipedia(KNOWLEDGE_DB)
         smoke_tests = []
@@ -137,15 +140,26 @@ def import_korean_wikipedia_seed():
                 "titles": titles,
                 "retrieved_anything": bool(matches),
             })
+        passed = sum(1 for item in smoke_tests if item["matched"])
         wikipedia_seed_status = {
             "status": "completed",
             **result,
             "retrieval_smoke_tests": smoke_tests,
-            "retrieval_tests_passed": sum(1 for item in smoke_tests if item["matched"]),
+            "retrieval_tests_passed": passed,
         }
+        logger.info(
+            "Wikipedia knowledge seed completed: mode=%s returned=%s imported=%s total=%s retrieval=%s/%s elapsed=%.2fs",
+            result.get("fetch_mode"), result.get("returned_pages"),
+            result.get("imported_this_start"), result.get("total_documents"),
+            passed, len(smoke_tests), time.monotonic() - started_at,
+        )
     except Exception as exc:
         # Keep inference available even if Wikimedia is temporarily unavailable.
         wikipedia_seed_status = {"status": "failed", "error": str(exc)[:300], "imported_this_start": 0}
+        logger.exception(
+            "Wikipedia knowledge seed failed after %.2fs; inference remains available.",
+            time.monotonic() - started_at,
+        )
 app.add_middleware(CORSMiddleware, allow_origins=["https://juckex-quantum-lab.bcsite.workers.dev"],
                    allow_credentials=False, allow_methods=["GET", "POST"],
                    allow_headers=["Content-Type", "Authorization"])
