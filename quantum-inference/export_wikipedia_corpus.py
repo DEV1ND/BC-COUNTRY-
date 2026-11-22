@@ -16,7 +16,13 @@ from pathlib import Path
 def fetch_page(api_base, token, corpus, after, limit, access_client_id="", access_client_secret=""):
     query = urllib.parse.urlencode({"corpus": corpus, "after": after, "limit": limit})
     url = api_base.rstrip("/") + "/export-candidate?" + query
-    headers = {"Authorization": "Bearer " + token, "Accept": "application/json"}
+    headers = {
+        "Authorization": "Bearer " + token,
+        "Accept": "application/json",
+        # workers.dev applies Browser Integrity Check before the Worker runs.
+        # Identify this machine client explicitly instead of urllib's default UA.
+        "User-Agent": "JUCKEX-Quantum-Candidate-Exporter/1.0 (+https://github.com/DEV1ND/BC-COUNTRY-)",
+    }
     if bool(access_client_id) != bool(access_client_secret):
         raise RuntimeError("Both Cloudflare Access service-token values must be provided together")
     if access_client_id and access_client_secret:
