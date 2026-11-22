@@ -132,6 +132,32 @@ class WikipediaSeedTests(unittest.TestCase):
         self.assertEqual(report["total_documents"], 2)
         self.assertEqual(calls, ["인공지능|컴퓨터", "인공지능", "컴퓨터"])
 
+    def test_partial_batch_retries_missing_titles_individually(self):
+        from urllib.parse import parse_qs, urlparse
+        calls = []
+        titles = ["인공지능", "두번째 주제"]
+        def fake_urlopen(request, timeout=30):
+            requested = parse_qs(urlparse(request.full_url).query).get("titles", [""])[0]
+            calls.append(requested)
+            if "|" in requested:
+                return FakeResponse({"query": {"pages": [
+                    page("1", "인공지능", self.body, "12345"),
+                    {"title": "두번째 주제", "missing": True},
+                ]}})
+            return FakeResponse({"query": {"pages": [
+                page("2", "두번째 주제", self.body + " 추가 문장입니다.", "12346")
+            ]}})
+        with patch.dict(os.environ, {"QUANTUM_WIKIPEDIA_SEED_TITLES": "|".join(titles)}):
+            with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+                report = seed_wikipedia(self.db_path)
+        self.assertEqual(report["fetch_mode"], "batch_plus_per_title_fallback")
+        self.assertEqual(report["imported_this_start"], 2)
+        self.assertEqual(report["fallback_attempted"], 1)
+        self.assertEqual(report["fallback_failures"], 0)
+        self.assertEqual(calls, ["인공지능|두번째 주제", "두번째 주제"])
+        with sqlite3.connect(self.db_path) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0], 2)
+
     def test_batch_query_omits_revision_limit_incompatible_with_multiple_titles(self):
         from urllib.parse import parse_qs, urlparse
 
