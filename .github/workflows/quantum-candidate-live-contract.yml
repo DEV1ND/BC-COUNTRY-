@@ -59,6 +59,8 @@ jobs:
           }, ensure_ascii=False, indent=2))
           if data["production_model_touched"] is not False:
               raise SystemExit("Safety invariant failed: production_model_touched is not false")
+          if data["model_loaded"] is not True or data["model_parameters"] <= 0:
+              raise SystemExit("Candidate checkpoint is missing: a live model must be loaded before this contract can pass.")
           PY
 
       - name: Verify generation endpoint fails closed without credentials
