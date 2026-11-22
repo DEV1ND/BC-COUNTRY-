@@ -20,6 +20,10 @@ on:
     branches:
       - quantum-candidate-security-hardening
     paths:
+      - "quantum-inference/app.py"
+      - "quantum-inference/retrieval_benchmark.py"
+      - "quantum-inference/evaluation/knowledge_retrieval_cases.json"
+      - "quantum-inference/tests/test_retrieval_benchmark.py"
       - "quantum-inference/wikipedia_seed.py"
       - "quantum-inference/app.py"
       - "quantum-inference/knowledge_retrieval.py"
