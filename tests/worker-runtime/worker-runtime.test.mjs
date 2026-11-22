@@ -57,6 +57,11 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   assert.equal(partialCursor.status, 400);
   assert.equal((await partialCursor.json()).error, "incomplete_pagination_cursor");
 
+  // Candidate-only inference status must fail closed when no candidate endpoint/token is bound.
+  const trainingStatus = await request("/training-status");
+  assert.equal(trainingStatus.status, 503);
+  assert.equal((await trainingStatus.json()).error, "candidate_inference_target_required");
+
   // Seed only the isolated Miniflare D1 database.
   const insert = db.prepare(`
     INSERT INTO pages (id,title,url,snippet,status,license_name,revision_id,discovered_at)
