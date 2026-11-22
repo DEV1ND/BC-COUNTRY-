@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3
+import os, json, re, sqlite3, hashlib
 from pathlib import Path
 from typing import Optional
 import torch
@@ -131,7 +131,13 @@ def knowledge_db():
     conn.execute("""CREATE TABLE IF NOT EXISTS knowledge_docs (
         page_id TEXT PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL,
         text TEXT NOT NULL, license TEXT NOT NULL, attribution TEXT NOT NULL,
+        revision_id TEXT, content_hash TEXT,
         imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(knowledge_docs)")}
+    if "revision_id" not in columns:
+        conn.execute("ALTER TABLE knowledge_docs ADD COLUMN revision_id TEXT")
+    if "content_hash" not in columns:
+        conn.execute("ALTER TABLE knowledge_docs ADD COLUMN content_hash TEXT")
     try:
         conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(page_id UNINDEXED,title,text, tokenize='unicode61')")
     except sqlite3.OperationalError:
@@ -241,16 +247,24 @@ async def import_knowledge(request: Request, authorization: Optional[str] = Head
             body=str(doc.get("text","")).strip()
             license_name=str(doc.get("license","")).strip()
             attribution=str(doc.get("attribution","")).strip()
+            revision_id=str(doc.get("revision_id","")).strip()
+            content_hash=str(doc.get("content_hash","")).strip().lower()
+            actual_hash=hashlib.sha256(body.encode("utf-8")).hexdigest()
             if not page_id or not title or not body or len(body)<200 or len(body)>50000:
                 raise HTTPException(422, "문서 식별자·제목·본문 길이를 확인하세요.")
             if not url.startswith("https://ko.wikipedia.org/wiki/") or license_name!="CC BY-SA 4.0" or not attribution:
                 raise HTTPException(422, "허용된 출처·라이선스·저작자 표시가 필요합니다.")
-            conn.execute("""INSERT INTO knowledge_docs(page_id,title,url,text,license,attribution)
-                VALUES(?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
+            if not revision_id or not re.fullmatch(r"[0-9]+", revision_id):
+                raise HTTPException(422, "위키백과 원문 리비전 ID가 필요합니다.")
+            if not re.fullmatch(r"[a-f0-9]{64}", content_hash) or content_hash != actual_hash:
+                raise HTTPException(422, "본문 SHA-256 해시가 일치하지 않습니다.")
+            conn.execute("""INSERT INTO knowledge_docs(page_id,title,url,text,license,attribution,revision_id,content_hash)
+                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
                 title=excluded.title,url=excluded.url,text=excluded.text,
                 license=excluded.license,attribution=excluded.attribution,
+                revision_id=excluded.revision_id,content_hash=excluded.content_hash,
                 imported_at=CURRENT_TIMESTAMP""",
-                (page_id,title,url,body,license_name,attribution))
+                (page_id,title,url,body,license_name,attribution,revision_id,content_hash))
             try:
                 conn.execute("DELETE FROM knowledge_fts WHERE page_id=?",(page_id,))
                 conn.execute("INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",(page_id,title,body))
