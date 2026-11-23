@@ -162,6 +162,21 @@ class InferenceContractTests(unittest.TestCase):
                         )
                 self.assertEqual(raised.exception.status_code, 503)
 
+    def test_public_health_redacts_checkpoint_exception_details(self):
+        from unittest.mock import Mock
+
+        connection = Mock()
+        connection.execute.return_value.fetchone.return_value = [0]
+        with patch.object(quantum_app, "knowledge_db", return_value=connection), \\
+             patch.object(
+                 quantum_app, "CHECKPOINT_LOAD_ERROR",
+                 "OSError: /private/runtime/path/secret-checkpoint.pt",
+             ):
+            result = quantum_app.health()
+        self.assertEqual(result["checkpoint_load_error"], "OSError")
+        self.assertNotIn("private", str(result))
+        self.assertNotIn("secret-checkpoint", str(result))
+
 
 if __name__ == "__main__":
     unittest.main()
