@@ -9,7 +9,7 @@ class BPETokenizerIntegrityTests(unittest.TestCase):
         tokenizer = BPETokenizer.train(
             ["안녕하세요 안녕", "Quantum 모델 테스트"],
             vocab_size=80,
-            extra_alphabet_texts=["검증용 문자 🧪 한글", "공백  포함\\n줄바꿈"],
+            extra_alphabet_texts=["검증용 문자 🧪 한글", "공백  포함\n줄바꿈"],
         )
         samples = ["안녕하세요", "검증용 문자 🧪", "공백  포함\n줄바꿈", ""]
         for sample in samples:
