@@ -14,10 +14,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from knowledge_provenance import has_valid_wikipedia_attribution
+from knowledge_provenance import has_valid_wikipedia_attribution, is_valid_wikipedia_url
 
 
-LICENSE = "CC BY-SA 4.0"
 STRING_FIELDS = (
     "page_id", "title", "url", "text", "license", "attribution",
     "revision_id", "content_hash", "status", "reviewer_note",
@@ -32,6 +31,8 @@ def validate_export_document(row, corpus):
         raise RuntimeError("Worker returned a document with missing or non-string metadata")
     if not row["page_id"].strip() or not row["title"].strip():
         raise RuntimeError("Worker returned a document without a page ID or title")
+    if not is_valid_wikipedia_url(row["url"]):
+        raise RuntimeError("Worker returned a document with an invalid Korean Wikipedia URL")
     if not has_valid_wikipedia_attribution(
         row["title"], row["url"], row["license"], row["attribution"]
     ):
