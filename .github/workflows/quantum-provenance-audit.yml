@@ -1,0 +1,41 @@
+name: JUCKEX training provenance audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [quantum-data-provenance-audit]
+    paths:
+      - 'training_extra.json'
+      - 'audit_training_provenance.py'
+      - 'test_training_provenance.py'
+      - '.github/workflows/quantum-provenance-audit.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juckex-quantum-provenance-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run provenance audit regression tests
+        run: python -m unittest test_training_provenance.py
+      - name: Audit current approved training data
+        run: python audit_training_provenance.py --input training_extra.json --output training_provenance_audit.json
+      - name: Upload provenance audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: juckex-training-provenance-audit
+          path: training_provenance_audit.json
+          if-no-files-found: error
+          retention-days: 14
