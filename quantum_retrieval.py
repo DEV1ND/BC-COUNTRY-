@@ -76,6 +76,10 @@ def token_similarity(left, right):
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     """Return a stored answer only for a clear topic AND question-intent match."""
+    if not 0.0 <= float(threshold) <= 1.0:
+        raise ValueError("threshold는 0과 1 사이여야 합니다.")
+    if not 0.0 <= float(min_margin) <= 1.0:
+        raise ValueError("min_margin은 0과 1 사이여야 합니다.")
     ranked = []
     seen = set()
     query_intent = intent_signature(question)
@@ -95,15 +99,22 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     ranked.sort(key=lambda item: item[0], reverse=True)
     if not ranked:
         return {"matched": False, "score": 0.0, "margin": 0.0,
-                "question": None, "answer": None}
+                "question": None, "answer": None, "rejection_reason": "no_candidate"}
     score, matched_q, answer = ranked[0]
     second = ranked[1][0] if len(ranked) > 1 else 0.0
     margin = score - second
     accepted = score >= threshold and margin >= min_margin
+    if accepted:
+        reason = "accepted"
+    elif score < threshold:
+        reason = "score_below_threshold"
+    else:
+        reason = "ambiguous_margin"
     return {
         "matched": accepted,
         "score": round(score, 6),
         "margin": round(margin, 6),
         "question": matched_q,
         "answer": answer if accepted else None,
+        "rejection_reason": reason,
     }
