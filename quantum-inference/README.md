@@ -127,6 +127,12 @@ The SQLite knowledge retrieval path validates the source metadata again at read 
 
 The response reports `rejected_source_rows`. If every otherwise relevant row fails source validation, the status is `source_metadata_invalid`; a valid subset can still be returned with the normal FTS/fallback status. This read-time check is defense in depth and does not replace import-time validation, license review, or factual review.
 
+## Retrieval recall at K
+
+The retrieval-only benchmark also measures coverage when a case expects multiple relevant documents. Each answerable case reports `expected_title_count`, `relevant_retrieved`, and `recall_at_k`; the overall and per-domain reports expose `mean_recall_at_k` averaged over answerable cases only. Unanswerable cases use `null` for recall because recall is not applicable when no expected documents exist. A mixed report excludes those null cases from the recall mean while still counting them in safe-abstention metrics.
+
+Recall is based on the benchmark's explicitly labeled expected titles, not an automatic semantic relevance judgment. It is a retrieval coverage measure, not a model answer quality score.
+
 ## Retrieval noise metrics
 
 The retrieval-only benchmark now reports relevant and irrelevant returned-document counts per case, overall retrieval noise rate, and per-domain retrieval noise rate. For answerable cases, an expected-title hit does not hide unrelated extra results: every returned title outside the case's expected-title set contributes to retrieval noise. For unanswerable cases, any returned document remains a false-positive retrieval and also contributes to noise. The rate is `null` when no documents were returned, rather than being reported as zero noise without evidence.
