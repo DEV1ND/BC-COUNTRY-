@@ -172,7 +172,7 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         conn.execute(
             "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?)",
             ("1", "태양계", "https://ko.wikipedia.org/wiki/태양계",
-             "태양계 행성은 태양 주위를 공전한다", "저작자 표시", "CC BY-SA 4.0"),
+             "태양계 행성은 태양 주위를 공전한다", "태양계 - https://ko.wikipedia.org/wiki/태양계 CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/", "CC BY-SA 4.0"),
         )
         if include_fts:
             conn.execute("CREATE VIRTUAL TABLE knowledge_fts USING fts5(page_id UNINDEXED,title,text)")
@@ -197,6 +197,34 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             self.assertEqual(result["status"], "fts_fallback")
             self.assertTrue(result["used_fallback"])
             self.assertEqual(result["documents"][0]["title"], "태양계")
+        finally:
+            conn.close()
+
+    def test_index_search_rejects_rows_without_valid_source_attribution(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute("UPDATE knowledge_docs SET attribution='저작자 표시만 있음'")
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "source_metadata_invalid")
+            self.assertEqual(result["documents"], [])
+            self.assertEqual(result["rejected_source_rows"], 1)
+        finally:
+            conn.close()
+
+    def test_index_search_keeps_valid_attribution_and_reports_rejected_rows(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute(
+                "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?)",
+                ("2", "태양계", "https://example.com/not-wikipedia",
+                 "태양계 행성 설명", "저작자 표시", "CC BY-SA 4.0"),
+            )
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "fts_fallback")
+            self.assertEqual(len(result["documents"]), 1)
+            self.assertEqual(result["rejected_source_rows"], 1)
+            self.assertEqual(result["documents"][0]["url"],
+                             "https://ko.wikipedia.org/wiki/태양계")
         finally:
             conn.close()
 
