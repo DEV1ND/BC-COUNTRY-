@@ -98,6 +98,14 @@ class QuantumRetrievalTests(unittest.TestCase):
     def test_empty_index_rejects(self):
         self.assertFalse(retrieve("질문", [])["matched"])
 
+    def test_empty_or_nonsemantic_query_never_returns_an_answer_even_at_zero_threshold(self):
+        for query in ("", "?! ...", "무엇인가요?"):
+            with self.subTest(query=query):
+                result = retrieve(query, self.rows, threshold=0.0, min_margin=0.0)
+                self.assertFalse(result["matched"])
+                self.assertIsNone(result["answer"])
+                self.assertEqual(result["rejection_reason"], "invalid_query")
+
 
 if __name__ == "__main__":
     unittest.main()
