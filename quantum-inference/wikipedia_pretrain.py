@@ -64,8 +64,15 @@ def load_corpus(path, allow_unverified):
             if not isinstance(row, dict):
                 rejected["invalid_metadata"] += 1
                 continue
-            status = str(row.get("status", "")).strip()
-            note = str(row.get("reviewer_note", "")).strip()
+            string_fields = (
+                "status", "reviewer_note", "page_id", "title", "url",
+                "revision_id", "content_hash", "attribution", "text",
+            )
+            if any(not isinstance(row.get(field), str) for field in string_fields):
+                rejected["invalid_metadata"] += 1
+                continue
+            status = row["status"].strip()
+            note = row["reviewer_note"].strip()
             if status == "excluded":
                 rejected["excluded"] += 1
                 continue
@@ -73,13 +80,13 @@ def load_corpus(path, allow_unverified):
             if not manually_verified and not allow_unverified:
                 rejected["unverified_not_allowed"] += 1
                 continue
-            page_id = str(row.get("page_id", "")).strip()
-            title = str(row.get("title", "")).strip()
-            url = str(row.get("url", "")).strip()
-            revision_id = str(row.get("revision_id", "")).strip()
-            digest = str(row.get("content_hash", "")).strip().lower()
-            attribution = str(row.get("attribution", "")).strip()
-            text = str(row.get("text", "")).strip()
+            page_id = row["page_id"].strip()
+            title = row["title"].strip()
+            url = row["url"].strip()
+            revision_id = row["revision_id"].strip()
+            digest = row["content_hash"].strip().lower()
+            attribution = row["attribution"].strip()
+            text = row["text"].strip()
             valid = (
                 bool(page_id) and bool(title) and url.startswith(WIKI_PREFIX)
                 and bool(re.fullmatch(r"[0-9]+", revision_id))
