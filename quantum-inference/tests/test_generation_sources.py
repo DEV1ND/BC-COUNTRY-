@@ -54,6 +54,21 @@ class GenerationSourcesTests(unittest.TestCase):
         row = source()
         self.assertEqual(len(serialize_knowledge_sources([row, row])), 1)
 
+    def test_non_string_source_fields_are_not_coerced(self):
+        for field in ("title", "url", "license", "attribution", "text"):
+            with self.subTest(field=field):
+                self.assertEqual(serialize_knowledge_sources([
+                    source(**{field: 123})
+                ]), [])
+
+    def test_source_collection_and_excerpt_limits_are_validated(self):
+        with self.assertRaises(TypeError):
+            serialize_knowledge_sources("not a document list")
+        for value in (True, 0, -1, 2001, "80"):
+            with self.subTest(excerpt_chars=value):
+                with self.assertRaises(ValueError):
+                    build_knowledge_context([source()], excerpt_chars=value)
+
     def test_context_and_citations_use_the_same_validated_documents(self):
         valid = source()
         invalid = source(title="가짜 문서", url="https://example.com/fake")
