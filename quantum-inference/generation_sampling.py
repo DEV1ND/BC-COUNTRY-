@@ -57,3 +57,36 @@ def validate_sampling_probabilities(probability_values):
     if not math.isfinite(total) or total <= 0:
         raise ValueError("확률 분포의 합은 0보다 커야 합니다.")
     return total
+
+
+def safe_ngram_bans(logit_values, generated_tokens, n=3):
+    """Return repeated n-gram continuations only when at least one valid token remains."""
+    if not isinstance(logit_values, (list, tuple)) or not logit_values:
+        raise ValueError("logit_values는 비어 있지 않은 목록이어야 합니다.")
+    if not isinstance(generated_tokens, (list, tuple)):
+        raise ValueError("generated_tokens는 목록이어야 합니다.")
+    if isinstance(n, bool) or not isinstance(n, int) or n < 2:
+        raise ValueError("n은 2 이상의 정수여야 합니다.")
+    finite_indices = []
+    for index, value in enumerate(logit_values):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("logit 값은 숫자여야 합니다.")
+        number = float(value)
+        if math.isnan(number) or number == float("inf"):
+            raise ValueError("logit에 NaN 또는 양의 무한대가 포함되어 있습니다.")
+        if number != -float("inf"):
+            finite_indices.append(index)
+    if not finite_indices:
+        raise ValueError("유효한 다음 토큰 후보가 없습니다.")
+    if len(generated_tokens) < n - 1:
+        return set()
+
+    prefix = tuple(generated_tokens[-(n - 1):])
+    banned = {
+        generated_tokens[index + n - 1]
+        for index in range(len(generated_tokens) - n + 1)
+        if tuple(generated_tokens[index:index + n - 1]) == prefix
+    }
+    # A repetition guard must never turn a valid distribution into an all-masked one.
+    remaining = [index for index in finite_indices if index not in banned]
+    return banned if remaining else set()
