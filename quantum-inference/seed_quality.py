@@ -1,13 +1,23 @@
 """Honest completion criteria for the isolated Wikipedia seed process."""
 
 
+def _non_negative_count(value, field):
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer")
+    return value
+
+
 def summarize_seed_outcome(seed_result, retrieval_passed, retrieval_total):
-    requested = max(0, int(seed_result.get("requested", 0) or 0))
-    imported = max(0, int(seed_result.get("imported_this_start", 0) or 0))
-    skipped = max(0, int(seed_result.get("skipped", 0) or 0))
-    fallback_failures = max(0, int(seed_result.get("fallback_failures", 0) or 0))
-    passed = max(0, int(retrieval_passed or 0))
-    total = max(0, int(retrieval_total or 0))
+    if not isinstance(seed_result, dict):
+        raise ValueError("seed_result must be an object")
+    requested = _non_negative_count(seed_result.get("requested", 0), "requested")
+    imported = _non_negative_count(seed_result.get("imported_this_start", 0), "imported_this_start")
+    skipped = _non_negative_count(seed_result.get("skipped", 0), "skipped")
+    fallback_failures = _non_negative_count(seed_result.get("fallback_failures", 0), "fallback_failures")
+    passed = _non_negative_count(retrieval_passed, "retrieval_passed")
+    total = _non_negative_count(retrieval_total, "retrieval_total")
+    if passed > total:
+        raise ValueError("retrieval_passed cannot exceed retrieval_total")
     complete = (
         requested > 0
         and imported >= requested
