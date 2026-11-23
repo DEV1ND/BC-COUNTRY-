@@ -50,7 +50,7 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
                 or not isinstance(domain, str) or not domain.strip()
                 or not isinstance(expected, list)):
             raise ValueError(f"Case {index} requires id, domain, question, and expected_titles.")
-        folded_id = case_id.casefold()
+        folded_id = case_id.strip().casefold()
         if folded_id in seen_ids:
             raise ValueError(f"Duplicate evaluation case id: {case_id}")
         seen_ids.add(folded_id)
@@ -61,9 +61,10 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
             if not isinstance(raw_title, str) or not raw_title.strip():
                 raise ValueError(f"Case {case_id} contains an invalid expected title.")
             title = raw_title.strip()
-            if title.casefold() in seen_titles:
+            normalized_title = normalize_retrieval_title(title)
+            if normalized_title in seen_titles:
                 raise ValueError(f"Case {case_id} contains duplicate expected titles.")
-            seen_titles.add(title.casefold())
+            seen_titles.add(normalized_title)
             titles.append(title)
         normalized.append({
             "id": case_id.strip(),
