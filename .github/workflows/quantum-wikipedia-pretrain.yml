@@ -13,6 +13,7 @@ on:
       - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
       - "quantum-inference/QUANTUM_CANDIDATE_TRAINING.md"
       - "quantum-inference/export_wikipedia_corpus.py"
+      - "quantum-inference/test_export_wikipedia_corpus.py"
       - ".github/workflows/quantum-candidate-encrypted-training.yml"
       - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
       - "cloudflare-workers/tests/worker-safety.test.mjs"
@@ -47,5 +48,6 @@ jobs:
       - run: python -m pip install numpy==2.2.1 fastapi==0.115.6 cryptography==46.0.3 && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
       - run: python -m unittest discover -s quantum-inference -p 'test_bpe_tokenizer_integrity.py'
       - run: python -m unittest discover -s quantum-inference -p 'test_wikipedia_pretrain.py'
+      - run: python -m unittest discover -s quantum-inference -p 'test_export_wikipedia_corpus.py'
       - run: python -m unittest discover -s quantum-inference -p 'test_inference_contract.py'
       - run: node --test cloudflare-workers/tests/worker-safety.test.mjs
