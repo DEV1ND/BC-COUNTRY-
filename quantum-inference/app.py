@@ -559,7 +559,24 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     for step in range(req.max_new_tokens):
         context = (prompt_ids + generated)[-BLOCK:]
         x = torch.tensor(context, dtype=torch.long, device=DEVICE).unsqueeze(0)
-        logits = model(x)[0, -1].clone()
+        try:
+            model_output = model(x)
+            if (
+                not isinstance(model_output, torch.Tensor)
+                or model_output.ndim != 3
+                or model_output.shape[0] != 1
+                or model_output.shape[1] != len(context)
+                or model_output.shape[2] < 1
+            ):
+                raise ValueError("Quantum 모델 출력 텐서의 차원이 올바르지 않습니다.")
+            tokenizer_vocab = getattr(tokenizer, "vocab", None)
+            if isinstance(tokenizer_vocab, (list, tuple)) and model_output.shape[2] != len(tokenizer_vocab):
+                raise ValueError("Quantum 모델 출력 크기와 토크나이저 어휘 크기가 일치하지 않습니다.")
+            logits = model_output[0, -1].clone()
+        except Exception as exc:
+            raise HTTPException(
+                503, "Quantum 후보 모델이 올바른 출력 형식을 반환하지 않았습니다."
+            ) from exc
         if generated and req.repetition_penalty > 1:
             for token_id in set(generated):
                 logits[token_id] = logits[token_id] * req.repetition_penalty if logits[token_id] < 0 else logits[token_id] / req.repetition_penalty
