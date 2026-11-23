@@ -30,7 +30,9 @@ def _token_variants(token):
 
 def content_tokens(text):
     """Keep original Korean terms while also considering one particle-stripped form."""
-    raw = re.findall(r"[0-9a-z]+|[가-힣]+", str(text).lower())
+    if not isinstance(text, str):
+        raise TypeError("검색 텍스트는 문자열이어야 합니다.")
+    raw = re.findall(r"[0-9a-z]+|[가-힣]+", text.lower())
     result = []
     for token in raw:
         if len(token) < 2 or token in _STOP_WORDS:
@@ -48,7 +50,9 @@ def _question_key(question):
 
 
 def intent_signature(question):
-    q = str(question).lower()
+    if not isinstance(question, str):
+        raise TypeError("질문은 문자열이어야 합니다.")
+    q = question.lower()
     if re.search(r"차이|비교|공통점|다른 점", q):
         return "comparison"
     if re.search(r"어떻게|방법|과정|원리|왜", q):
@@ -82,6 +86,8 @@ def token_similarity(left, right):
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     """Return a stored answer only for a clear topic AND question-intent match."""
+    if not isinstance(question, str):
+        raise ValueError("question은 문자열이어야 합니다.")
     if isinstance(threshold, bool) or isinstance(min_margin, bool):
         raise ValueError("threshold와 min_margin은 불리언이 아닌 숫자여야 합니다.")
     try:
@@ -96,12 +102,9 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     if approved_rows is None:
         return {"matched": False, "score": 0.0, "margin": 0.0,
                 "question": None, "answer": None, "rejection_reason": "invalid_index"}
-    if isinstance(approved_rows, (str, bytes, dict)):
-        raise ValueError("approved_rows는 Q&A 객체 목록이어야 합니다.")
-    try:
-        rows = iter(approved_rows)
-    except TypeError as exc:
-        raise ValueError("approved_rows는 반복 가능한 Q&A 목록이어야 합니다.") from exc
+    if not isinstance(approved_rows, (list, tuple)):
+        raise ValueError("approved_rows는 list 또는 tuple이어야 합니다.")
+    rows = iter(approved_rows)
 
     candidates = {}
     conflicting_questions = set()
@@ -112,8 +115,12 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     for row in rows:
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
-        candidate_q = str(row.get("question", "")).strip()
-        answer = str(row.get("answer", "")).strip()
+        raw_question = row.get("question")
+        raw_answer = row.get("answer")
+        if not isinstance(raw_question, str) or not isinstance(raw_answer, str):
+            raise ValueError("승인된 Q&A의 question과 answer는 문자열이어야 합니다.")
+        candidate_q = raw_question.strip()
+        answer = raw_answer.strip()
         if not candidate_q or not answer or intent_signature(candidate_q) != query_intent:
             continue
         key = _question_key(candidate_q)
