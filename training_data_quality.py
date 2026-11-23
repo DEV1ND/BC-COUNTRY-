@@ -32,7 +32,7 @@ def _text_issues(value, field):
         issues.append(f"{field}_replacement_character")
     if "\x00" in value:
         issues.append(f"{field}_null_character")
-    if any(unicodedata.category(ch) == "Cc" and ch not in "\\n\\r\\t" for ch in value):
+    if any(unicodedata.category(ch) == "Cc" and ch not in "\n\r\t" for ch in value):
         issues.append(f"{field}_control_character")
     if unicodedata.normalize("NFC", value) != value:
         issues.append(f"{field}_not_nfc")
