@@ -44,7 +44,7 @@ def content_tokens(text):
 
 def _question_key(question):
     """Normalize harmless spacing and punctuation differences for duplicate detection."""
-    return re.sub(r"[\\W_]+", "", str(question).casefold(), flags=re.UNICODE)
+    return re.sub(r"[\W_]+", "", str(question).casefold(), flags=re.UNICODE)
 
 
 def intent_signature(question):
