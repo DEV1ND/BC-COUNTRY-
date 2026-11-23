@@ -1,5 +1,6 @@
 import unittest
 
+from export_generation_review_template import report_fingerprint
 from review_generation_evaluation import summarize_human_reviews
 
 
@@ -19,6 +20,7 @@ class HumanReviewSummaryTests(unittest.TestCase):
         }
         self.reviews = {
             "benchmark_id": "test-benchmark",
+            "report_sha256": report_fingerprint(self.report),
             "reviews": [
                 {
                     "id": "QA-01", "reviewer": "reviewer-a",
@@ -52,6 +54,19 @@ class HumanReviewSummaryTests(unittest.TestCase):
         self.assertFalse(result["training_eligible"])
         self.assertFalse(result["promotion_approved"])
         self.assertFalse(result["production_model_touched"])
+
+
+    def test_rejects_reviews_bound_to_a_different_generation_report(self):
+        changed_report = dict(self.report)
+        changed_report["started_at"] = "2026-11-24T10:00:00+00:00"
+        with self.assertRaisesRegex(ValueError, "report_sha256"):
+            summarize_human_reviews(changed_report, self.reviews)
+
+    def test_rejects_missing_report_fingerprint(self):
+        document = dict(self.reviews)
+        document.pop("report_sha256")
+        with self.assertRaisesRegex(ValueError, "report_sha256"):
+            summarize_human_reviews(self.report, document)
 
     def test_rejects_missing_reviews(self):
         document = dict(self.reviews, reviews=self.reviews["reviews"][:1])
