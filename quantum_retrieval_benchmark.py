@@ -24,7 +24,8 @@ def benchmark_rows(training, evaluation):
         if not isinstance(question, str) or not question.strip():
             raise ValueError(f"평가 항목 {index}의 question은 비어 있지 않은 문자열이어야 합니다.")
         result = retrieve(question, approved)
-        rejection_counts[result["rejection_reason"]] += int(not result["matched"])
+        if not result["matched"]:
+            rejection_counts[result["rejection_reason"]] += 1
         results.append({
             "question": question,
             "matched": result["matched"],
