@@ -77,6 +77,8 @@ def token_similarity(left, right):
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     """Return a stored answer only for a clear topic AND question-intent match."""
+    if isinstance(threshold, bool) or isinstance(min_margin, bool):
+        raise ValueError("threshold와 min_margin은 불리언이 아닌 숫자여야 합니다.")
     try:
         threshold = float(threshold)
         min_margin = float(min_margin)
