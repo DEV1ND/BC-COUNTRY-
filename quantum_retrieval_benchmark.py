@@ -1,37 +1,57 @@
 """Independent retrieval coverage benchmark (never adds eval rows to the index)."""
 import json
+from collections import Counter
 from pathlib import Path
 
 from quantum_retrieval import retrieve
 
 
-def main():
-    training = json.loads(Path("training_extra.json").read_text(encoding="utf-8"))
-    evaluation = json.loads(Path("bpe_independent_eval.json").read_text(encoding="utf-8"))
-    approved = [row for row in training if isinstance(row, dict) and row.get("approved") is True]
+def benchmark_rows(training, evaluation):
+    if not isinstance(training, list):
+        raise ValueError("학습 데이터는 JSON 배열이어야 합니다.")
+    if not isinstance(evaluation, list):
+        raise ValueError("평가 데이터는 JSON 배열이어야 합니다.")
+    approved = [
+        row for row in training
+        if isinstance(row, dict) and row.get("approved") is True
+    ]
     results = []
-    for item in evaluation:
-        result = retrieve(item["question"], approved)
+    rejection_counts = Counter()
+    for index, item in enumerate(evaluation):
+        if not isinstance(item, dict):
+            raise ValueError(f"평가 항목 {index}는 객체여야 합니다.")
+        question = item.get("question")
+        if not isinstance(question, str) or not question.strip():
+            raise ValueError(f"평가 항목 {index}의 question은 비어 있지 않은 문자열이어야 합니다.")
+        result = retrieve(question, approved)
+        rejection_counts[result["rejection_reason"]] += int(not result["matched"])
         results.append({
-            "question": item["question"],
+            "question": question,
             "matched": result["matched"],
             "matched_training_question": result["question"],
             "score": result["score"],
             "margin": result["margin"],
+            "rejection_reason": result["rejection_reason"],
         })
     accepted = sum(1 for row in results if row["matched"])
-    report = {
+    return {
         "status": "coverage_only_human_quality_review_required",
         "approved_training_rows": len(approved),
         "independent_evaluation_questions": len(evaluation),
         "accepted_retrievals": accepted,
         "rejected_questions": len(results) - accepted,
         "coverage": round(accepted / len(results), 4) if results else 0.0,
+        "rejection_reason_counts": dict(sorted(rejection_counts.items())),
         "semantic_correctness_claimed": False,
         "evaluation_answers_used_for_index": False,
         "results": results,
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+def main():
+    training = json.loads(Path("training_extra.json").read_text(encoding="utf-8"))
+    evaluation = json.loads(Path("bpe_independent_eval.json").read_text(encoding="utf-8"))
+    print(json.dumps(benchmark_rows(training, evaluation), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
