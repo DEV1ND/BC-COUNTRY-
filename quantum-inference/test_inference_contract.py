@@ -433,12 +433,36 @@ class InferenceContractTests(unittest.TestCase):
                 page_id TEXT, title TEXT, text TEXT
             )
         """)
+
+        class TrackingConnection:
+            def __init__(self, inner):
+                self.inner = inner
+                self.closed = False
+
+            def execute(self, statement, params=()):
+                return self.inner.execute(statement, params)
+
+            def commit(self):
+                return self.inner.commit()
+
+            def rollback(self):
+                return self.inner.rollback()
+
+            def close(self):
+                self.closed = True
+
+            @property
+            def in_transaction(self):
+                return self.inner.in_transaction
+
+        tracked = TrackingConnection(connection)
         with patch.object(quantum_app, "require_admin"):
-            with patch.object(quantum_app, "knowledge_db", return_value=connection):
+            with patch.object(quantum_app, "knowledge_db", return_value=tracked):
                 result = asyncio.run(quantum_app.import_knowledge(
                     request, authorization="Bearer candidate-test-token"
                 ))
 
+        self.assertTrue(tracked.closed)
         self.assertTrue(result["ok"])
         self.assertEqual(result["imported"], 1)
         canonical = connection.execute(
