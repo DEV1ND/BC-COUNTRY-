@@ -19,6 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from bpe_tokenizer import BPETokenizer
+from tokenizer_diagnostics import summarize_tokenizer_usage
 
 BLOCK = 256
 LICENSE = "CC BY-SA 4.0"
@@ -246,6 +247,14 @@ def main():
         min_pair_frequency=2,
         extra_alphabet_texts=[doc["text"] for doc in docs],
     )
+    tokenizer_usage = {
+        "training": summarize_tokenizer_usage(
+            tokenizer, [doc["text"] for doc in train_docs], label="training"
+        ),
+        "validation": summarize_tokenizer_usage(
+            tokenizer, [doc["text"] for doc in valid_docs], label="validation"
+        ),
+    }
     train_windows, train_tokens = make_windows(train_docs, tokenizer)
     valid_windows, valid_tokens = make_windows(valid_docs, tokenizer)
     if not train_windows or not valid_windows:
@@ -301,6 +310,7 @@ def main():
         "document_count": len(docs), "train_document_count": len(train_docs),
         "validation_document_count": len(valid_docs),
         "train_token_count": train_tokens, "validation_token_count": valid_tokens,
+        "tokenizer_usage": tokenizer_usage,
         "trust_counts": trust_counts, "rejected_rows": rejected,
         "license": LICENSE, "attribution_manifest": manifest,
         "unverified_corpus_is_fact_checked": False,
@@ -321,6 +331,7 @@ def main():
         "steps_requested": args.steps,
         "best_validation_loss": best_loss,
         "history": history,
+        "tokenizer_usage": tokenizer_usage,
         "dataset": metadata,
         "checkpoint_path": str(Path(args.output)),
         "checkpoint_bytes": Path(args.output).stat().st_size,
@@ -333,6 +344,12 @@ def main():
         "ok": True, "parameters": parameter_count, "documents": len(docs),
         "train_documents": len(train_docs), "validation_documents": len(valid_docs),
         "best_validation_loss": best_loss, "checkpoint": str(Path(args.output)),
+        "tokenizer_training_reduction": tokenizer_usage["training"]["token_reduction_ratio_vs_codepoints"],
+        "tokenizer_validation_reduction": tokenizer_usage["validation"]["token_reduction_ratio_vs_codepoints"],
+        "tokenizer_unknown_tokens": (
+            tokenizer_usage["training"]["unknown_tokens"]
+            + tokenizer_usage["validation"]["unknown_tokens"]
+        ),
         "production_model_touched": False, "promotion_eligible": False,
     }, ensure_ascii=False))
 
