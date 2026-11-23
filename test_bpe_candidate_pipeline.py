@@ -2,7 +2,7 @@
 import unittest
 
 from bpe_candidate_train import augment_training_rows, build_candidate_tokenizer, clean_pairs, split_pairs
-from bpe_tokenizer import BPETokenizer, encode_prompt_answer
+from bpe_tokenizer import encode_prompt_answer
 
 
 class CandidateDataPipelineTests(unittest.TestCase):
@@ -36,13 +36,13 @@ class CandidateDataPipelineTests(unittest.TestCase):
         self.assertTrue(all("평가" not in row["question"] for row in augmented))
 
     def test_tokenizer_round_trip_and_prompt_boundary(self):
-        train_rows = [{"text": "질문:오늘 날씨\\n답변:맑습니다"}]
+        train_rows = [{"text": "질문:오늘 날씨\n답변:맑습니다"}]
         validation_rows = [{"text": "검증 문자 🧬"}]
         tokenizer = build_candidate_tokenizer(train_rows, validation_rows, vocab_size=64)
         prompt = "질문:오늘"
         answer = "맑습니다"
         ids, prompt_length = encode_prompt_answer(prompt, answer, tokenizer)
-        self.assertEqual(tokenizer.decode(ids), prompt + answer + "\\n\\n")
+        self.assertEqual(tokenizer.decode(ids), prompt + answer + "\n\n")
         self.assertEqual(prompt_length, len(tokenizer.encode(prompt)))
         self.assertIn("🧬", tokenizer.initial_symbols)
         self.assertNotIn("🧪", tokenizer.initial_symbols)
