@@ -50,7 +50,9 @@ class TrainingProvenanceTests(unittest.TestCase):
             "answer": "보류 답변입니다.",
             "approved": False,
         }
-        rows = [unapproved, self.complete_row(), unapproved, self.complete_row()]
+        first_approved = self.complete_row()
+        first_approved["source"] = "curated-v1"
+        rows = [unapproved, first_approved, unapproved, self.complete_row()]
         report = audit_rows(rows)
         self.assertEqual([item["record_index"] for item in report["records"]], [1, 3])
         self.assertEqual(report["records"][0]["legacy_source_label"], "internal:dataset-001")
