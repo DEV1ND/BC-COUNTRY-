@@ -20,7 +20,7 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
     if not isinstance(knowledge_context, str) or not isinstance(question, str):
         raise ValueError("검색 문맥과 질문은 문자열이어야 합니다.")
     question_ids = _validate_token_ids(
-        tokenizer.encode("질문:" + question.strip() + "\\n답변:"),
+        tokenizer.encode("질문:" + question.strip() + "\n답변:"),
         "질문", tokenizer,
     )
     if not question_ids:
