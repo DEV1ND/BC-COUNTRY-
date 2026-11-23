@@ -113,3 +113,10 @@ Wikipedia seed completion summaries also require non-negative integer counters (
 
 
 The Wikipedia seed reuse shortcut applies the same strictness to cached index metadata: document counts and required thresholds must be actual integers (not booleans or floats), and requested/available title collections must be lists or tuples of strings. Malformed metadata causes a fresh seed path instead of incorrectly treating an index as reusable.
+
+
+## Retrieval benchmark: safe abstention and anti-inflation checks
+
+The retrieval-only benchmark now reports answerability separately from ordinary title hits. Cases with an empty `expected_titles` list are explicitly unanswerable cases: returning any document is counted as a false-positive retrieval, while returning no documents is a correct abstention. Reports include `unanswerable_cases`, `false_positive_retrievals`, and `safe_abstention_rate`, with per-domain equivalents.
+
+The benchmark rejects non-string case identity/question/domain fields, invalid integer limits, malformed retrieved titles, and duplicate normalized retrieved titles. Duplicate results are rejected rather than allowed to inflate precision. These metrics evaluate retrieval behavior only; they do not establish factual correctness, model generation quality, or training eligibility. A dedicated Candidate-only GitHub Actions workflow runs this regression suite without contacting the model or Production services.
