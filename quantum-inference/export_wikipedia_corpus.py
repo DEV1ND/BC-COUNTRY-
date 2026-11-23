@@ -30,8 +30,10 @@ def validate_export_document(row, corpus):
         raise RuntimeError("Worker returned a non-object document")
     if any(not isinstance(row.get(field), str) for field in STRING_FIELDS):
         raise RuntimeError("Worker returned a document with missing or non-string metadata")
-    if not row["page_id"].strip() or not row["title"].strip():
-        raise RuntimeError("Worker returned a document without a page ID or title")
+    if not row["page_id"].strip() or len(row["page_id"].strip()) > 100:
+        raise RuntimeError("Worker returned a missing or oversized page ID")
+    if not row["title"].strip() or len(row["title"].strip()) > 300:
+        raise RuntimeError("Worker returned a missing or oversized page title")
     if not is_valid_wikipedia_url(row["url"]):
         raise RuntimeError("Worker returned a document with an invalid Korean Wikipedia URL")
     if not has_valid_wikipedia_attribution(
@@ -41,9 +43,9 @@ def validate_export_document(row, corpus):
     if not re.fullmatch(r"[0-9]+", row["revision_id"].strip()):
         raise RuntimeError("Worker returned an invalid revision ID")
     text = row["text"].strip()
-    if len(text) < 200:
-        raise RuntimeError("Worker returned a document shorter than 200 characters")
-    digest = row["content_hash"].strip().lower()
+    if not 200 <= len(text) <= 50000:
+        raise RuntimeError("Worker returned a document outside the 200-50000 character limit")
+    digest = row["content_hash"].strip()
     if not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise RuntimeError("Worker returned an invalid content hash")
     if hashlib.sha256(text.encode("utf-8")).hexdigest() != digest:
@@ -114,6 +116,8 @@ def fetch_page(api_base, token, corpus, after, limit, access_client_id="", acces
         raise RuntimeError("Worker returned a mismatched corpus label")
     if not isinstance(payload.get("documents"), list):
         raise RuntimeError("Worker response is missing documents")
+    if len(payload["documents"]) > 10:
+        raise RuntimeError("Worker response exceeded the 10-document page limit")
     return payload
 
 
@@ -121,6 +125,14 @@ def export_corpus(api_base, token, corpus, destination, limit=10,
                   access_client_id="", access_client_secret=""):
     if corpus not in ("manual", "unverified"):
         raise ValueError("corpus must be manual or unverified")
+    if not isinstance(api_base, str) or not api_base.startswith("https://"):
+        raise ValueError("api_base must be an HTTPS URL")
+    if not isinstance(token, str) or not token.strip():
+        raise ValueError("A non-empty admin token is required")
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
+        raise ValueError("limit must be an integer between 1 and 10")
+    if bool(access_client_id) != bool(access_client_secret):
+        raise ValueError("Both Cloudflare Access service-token values must be provided together")
     destination = Path(destination).expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_path = tempfile.mkstemp(prefix=destination.name + ".", suffix=".tmp",
