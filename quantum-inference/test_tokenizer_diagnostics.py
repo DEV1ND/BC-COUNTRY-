@@ -2,7 +2,7 @@
 import unittest
 
 from bpe_tokenizer import BPETokenizer
-from tokenizer_diagnostics import summarize_tokenizer_usage
+from tokenizer_diagnostics import summarize_tokenizer_usage, summarize_generated_tokens
 
 
 class TokenizerDiagnosticsTests(unittest.TestCase):
@@ -45,3 +45,28 @@ class TokenizerDiagnosticsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GeneratedTokenDiagnosticsTests(unittest.TestCase):
+    def test_detects_character_level_output_without_claiming_quality(self):
+        tokenizer = BPETokenizer(initial_symbols=list("가나다라마바사아"))
+        report = summarize_generated_tokens(tokenizer, tokenizer.encode("가나다라마바사아"))
+        self.assertTrue(report["character_fragmentation_suspected"])
+        self.assertEqual(report["single_codepoint_token_ratio"], 1.0)
+        self.assertIn("not a fluency", report["interpretation_limit"])
+
+    def test_reports_unknown_tokens_and_empty_generation(self):
+        tokenizer = BPETokenizer(initial_symbols=["가"])
+        report = summarize_generated_tokens(tokenizer, [1, 0, 1])
+        self.assertEqual(report["unknown_tokens"], 1)
+        self.assertAlmostEqual(report["unknown_token_ratio"], 1 / 3)
+        empty = summarize_generated_tokens(tokenizer, [])
+        self.assertEqual(empty["generated_tokens"], 0)
+        self.assertFalse(empty["character_fragmentation_suspected"])
+
+    def test_rejects_invalid_or_out_of_range_token_ids(self):
+        tokenizer = BPETokenizer(initial_symbols=["가"])
+        for token_ids in ([True], [-1], [1.5], [99]):
+            with self.subTest(token_ids=token_ids):
+                with self.assertRaises(ValueError):
+                    summarize_generated_tokens(tokenizer, token_ids)
