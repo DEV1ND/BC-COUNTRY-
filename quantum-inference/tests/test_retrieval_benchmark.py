@@ -100,10 +100,14 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         dataset = json.loads(path.read_text(encoding="utf-8"))
         cases = validate_retrieval_cases(dataset["cases"])
         self.assertEqual(dataset["scope"], "retrieval_only")
-        self.assertEqual(len(cases), 27)
-        self.assertEqual(len({case["domain"] for case in cases}), 27)
-        self.assertEqual(len({case["id"] for case in cases}), 27)
-        self.assertEqual([case["id"] for case in cases if not case["expected_titles"]], ["unknown"])
+        self.assertEqual(len(cases), 32)
+        self.assertEqual(len({case["domain"] for case in cases}), 32)
+        self.assertEqual(len({case["id"] for case in cases}), 32)
+        self.assertEqual(
+            {case["id"] for case in cases if not case["expected_titles"]},
+            {"unknown", "fictional-person", "fictional-invention", "fictional-history",
+             "fictional-science", "fictional-geography"},
+        )
 
 
     def test_unanswerable_case_penalizes_any_returned_document(self):
