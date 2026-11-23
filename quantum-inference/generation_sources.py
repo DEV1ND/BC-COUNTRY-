@@ -1,54 +1,78 @@
 """Citation-safe formatting helpers for Quantum's retrieved Wikipedia context."""
-from typing import Iterable, Mapping
+from collections.abc import Mapping
+from typing import Iterable
+
 from knowledge_provenance import has_valid_wikipedia_attribution
 
 
-WIKIPEDIA_PREFIX = "https://ko.wikipedia.org/wiki/"
 WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
 
 
+def _as_rows(items: Iterable[Mapping] | None) -> list:
+    if items is None:
+        return []
+    if isinstance(items, (str, bytes, Mapping)):
+        raise TypeError("지식 출처는 문서 목록이어야 합니다.")
+    try:
+        return list(items)
+    except TypeError as exc:
+        raise TypeError("지식 출처는 반복 가능한 문서 목록이어야 합니다.") from exc
+
+
 def _is_citable(item: Mapping) -> bool:
-    url = str(item.get("url") or "").strip()
-    license_name = str(item.get("license") or "").strip()
-    attribution = str(item.get("attribution") or "").strip()
-    title = str(item.get("title") or "").strip()
-    text = str(item.get("text") or "").strip()
-    return bool(text) and has_valid_wikipedia_attribution(title, url, license_name, attribution)
+    if not isinstance(item, Mapping):
+        return False
+    title = item.get("title")
+    url = item.get("url")
+    license_name = item.get("license")
+    attribution = item.get("attribution")
+    text = item.get("text")
+    if not all(isinstance(value, str) for value in (
+        title, url, license_name, attribution, text
+    )):
+        return False
+    return bool(text.strip()) and has_valid_wikipedia_attribution(
+        title, url, license_name, attribution
+    )
 
 
 def serialize_knowledge_sources(items: Iterable[Mapping]) -> list[dict]:
-    """Return only source records with the required URL, license, and attribution."""
+    """Return only source records with strict string fields and valid attribution."""
     sources = []
     seen = set()
-    for item in items or []:
-        if not isinstance(item, Mapping) or not _is_citable(item):
+    for item in _as_rows(items):
+        if not _is_citable(item):
             continue
-        key = (str(item["url"]).strip(), str(item["title"]).strip())
+        key = (item["url"].strip(), item["title"].strip())
         if key in seen:
             continue
         seen.add(key)
         sources.append({
-            "title": str(item["title"]).strip(),
-            "url": str(item["url"]).strip(),
+            "title": item["title"].strip(),
+            "url": item["url"].strip(),
             "license": WIKIPEDIA_LICENSE,
-            "attribution": str(item["attribution"]).strip(),
+            "attribution": item["attribution"].strip(),
         })
     return sources
 
 
 def build_knowledge_context(items: Iterable[Mapping], excerpt_chars: int = 420) -> str:
     """Build model context only from the same source records exposed to the caller."""
-    rows = list(items or [])
+    if isinstance(excerpt_chars, bool) or not isinstance(excerpt_chars, int):
+        raise ValueError("excerpt_chars는 1~2000 사이의 정수여야 합니다.")
+    if not 1 <= excerpt_chars <= 2000:
+        raise ValueError("excerpt_chars는 1~2000 사이의 정수여야 합니다.")
+    rows = _as_rows(items)
     sources = serialize_knowledge_sources(rows)
     by_key = {
-        (str(item["url"]).strip(), str(item["title"]).strip()): item
+        (item["url"].strip(), item["title"].strip()): item
         for item in rows
-        if isinstance(item, Mapping)
+        if _is_citable(item)
     }
     excerpts = []
     for source in sources:
         item = by_key[(source["url"], source["title"])]
-        excerpt = " ".join(str(item.get("text") or "").split())[:max(1, int(excerpt_chars))]
+        excerpt = " ".join(item["text"].split())[:excerpt_chars]
         excerpts.append(f'[{source["title"]}] {excerpt}')
     if not excerpts:
         return ""
