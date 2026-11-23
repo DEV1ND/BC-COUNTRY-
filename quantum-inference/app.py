@@ -19,7 +19,7 @@ from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from knowledge_retrieval import build_fts_query, query_terms, rank_documents
+from knowledge_retrieval import search_knowledge_index
 from retrieval_benchmark import evaluate_retrieval_cases
 from quantum_retrieval import retrieve as retrieve_approved_qa
 from generation_sources import build_knowledge_context, serialize_knowledge_sources
@@ -260,34 +260,21 @@ def require_admin(authorization):
         status_code, message = auth_error
         raise HTTPException(status_code, "관리자 인증이 필요합니다." if status_code == 401 else message)
 
-def retrieve_knowledge(question, limit=3):
-    # FTS5 discovers broad candidates; title-weighted reranking filters weak OR matches.
-    terms = query_terms(question)[:10]
-    match = build_fts_query(question, max_terms=10)
-    if not terms or not match:
-        return []
+def retrieve_knowledge_diagnostic(question, limit=3):
+    """Return documents plus an explicit status; retrieval faults never masquerade as matches."""
     conn = knowledge_db()
     try:
-        rows = []
-        try:
-            rows = conn.execute("""SELECT d.title,d.url,d.text,d.attribution,d.license
-                FROM knowledge_fts f JOIN knowledge_docs d ON d.page_id=f.page_id
-                WHERE knowledge_fts MATCH ?
-                ORDER BY bm25(knowledge_fts) LIMIT 50""", (match,)).fetchall()
-        except sqlite3.OperationalError:
-            rows = []
-        if not rows:
-            clauses = " OR ".join("title LIKE ? OR text LIKE ?" for _ in terms)
-            args = []
-            for term in terms:
-                args.extend(["%" + term + "%", "%" + term + "%"])
-            rows = conn.execute(
-                "SELECT title,url,text,attribution,license FROM knowledge_docs WHERE " +
-                clauses + " LIMIT 100", args
-            ).fetchall()
-        return rank_documents(question, rows, limit=limit, min_score=0.18)
+        result = search_knowledge_index(conn, question, limit=limit, min_score=0.18)
     finally:
         conn.close()
+    if result["status"] in ("index_invalid", "search_unavailable"):
+        logger.warning("Knowledge retrieval degraded: status=%s", result["status"])
+    return result
+
+
+def retrieve_knowledge(question, limit=3):
+    """Compatibility wrapper for callers that only need the retrieved documents."""
+    return retrieve_knowledge_diagnostic(question, limit=limit)["documents"]
 
 
 class GenerateRequest(BaseModel):
@@ -367,14 +354,20 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
         payload = await request.json()
     except Exception:
         raise HTTPException(400, "JSON 본문이 필요합니다.")
-    question = str(payload.get("question", "")).strip() if isinstance(payload, dict) else ""
+    question = payload.get("question") if isinstance(payload, dict) else None
+    if not isinstance(question, str):
+        raise HTTPException(422, "question은 문자열이어야 합니다.")
+    question = question.strip()
     if not question or len(question) > 1000:
         raise HTTPException(422, "question은 1~1000자여야 합니다.")
-    matches = retrieve_knowledge(question, limit=5)
+    retrieval = retrieve_knowledge_diagnostic(question, limit=5)
+    matches = retrieval["documents"]
     return {
         "ok": True,
         "question": question,
         "count": len(matches),
+        "retrieval_status": retrieval["status"],
+        "used_fallback": retrieval["used_fallback"],
         "results": [{
             "title": str(item.get("title", "")),
             "url": str(item.get("url", "")),
@@ -544,7 +537,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         }
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
-    knowledge = retrieve_knowledge(req.prompt, limit=3)
+    knowledge_retrieval = retrieve_knowledge_diagnostic(req.prompt, limit=3)
+    knowledge = knowledge_retrieval["documents"]
     # Only documents with a valid Wikipedia URL, CC BY-SA 4.0 label,
     # and non-empty attribution are passed into generation or exposed as citations.
     knowledge_context = build_knowledge_context(knowledge)
@@ -623,6 +617,11 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "is_model_generation": True,
             "response_mode": "model_generation",
             "knowledge_sources": knowledge_sources,
+            "knowledge_retrieval": {
+                "status": knowledge_retrieval["status"],
+                "used_fallback": knowledge_retrieval["used_fallback"],
+                "source_count": len(knowledge_sources),
+            },
             "input_tokens": len(prompt_ids),
             "generated_tokens": len(generated),
             "generation_stop_reason": generation_stop_reason,
