@@ -69,3 +69,12 @@ test("sync preview is authenticated and strictly read-only", () => {
   assert.match(preview, /reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
   assert.doesNotMatch(preview, /\.run\(|\.batch\(/);
 });
+
+
+test("Wikipedia crawler stores complete CC BY-SA attribution metadata", () => {
+  assert.match(worker, /function buildWikipediaAttribution\(title,url\)/);
+  assert.match(worker, /Wikipedia contributors, \$\{title\}, \$\\{url\}; licensed under CC BY-SA 4\.0/);
+  assert.match(worker, /https:\/\/creativecommons\.org\/licenses\/by-sa\/4\.0\//);
+  assert.match(worker, /license_status='attribution_required',license_name='CC BY-SA 4\.0',attribution=\?/);
+  assert.doesNotMatch(worker, /Wikipedia contributors; retain page title, URL, license/);
+});
