@@ -69,6 +69,13 @@ class GenerationSamplingTests(unittest.TestCase):
     def test_ngram_guard_ignores_short_histories(self):
         self.assertEqual(safe_ngram_bans([0.1, 0.2], [1]), set())
 
+
+    def test_ngram_guard_rejects_invalid_token_history(self):
+        for history in ([True, 1], [1.5, 1], [-1, 1], [1, 4], [[1], 2]):
+            with self.subTest(history=history):
+                with self.assertRaises(ValueError):
+                    safe_ngram_bans([0.1, 0.2, 0.3, 0.4], history, 2)
+
     def test_ngram_guard_rejects_invalid_logits_and_ngram_size(self):
         for values, history, n in (
             ([float("nan")], [1, 2], 2),
