@@ -75,7 +75,9 @@ class BPETokenizer:
         return cls(merges=merges, initial_symbols=sorted(alphabet))
 
     def encode(self, text):
-        pieces = list(str(text))
+        if not isinstance(text, str):
+            raise TypeError("토크나이저 입력은 문자열이어야 합니다.")
+        pieces = list(text)
         while len(pieces) > 1:
             candidates = [(self.ranks[(pieces[i], pieces[i + 1])], i)
                           for i in range(len(pieces) - 1)
@@ -87,11 +89,12 @@ class BPETokenizer:
         return [self.stoi.get(piece, 0) for piece in pieces]
 
     def decode(self, ids):
+        if not isinstance(ids, (list, tuple)):
+            raise TypeError("토큰 ID 목록은 list 또는 tuple이어야 합니다.")
         output = []
-        for index in ids:
-            try:
-                token_id = int(index)
-            except (TypeError, ValueError, OverflowError):
+        for token_id in ids:
+            # Never coerce floats, booleans, or numeric strings into valid token IDs.
+            if isinstance(token_id, bool) or not isinstance(token_id, int):
                 output.append("�")
                 continue
             output.append("�" if token_id == 0 else self.itos.get(token_id, "�"))
