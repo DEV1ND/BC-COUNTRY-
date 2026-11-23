@@ -10,6 +10,8 @@ on:
       - 'bpe_candidate_train.py'
       - 'training_provenance.py'
       - 'test_training_provenance.py'
+      - 'export_training_provenance_template.py'
+      - 'test_export_training_provenance_template.py'
       - 'test_bpe_candidate_pipeline.py'
       - 'quantum_human_review.py'
       - 'test_quantum_human_review.py'
@@ -60,12 +62,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py
 
       - name: Audit training-data provenance
         id: provenance
         run: |
           python training_provenance.py --input training_extra.json --output training_provenance_audit.json
+          python export_training_provenance_template.py --input training_extra.json --output training_provenance_review_template.json
           python - <<'PY'
           import json
           import os
@@ -89,7 +92,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: quantum-training-provenance-audit
-          path: training_provenance_audit.json
+          path: |
+            training_provenance_audit.json
+            training_provenance_review_template.json
           if-no-files-found: warn
           retention-days: 14
 
