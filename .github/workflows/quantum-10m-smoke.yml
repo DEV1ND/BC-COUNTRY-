@@ -9,6 +9,8 @@ on:
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
       - 'test_bpe_candidate_pipeline.py'
+      - 'quantum_human_review.py'
+      - 'test_quantum_human_review.py'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
@@ -52,7 +54,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py
 
       - name: Verify and smoke-train Quantum 10M
         run: |
@@ -76,6 +78,9 @@ jobs:
       - name: Compare Quantum decoding strategies on independent questions
         run: python quantum_generation_eval.py --checkpoint bpe_candidate_checkpoint.pt --evaluation bpe_independent_eval.json --output quantum_decoding_sweep.json
 
+      - name: Create human answer-quality review template
+        run: python quantum_human_review.py --input quantum_decoding_sweep.json --template-output quantum_human_review_template.json
+
       - name: Upload 10M smoke-test artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -85,5 +90,6 @@ jobs:
             bpe_candidate.json
             bpe_generation_seed_20261123.json
             quantum_decoding_sweep.json
+            quantum_human_review_template.json
           if-no-files-found: error
           retention-days: 14
