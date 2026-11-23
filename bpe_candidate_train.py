@@ -290,11 +290,13 @@ def main():
             independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
+    # Independent evaluation text must not influence tokenizer vocabulary or merge counts.
+    # Approved validation rows may contribute character coverage for deterministic round trips.
     tokenizer = BPETokenizer.train(
         [row["text"] for row in train_rows],
         vocab_size=args.vocab_size,
         min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
+        extra_alphabet_texts=[row["text"] for row in rows],
     )
     train_sequences = encode_rows(train_rows, tokenizer)
     augmented_train_rows = augment_training_rows(train_rows)
@@ -336,6 +338,7 @@ def main():
     validation_curve = []
     best_bpc = float("inf")
     best_step = 0
+    best_training_batch_loss = None
     best_state = None
     stale_evaluations = 0
     total_steps = max(1, min(args.steps, 5000))
@@ -358,11 +361,12 @@ def main():
             if math.isfinite(score) and score < best_bpc:
                 best_bpc = score
                 best_step = step
+                best_training_batch_loss = losses[-1]
                 best_state = {k: v.detach().cpu().clone() for k, v in candidate.state_dict().items()}
                 stale_evaluations = 0
             else:
                 stale_evaluations += 1
-            if stale_evaluations >= 5:
+            if stale_evaluations >= 2:
                 break
 
     if best_state is None:
@@ -435,6 +439,8 @@ def main():
         "bpe_merge_count": len(tokenizer.merges),
         "steps": len(losses),
         "best_step": best_step,
+        "best_checkpoint_training_batch_loss": round(best_training_batch_loss, 5),
+        "early_stopping_patience_evaluations": 2,
         "seed": args.seed,
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
