@@ -105,6 +105,56 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(len({case["id"] for case in cases}), 27)
         self.assertEqual([case["id"] for case in cases if not case["expected_titles"]], ["unknown"])
 
+
+    def test_unanswerable_case_penalizes_any_returned_document(self):
+        report = evaluate_retrieval_cases(
+            [self.cases[2]],
+            lambda question, k: [{"title": "무관한 문서"}],
+            k=5,
+        )
+        self.assertEqual(report["unanswerable_cases"], 1)
+        self.assertEqual(report["false_positive_retrievals"], 1)
+        self.assertEqual(report["correct_abstentions"], 0)
+        self.assertEqual(report["safe_abstention_rate"], 0.0)
+        self.assertTrue(report["results"][0]["false_positive_retrieval"])
+
+    def test_unanswerable_case_is_correctly_abstained_when_no_document_returned(self):
+        report = evaluate_retrieval_cases(
+            [self.cases[2]],
+            lambda question, k: [],
+            k=5,
+        )
+        self.assertEqual(report["false_positive_retrievals"], 0)
+        self.assertEqual(report["correct_abstentions"], 1)
+        self.assertEqual(report["safe_abstention_rate"], 1.0)
+
+    def test_rejects_coerced_case_fields_and_invalid_limits(self):
+        invalid_cases = (
+            dict(self.cases[0], id=123),
+            dict(self.cases[0], question=123),
+            dict(self.cases[0], domain=True),
+        )
+        for case in invalid_cases:
+            with self.subTest(case=case):
+                with self.assertRaises(ValueError):
+                    validate_retrieval_cases([case])
+        for max_cases in (True, 2.5, "3", 0, 501):
+            with self.subTest(max_cases=max_cases):
+                with self.assertRaises(ValueError):
+                    validate_retrieval_cases(self.cases, max_cases=max_cases)
+        for k in (True, 2.5, "3"):
+            with self.subTest(k=k):
+                with self.assertRaises(ValueError):
+                    evaluate_retrieval_cases(self.cases, lambda q, limit: [], k=k)
+
+    def test_retriever_cannot_inflate_precision_with_duplicate_titles(self):
+        with self.assertRaisesRegex(ValueError, "duplicate titles"):
+            evaluate_retrieval_cases(
+                [self.cases[0]],
+                lambda question, k: [{"title": "인공지능"}, {"title": " 인공지능 "}],
+                k=5,
+            )
+
     def test_non_list_retriever_output_is_rejected(self):
         with self.assertRaises(ValueError):
             evaluate_retrieval_cases(self.cases[:1], lambda q, k: None)
