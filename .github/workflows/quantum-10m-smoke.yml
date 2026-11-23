@@ -94,7 +94,7 @@ jobs:
         id: provenance
         run: |
           python training_provenance.py --input training_extra.json --output training_provenance_audit.json
-          python export_training_provenance_template.py --input training_extra.json --output training_provenance_review_template.json
+          python export_training_provenance_template.py --input training_extra.json --output training_provenance_review_template.json --omit-content
           python - <<'PY'
           import json
           import os
