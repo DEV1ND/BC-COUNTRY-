@@ -377,6 +377,9 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
         "rejected_source_rows": retrieval.get("rejected_source_rows", 0),
         "rejected_integrity_rows": retrieval.get("rejected_integrity_rows", 0),
         "results": [{
+            "page_id": str(item.get("page_id", "")),
+            "revision_id": str(item.get("revision_id", "")),
+            "content_sha256": str(item.get("content_hash", "")),
             "title": str(item.get("title", "")),
             "url": str(item.get("url", "")),
             "license": str(item.get("license", "")),
