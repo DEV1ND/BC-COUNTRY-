@@ -169,6 +169,10 @@ def load_approved_texts(path):
 
 def encode_prompt_answer(prompt, answer, tokenizer, suffix="\n\n"):
     """Encode prompt and target separately so BPE cannot merge across their boundary."""
-    prompt_ids = tokenizer.encode(str(prompt))
-    answer_ids = tokenizer.encode(str(answer) + suffix)
+    if not isinstance(prompt, str) or not isinstance(answer, str):
+        raise TypeError("프롬프트와 답변은 문자열이어야 합니다.")
+    if not isinstance(suffix, str):
+        raise TypeError("답변 접미사는 문자열이어야 합니다.")
+    prompt_ids = tokenizer.encode(prompt)
+    answer_ids = tokenizer.encode(answer + suffix)
     return prompt_ids + answer_ids, len(prompt_ids)
