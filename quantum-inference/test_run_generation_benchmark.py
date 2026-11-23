@@ -93,6 +93,61 @@ class GenerationBenchmarkValidationTests(unittest.TestCase):
                     limit=1,
                 )
 
+    def test_report_counts_and_preserves_fragmented_generation_output(self):
+        fragmented = "있 라 다 망 서 5 그 지 개 나 을 되 0 받 캘 소 니"
+        with patch("run_generation_benchmark._request_json") as request:
+            request.side_effect = [
+                {
+                    "generation_ready": True,
+                    "model_loaded": True,
+                    "model": "Quantum BPE Candidate",
+                    "model_parameters": 273086,
+                },
+                {
+                    "answer": fragmented,
+                    "is_live_inference": True,
+                    "model": "quantum-bpe-candidate",
+                    "response_mode": "model_generation",
+                    "is_model_generation": True,
+                },
+            ]
+            report = run_benchmark(
+                "https://candidate.example",
+                "test-token",
+                benchmark_path=self._write_dataset(),
+                limit=1,
+            )
+
+        self.assertEqual(report["cases_completed"], 1)
+        self.assertEqual(report["generation_invocations"], 1)
+        self.assertEqual(report["generation_outputs_flagged_for_fragmentation"], 1)
+        self.assertEqual(report["results"][0]["answer"], fragmented)
+        self.assertTrue(report["results"][0]["output_diagnostics"]["suspicious_fragmentation"])
+        self.assertEqual(report["results"][0]["human_review_status"], "pending")
+        self.assertIsNone(report["automatic_quality_score"])
+
+    def test_report_does_not_flag_a_normal_korean_generation(self):
+        with patch("run_generation_benchmark._request_json") as request:
+            request.side_effect = [
+                {"generation_ready": True, "model_loaded": True},
+                {
+                    "answer": "안녕하세요. 무엇을 도와드릴까요?",
+                    "is_live_inference": True,
+                    "model": "quantum-bpe-candidate",
+                    "response_mode": "model_generation",
+                    "is_model_generation": True,
+                },
+            ]
+            report = run_benchmark(
+                "https://candidate.example",
+                "test-token",
+                benchmark_path=self._write_dataset(),
+                limit=1,
+            )
+
+        self.assertEqual(report["generation_outputs_flagged_for_fragmentation"], 0)
+        self.assertFalse(report["results"][0]["output_diagnostics"]["suspicious_fragmentation"])
+
     def _write_dataset(self):
         handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json", delete=False)
         json.dump(valid_dataset(), handle, ensure_ascii=False)
