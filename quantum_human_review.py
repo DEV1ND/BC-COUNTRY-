@@ -20,6 +20,8 @@ def build_review_template(generation_report):
         if not isinstance(samples, list):
             raise ValueError(f"{strategy}: samples 배열이 없습니다.")
         for index, sample in enumerate(samples):
+            if not isinstance(sample, dict):
+                raise ValueError(f"{strategy}[{index}]: sample은 객체여야 합니다.")
             question = str(sample.get("question", "")).strip()
             reference = str(sample.get("reference_answer", "")).strip()
             generated = str(sample.get("generated_answer", "")).strip()
@@ -55,8 +57,13 @@ def summarize_reviews(review_payload):
     counts = {dimension: 0 for dimension in DIMENSIONS}
     incomplete = []
     factuality_below_three = 0
+    empty_generated = 0
     for index, record in enumerate(records):
-        ratings = record.get("ratings") if isinstance(record, dict) else None
+        if not isinstance(record, dict):
+            raise ValueError(f"records[{index}]는 객체여야 합니다.")
+        if not str(record.get("generated_answer", "")).strip():
+            empty_generated += 1
+        ratings = record.get("ratings")
         missing = []
         for dimension in DIMENSIONS:
             value = ratings.get(dimension) if isinstance(ratings, dict) else None
@@ -81,6 +88,7 @@ def summarize_reviews(review_payload):
         complete
         and all(averages[dimension] is not None and averages[dimension] >= 4.0 for dimension in DIMENSIONS)
         and factuality_below_three == 0
+        and empty_generated == 0
     )
     return {
         "schema": "juckex-quantum-human-review-summary-v1",
@@ -89,6 +97,7 @@ def summarize_reviews(review_payload):
         "incomplete_records": incomplete,
         "average_ratings": averages,
         "factuality_below_three_count": factuality_below_three,
+        "empty_generated_answer_count": empty_generated,
         "human_review_passed": quality_passed,
         "status": "passed" if quality_passed else ("incomplete" if not complete else "not_passed"),
         "promotion": "사용자 승인 및 별도 배포 검증 전까지 운영 모델을 변경하지 않습니다.",
