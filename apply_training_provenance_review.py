@@ -47,20 +47,21 @@ def apply_review(source_rows, template):
             continue
         question = str(row.get("question", ""))
         answer = str(row.get("answer", ""))
-        expected[_record_id(question, answer)] = (index, row)
+        expected[index] = (_record_id(question, answer), row)
 
     reviewed = {}
     for record in records:
         if not isinstance(record, dict):
             raise ValueError("검토 레코드는 객체여야 합니다.")
+        original_index = record.get("original_index")
+        if not isinstance(original_index, int) or original_index not in expected:
+            raise ValueError("원본과 일치하지 않는 original_index가 있습니다.")
         record_id = record.get("record_id")
-        if not isinstance(record_id, str) or record_id not in expected:
+        expected_id, original = expected[original_index]
+        if not isinstance(record_id, str) or record_id != expected_id:
             raise ValueError("원본과 일치하지 않는 record_id가 있습니다.")
-        if record_id in reviewed:
-            raise ValueError("중복 record_id가 있습니다.")
-        original_index, original = expected[record_id]
-        if record.get("original_index") != original_index:
-            raise ValueError("원본 레코드 위치가 변경되었습니다.")
+        if original_index in reviewed:
+            raise ValueError("중복 original_index가 있습니다.")
         if record.get("question") != str(original.get("question", "")):
             raise ValueError("질문 내용이 원본과 일치하지 않습니다.")
         if record.get("answer") != str(original.get("answer", "")):
@@ -83,7 +84,7 @@ def apply_review(source_rows, template):
             raise ValueError("검토자 정보가 비어 있습니다.")
         if not _valid_timestamp(reviewed_at):
             raise ValueError("reviewed_at은 ISO 8601 날짜·시간이어야 합니다.")
-        reviewed[record_id] = (source, {
+        reviewed[original_index] = (source, {
             "approved": True,
             "reviewer": reviewer.strip(),
             "reviewed_at": reviewed_at.strip(),
@@ -95,8 +96,8 @@ def apply_review(source_rows, template):
         raise ValueError(f"검토 누락 또는 불일치: 누락 {missing}개, 추가 {extra}개")
 
     output = copy.deepcopy(source_rows)
-    for record_id, (index, original) in expected.items():
-        source, review = reviewed[record_id]
+    for index, (record_id, original) in expected.items():
+        source, review = reviewed[index]
         legacy_source = original.get("source")
         output[index]["source_legacy_label"] = legacy_source
         output[index]["source"] = {field: source[field].strip() for field in SOURCE_FIELDS}
