@@ -316,6 +316,24 @@ def root_status():
             "generation_endpoint": "/v1/generate", **status}
 
 
+def public_wikipedia_seed_status(status):
+    """Expose operational counters only; hide exception text and document diagnostics."""
+    if not isinstance(status, dict):
+        return {"status": "unknown"}
+    allowed = {
+        "status", "complete", "requested_topics", "imported_this_start",
+        "existing_documents", "retrieval_tests_passed", "retrieval_tests_total",
+        "retrieval_coverage", "fetch_mode", "requested", "returned_pages",
+        "total_documents", "skipped", "skip_reasons", "fallback_failures",
+        "existing_index_reused",
+    }
+    public = {key: status[key] for key in allowed if key in status}
+    error = status.get("error")
+    if error:
+        public["error_type"] = str(error).split(":", 1)[0][:64]
+    return public
+
+
 @app.get("/health")
 def health():
     conn = knowledge_db()
@@ -337,7 +355,7 @@ def health():
             "checkpoint_load_error": (
                 CHECKPOINT_LOAD_ERROR.split(":", 1)[0] if CHECKPOINT_LOAD_ERROR else None
             ),
-            "wikipedia_seed": wikipedia_seed_status,
+            "wikipedia_seed": public_wikipedia_seed_status(wikipedia_seed_status),
             "production_model_touched": False}
 
 @app.post("/admin/knowledge/search")
