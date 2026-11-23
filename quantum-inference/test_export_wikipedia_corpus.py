@@ -25,6 +25,7 @@ def document(**overrides):
         "content_hash": hashlib.sha256(text.strip().encode("utf-8")).hexdigest(),
         "status": "pending_review",
         "reviewer_note": "",
+        "reviewed_at": None,
     }
     row.update(overrides)
     return row
@@ -84,7 +85,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             self.assertFalse(destination.exists())
 
     def test_manual_corpus_requires_manual_approval_marker(self):
-        bad = document(status="approved", reviewer_note="AUTO_REVIEW: passed")
+        bad = document(status="approved", reviewer_note="AUTO_REVIEW: passed", reviewed_at="2026-11-23T10:00:00Z")
         with tempfile.TemporaryDirectory() as temp_dir:
             destination = Path(temp_dir) / "corpus.jsonl"
             with patch("export_wikipedia_corpus.fetch_page", return_value={
@@ -105,6 +106,35 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "incomplete or invalid CC BY-SA attribution"):
                     export_corpus("https://example.workers.dev", "token", "unverified", destination)
             self.assertFalse(destination.exists())
+
+
+    def test_manual_corpus_requires_timezone_aware_review_timestamp(self):
+        bad = document(
+            status="approved",
+            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewed_at="2026-11-23 10:00:00",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            destination = Path(temp_dir) / "corpus.jsonl"
+            with patch("export_wikipedia_corpus.fetch_page", return_value={
+                "documents": [bad], "has_more": False, "next_after": None
+            }):
+                with self.assertRaisesRegex(RuntimeError, "must include a timezone"):
+                    export_corpus("https://example.workers.dev", "token", "manual", destination)
+            self.assertFalse(destination.exists())
+
+    def test_valid_manual_corpus_preserves_review_timestamp(self):
+        row = document(
+            status="approved",
+            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewed_at="2026-11-23T10:00:00.000Z",
+        )
+        count, path = self.export_with_pages([
+            {"documents": [row], "has_more": False, "next_after": None}
+        ], corpus="manual")
+        exported = json.loads(path.read_text(encoding="utf-8").strip())
+        self.assertEqual(count, 1)
+        self.assertEqual(exported["reviewed_at"], "2026-11-23T10:00:00.000Z")
 
     def test_duplicate_page_ids_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
