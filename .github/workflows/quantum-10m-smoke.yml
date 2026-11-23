@@ -12,6 +12,8 @@ on:
       - 'test_training_provenance.py'
       - 'export_training_provenance_template.py'
       - 'test_export_training_provenance_template.py'
+      - 'apply_training_provenance_review.py'
+      - 'test_apply_training_provenance_review.py'
       - 'test_bpe_candidate_pipeline.py'
       - 'quantum_human_review.py'
       - 'test_quantum_human_review.py'
@@ -64,7 +66,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py test_apply_training_provenance_review.py
 
       - name: Audit training-data provenance
         id: provenance
