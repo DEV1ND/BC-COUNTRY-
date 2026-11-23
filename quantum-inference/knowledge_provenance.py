@@ -1,4 +1,6 @@
-"""Shared provenance validation for Korean Wikipedia knowledge records."""
+"""Shared provenance and content-integrity validation for Wikipedia records."""
+import hashlib
+import re
 from urllib.parse import urlsplit
 
 WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
@@ -40,3 +42,14 @@ def has_valid_wikipedia_attribution(title: str, url: str, license_name: str, att
         and WIKIPEDIA_LICENSE in attribution
         and WIKIPEDIA_LICENSE_URL in attribution
     )
+
+
+def has_valid_content_integrity(text: str, revision_id: str, content_hash: str) -> bool:
+    """Require a numeric Wikipedia revision and exact SHA-256 of stored UTF-8 text."""
+    if not all(isinstance(value, str) for value in (text, revision_id, content_hash)):
+        return False
+    if not text.strip() or not re.fullmatch(r"[0-9]+", revision_id.strip()):
+        return False
+    if not re.fullmatch(r"[a-f0-9]{64}", content_hash.strip()):
+        return False
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() == content_hash.strip()
