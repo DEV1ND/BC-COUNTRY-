@@ -144,3 +144,10 @@ These metrics evaluate retrieval behavior only. They do not establish factual co
 The retrieval-only benchmark now reports answerability separately from ordinary title hits. Cases with an empty `expected_titles` list are explicitly unanswerable cases: returning any document is counted as a false-positive retrieval, while returning no documents is a correct abstention. Reports include `unanswerable_cases`, `false_positive_retrievals`, and `safe_abstention_rate`, with per-domain equivalents.
 
 The benchmark rejects non-string case identity/question/domain fields, invalid integer limits, malformed retrieved titles, and duplicate normalized retrieved titles. Duplicate results are rejected rather than allowed to inflate precision. These metrics evaluate retrieval behavior only; they do not establish factual correctness, model generation quality, or training eligibility. A dedicated Candidate-only GitHub Actions workflow runs this regression suite without contacting the model or Production services.
+
+
+## Candidate source traceability
+
+The authenticated `POST /admin/knowledge/search` diagnostic now returns a source trace for every eligible retrieval result: the Wikipedia page ID, revision ID, stored UTF-8 content SHA-256, canonical page URL, license and attribution, lexical relevance score, and a short excerpt. This makes it possible to identify the exact imported page revision and verify whether its stored text still matches the recorded digest.
+
+The trace endpoint is retrieval-only: it does not invoke Quantum, change model weights, or prove that a retrieved passage supports a generated claim. The relevance score is a lexical ranking signal, not a probability or factual-confidence score. The SHA-256 digest detects content changes relative to the stored revision record; it does not establish upstream truth or reviewer identity. The endpoint remains protected by Candidate admin authentication.
