@@ -7,8 +7,10 @@ WIKIPEDIA_LICENSE_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 
 def is_valid_wikipedia_url(url: str) -> bool:
     """Accept only canonical HTTPS URLs on the exact Korean Wikipedia host."""
+    if not isinstance(url, str):
+        return False
     try:
-        parsed = urlsplit(str(url or "").strip())
+        parsed = urlsplit(url.strip())
         return (
             parsed.scheme == "https"
             and parsed.netloc == "ko.wikipedia.org"
@@ -23,12 +25,16 @@ def is_valid_wikipedia_url(url: str) -> bool:
 
 def has_valid_wikipedia_attribution(title: str, url: str, license_name: str, attribution: str) -> bool:
     """Require page identity and both CC BY-SA 4.0 license identifiers."""
-    title, url = str(title or "").strip(), str(url or "").strip()
-    attribution = str(attribution or "").strip()
+    if not all(isinstance(value, str) for value in (
+        title, url, license_name, attribution
+    )):
+        return False
+    title, url = title.strip(), url.strip()
+    attribution = attribution.strip()
     return (
         bool(title)
         and is_valid_wikipedia_url(url)
-        and str(license_name or "").strip() == WIKIPEDIA_LICENSE
+        and license_name.strip() == WIKIPEDIA_LICENSE
         and title in attribution
         and url in attribution
         and WIKIPEDIA_LICENSE in attribution
