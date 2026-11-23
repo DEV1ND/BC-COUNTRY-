@@ -75,6 +75,21 @@ def split_pairs(rows):
     return train, valid
 
 
+def build_candidate_tokenizer(train_rows, validation_rows, vocab_size=1024):
+    """Build BPE merges from training text only; validation adds character coverage only.
+
+    Independent evaluation rows are deliberately not accepted by this helper.
+    """
+    training_texts = [row["text"] for row in train_rows]
+    alphabet_texts = training_texts + [row["text"] for row in validation_rows]
+    return BPETokenizer.train(
+        training_texts,
+        vocab_size=vocab_size,
+        min_pair_frequency=2,
+        extra_alphabet_texts=alphabet_texts,
+    )
+
+
 def encode_rows(rows, tokenizer):
     return [tokenizer.encode(row["text"]) for row in rows]
 
@@ -292,12 +307,7 @@ def main():
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
     # Independent evaluation text must not influence tokenizer vocabulary or merge counts.
     # Approved validation rows may contribute character coverage for deterministic round trips.
-    tokenizer = BPETokenizer.train(
-        [row["text"] for row in train_rows],
-        vocab_size=args.vocab_size,
-        min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows],
-    )
+    tokenizer = build_candidate_tokenizer(train_rows, valid_rows, vocab_size=args.vocab_size)
     train_sequences = encode_rows(train_rows, tokenizer)
     augmented_train_rows = augment_training_rows(train_rows)
     train_examples = encode_training_examples(augmented_train_rows, tokenizer)
