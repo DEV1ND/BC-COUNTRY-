@@ -1,5 +1,6 @@
 import sys
 import unittest
+import hashlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -11,6 +12,8 @@ def source(**overrides):
         "title": "인공지능",
         "url": "https://ko.wikipedia.org/wiki/인공지능",
         "text": "인공지능은 기계가 지능적인 작업을 수행하도록 하는 기술 분야다. " * 12,
+        "revision_id": "987654",
+        "content_hash": hashlib.sha256(("인공지능은 기계가 지능적인 작업을 수행하도록 하는 기술 분야다. " * 12).encode("utf-8")).hexdigest(),
         "license": "CC BY-SA 4.0",
         "attribution": "Wikipedia contributors, 인공지능, https://ko.wikipedia.org/wiki/인공지능; licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).",
     }
@@ -49,6 +52,18 @@ class GenerationSourcesTests(unittest.TestCase):
             ]),
             [],
         )
+
+    def test_tampered_text_or_missing_revision_is_not_citable(self):
+        original = source()
+        tampered = source(text=original["text"] + "변조")
+        missing_revision = source(revision_id="")
+        missing_hash = source(content_hash="")
+        self.assertEqual(serialize_knowledge_sources([
+            tampered, missing_revision, missing_hash
+        ]), [])
+        self.assertEqual(build_knowledge_context([
+            tampered, missing_revision, missing_hash
+        ]), "")
 
     def test_duplicate_sources_are_deduplicated(self):
         row = source()
