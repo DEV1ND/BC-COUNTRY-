@@ -23,6 +23,8 @@ on:
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
       - 'test_bpe_candidate_pipeline.py'
+      - 'quantum_human_review.py'
+      - 'test_quantum_human_review.py'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
