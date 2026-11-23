@@ -130,6 +130,23 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(report["results"][0]["recall_at_k"], 0.6667)
         self.assertEqual(report["domain_metrics"]["과학"]["mean_recall_at_k"], 0.6667)
 
+    def test_macro_and_micro_recall_weight_cases_differently(self):
+        cases = [
+            {"id": "short", "domain": "과학", "question": "짧은 질문",
+             "expected_titles": ["물리학"]},
+            {"id": "long", "domain": "과학", "question": "긴 질문",
+             "expected_titles": ["화학", "생물학", "지질학"]},
+        ]
+        retrieved = {
+            "짧은 질문": [{"title": "물리학"}],
+            "긴 질문": [{"title": "화학"}],
+        }
+        report = evaluate_retrieval_cases(cases, lambda q, k: retrieved[q], k=5)
+        self.assertEqual(report["mean_recall_at_k"], 0.6667)
+        self.assertEqual(report["micro_recall_at_k"], 0.5)
+        self.assertEqual(report["domain_metrics"]["과학"]["mean_recall_at_k"], 0.6667)
+        self.assertEqual(report["domain_metrics"]["과학"]["micro_recall_at_k"], 0.5)
+
     def test_recall_is_not_applicable_for_unanswerable_cases(self):
         report = evaluate_retrieval_cases(
             [self.cases[2]],
