@@ -19,12 +19,21 @@ def normalize_retrieval_title(value):
 
 
 
+def _bounded_integer(value, label, minimum, maximum):
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{label} must be an integer.")
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{label} must be between {minimum} and {maximum}.")
+    return value
+
+
 def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> list[dict]:
     """Validate a fixed benchmark corpus and reject ambiguous or duplicate case IDs."""
+    _bounded_integer(max_cases, "max_cases", 1, 500)
     rows = list(cases)
     if not rows:
         raise ValueError("At least one evaluation case is required.")
-    if len(rows) > max(1, min(int(max_cases), 500)):
+    if len(rows) > max_cases:
         raise ValueError("Evaluation dataset exceeds the configured case limit.")
 
     normalized = []
@@ -32,11 +41,14 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
     for index, case in enumerate(rows):
         if not isinstance(case, Mapping):
             raise ValueError(f"Case {index} must be an object.")
-        case_id = str(case.get("id") or "").strip()
-        question = str(case.get("question") or "").strip()
-        domain = str(case.get("domain") or "").strip()
+        case_id = case.get("id")
+        question = case.get("question")
+        domain = case.get("domain")
         expected = case.get("expected_titles")
-        if not case_id or not question or not domain or not isinstance(expected, list):
+        if (not isinstance(case_id, str) or not case_id.strip()
+                or not isinstance(question, str) or not question.strip()
+                or not isinstance(domain, str) or not domain.strip()
+                or not isinstance(expected, list)):
             raise ValueError(f"Case {index} requires id, domain, question, and expected_titles.")
         folded_id = case_id.casefold()
         if folded_id in seen_ids:
@@ -54,9 +66,9 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
             seen_titles.add(title.casefold())
             titles.append(title)
         normalized.append({
-            "id": case_id,
-            "domain": domain,
-            "question": question,
+            "id": case_id.strip(),
+            "domain": domain.strip(),
+            "question": question.strip(),
             "expected_titles": titles,
         })
     return normalized
@@ -68,7 +80,9 @@ def evaluate_retrieval_cases(
     k: int = 5,
 ) -> dict:
     """Measure expected-title retrieval and safe abstention on a fixed case set."""
-    k = max(1, min(int(k), 10))
+    if isinstance(k, bool) or not isinstance(k, int):
+        raise ValueError("k must be an integer.")
+    k = max(1, min(k, 10))
     rows = validate_retrieval_cases(cases)
     results = []
     hits = 0
@@ -91,9 +105,13 @@ def evaluate_retrieval_cases(
         if any(not isinstance(item, Mapping) for item in retrieved):
             raise ValueError(f"Retriever returned a malformed item for case {case['id']}.")
         retrieved = retrieved[:k]
-        titles = [str(item.get("title") or "").strip() for item in retrieved]
-        if any(not title for title in titles):
-            raise ValueError(f"Retriever returned an empty title for case {case['id']}.")
+        titles = [item.get("title") for item in retrieved]
+        if any(not isinstance(title, str) or not title.strip() for title in titles):
+            raise ValueError(f"Retriever returned an empty or invalid title for case {case['id']}.")
+        titles = [title.strip() for title in titles]
+        normalized_titles = [normalize_retrieval_title(title) for title in titles]
+        if len(normalized_titles) != len(set(normalized_titles)):
+            raise ValueError(f"Retriever returned duplicate titles for case {case['id']}.")
         matched_positions = [
             position for position, title in enumerate(titles, start=1)
             if normalize_retrieval_title(title) in expected_titles
@@ -107,7 +125,9 @@ def evaluate_retrieval_cases(
             sum(1 for title in titles if normalize_retrieval_title(title) in expected_titles) / len(titles)
             if titles else 0.0
         )
-        correct_abstention = not expected_titles and not titles
+        unanswerable = not expected_titles
+        correct_abstention = unanswerable and not titles
+        false_positive_retrieval = unanswerable and bool(titles)
 
         hits += int(hit)
         reciprocal_ranks.append(reciprocal_rank)
@@ -121,6 +141,8 @@ def evaluate_retrieval_cases(
         bucket["reciprocal_rank_sum"] += reciprocal_rank
         bucket["precision_at_k_sum"] += precision_at_k
         bucket["correct_abstentions"] += int(correct_abstention)
+        bucket["unanswerable_cases"] += int(unanswerable)
+        bucket["false_positive_retrievals"] += int(false_positive_retrieval)
 
         results.append({
             "id": case["id"],
@@ -132,6 +154,8 @@ def evaluate_retrieval_cases(
             "reciprocal_rank": round(reciprocal_rank, 4),
             "precision_at_k": round(precision_at_k, 4),
             "correct_abstention": correct_abstention,
+            "unanswerable": unanswerable,
+            "false_positive_retrieval": false_positive_retrieval,
         })
 
     total = len(rows)
@@ -144,6 +168,12 @@ def evaluate_retrieval_cases(
             "precision_at_k": round(values["precision_at_k_sum"] / count, 4),
             "mean_reciprocal_rank": round(values["reciprocal_rank_sum"] / count, 4),
             "correct_abstentions": values["correct_abstentions"],
+            "unanswerable_cases": values["unanswerable_cases"],
+            "false_positive_retrievals": values["false_positive_retrievals"],
+            "safe_abstention_rate": (
+                round(values["correct_abstentions"] / values["unanswerable_cases"], 4)
+                if values["unanswerable_cases"] else None
+            ),
         }
 
     return {
@@ -156,6 +186,15 @@ def evaluate_retrieval_cases(
         "precision_at_returned": round(precision_returned_sum / total, 4),
         "mean_reciprocal_rank": round(sum(reciprocal_ranks) / total, 4),
         "correct_abstentions": abstention_correct,
+        "unanswerable_cases": sum(1 for case in rows if not case["expected_titles"]),
+        "false_positive_retrievals": sum(1 for result in results if result["false_positive_retrieval"]),
+        "safe_abstention_rate": (
+            round(
+                abstention_correct / sum(1 for case in rows if not case["expected_titles"]),
+                4,
+            )
+            if any(not case["expected_titles"] for case in rows) else None
+        ),
         "domain_metrics": domain_metrics,
         "results": results,
         "model_invoked": False,
