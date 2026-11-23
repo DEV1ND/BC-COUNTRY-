@@ -28,6 +28,20 @@ class CandidateDataPipelineTests(unittest.TestCase):
         self.assertTrue(valid_questions)
         self.assertTrue(train_questions.isdisjoint(valid_questions))
 
+    def test_split_keeps_exact_answer_groups_disjoint(self):
+        rows = clean_pairs([
+            {"approved": True, "question": "질문 A", "answer": "공유된 답변 내용입니다."},
+            {"approved": True, "question": "질문 B", "answer": "공유된 답변 내용입니다."},
+            *[
+                {"approved": True, "question": f"독립 질문 {i}", "answer": f"서로 다른 답변 내용 {i}입니다."}
+                for i in range(20)
+            ],
+        ])
+        train, valid = split_pairs(rows)
+        train_answers = {row["answer"].casefold() for row in train}
+        valid_answers = {row["answer"].casefold() for row in valid}
+        self.assertTrue(train_answers.isdisjoint(valid_answers))
+
     def test_augmentation_uses_training_rows_only(self):
         train = [{"question": "훈련 질문", "answer": "훈련 답변"}]
         augmented = augment_training_rows(train)
