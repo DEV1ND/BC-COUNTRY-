@@ -66,3 +66,55 @@ def summarize_tokenizer_usage(tokenizer, texts, label="corpus"):
             "Tokenization coverage and compression only; not a language-quality score."
         ),
     }
+
+
+def summarize_generated_tokens(tokenizer, token_ids):
+    """Describe output token granularity; this is a diagnostic, never a quality score."""
+    if not isinstance(token_ids, (list, tuple)):
+        raise ValueError("generated token IDs must be a list or tuple")
+    vocab = getattr(tokenizer, "vocab", None)
+    itos = getattr(tokenizer, "itos", None)
+    if vocab is not None and not isinstance(vocab, (list, tuple)):
+        raise ValueError("tokenizer vocab must be a list or tuple")
+    if itos is not None and not isinstance(itos, dict):
+        raise ValueError("tokenizer itos must be a dictionary")
+
+    unknown = 0
+    single_codepoint = 0
+    known = 0
+    decoded_pieces = []
+    for token_id in token_ids:
+        if isinstance(token_id, bool) or not isinstance(token_id, int) or token_id < 0:
+            raise ValueError("generated token IDs must be non-negative integers")
+        if vocab is not None and token_id >= len(vocab):
+            raise ValueError("generated token ID is outside the tokenizer vocabulary")
+        if token_id == 0:
+            unknown += 1
+            decoded_pieces.append("�")
+            continue
+        piece = itos.get(token_id) if itos is not None else None
+        if piece is None:
+            try:
+                piece = tokenizer.decode([token_id])
+            except Exception as exc:
+                raise ValueError("tokenizer cannot decode generated token") from exc
+        if not isinstance(piece, str):
+            raise ValueError("tokenizer decoded token must be a string")
+        known += 1
+        if len(piece) == 1:
+            single_codepoint += 1
+        decoded_pieces.append(piece)
+
+    total = len(token_ids)
+    ratio = single_codepoint / known if known else 0.0
+    return {
+        "generated_tokens": total,
+        "unknown_tokens": unknown,
+        "unknown_token_ratio": round(unknown / total if total else 0.0, 6),
+        "single_codepoint_tokens": single_codepoint,
+        "single_codepoint_token_ratio": round(ratio, 6),
+        "character_fragmentation_suspected": total >= 8 and known >= 8 and ratio >= 0.9,
+        "interpretation_limit": (
+            "Token granularity diagnostic only; not a fluency, correctness, or quality score."
+        ),
+    }
