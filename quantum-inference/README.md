@@ -91,3 +91,10 @@ python -m unittest discover -s . -p 'test_*.py' -v
 - Create owner-only output files and preserve an existing destination if any page or pagination response fails validation.
 
 The crawler generates page-specific attribution when collecting or refreshing a Wikipedia page. Export validation is not a substitute for legal review, factual verification, or the separate training-data provenance gate. Wikipedia retrieval updates do not change Quantum model weights.
+
+
+## Candidate generation report integrity for human review
+
+Human-review templates exported by `export_generation_review_template.py` include `report_sha256`, a SHA-256 fingerprint of the complete generation report serialized as deterministic UTF-8 JSON (sorted keys, compact separators, no non-finite numbers). The review summarizer recomputes the fingerprint and rejects a review document if it is missing or references a different report, even when the benchmark ID is unchanged.
+
+This binds the ratings to the exact report content reviewed and helps prevent accidental mixing of separate Candidate runs. It does **not** authenticate the reviewer, prove the truth of ratings, or authorize training or Production promotion. The summary continues to set `reviewer_identity_verified=false`, `training_eligible=false`, and `promotion_approved=false`.
