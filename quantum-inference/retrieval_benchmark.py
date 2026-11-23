@@ -95,6 +95,7 @@ def evaluate_retrieval_cases(
         "cases": 0, "hits": 0, "reciprocal_rank_sum": 0.0,
         "precision_at_k_sum": 0.0, "correct_abstentions": 0,
         "unanswerable_cases": 0, "false_positive_retrievals": 0,
+        "irrelevant_retrievals": 0, "retrieved_documents": 0,
     })
 
     for case in rows:
@@ -130,6 +131,8 @@ def evaluate_retrieval_cases(
         unanswerable = not expected_titles
         correct_abstention = unanswerable and not titles
         false_positive_retrieval = unanswerable and bool(titles)
+        relevant_count = sum(1 for title in titles if normalize_retrieval_title(title) in expected_titles)
+        irrelevant_count = len(titles) - relevant_count
 
         hits += int(hit)
         reciprocal_ranks.append(reciprocal_rank)
@@ -145,6 +148,8 @@ def evaluate_retrieval_cases(
         bucket["correct_abstentions"] += int(correct_abstention)
         bucket["unanswerable_cases"] += int(unanswerable)
         bucket["false_positive_retrievals"] += int(false_positive_retrieval)
+        bucket["irrelevant_retrievals"] += irrelevant_count
+        bucket["retrieved_documents"] += len(titles)
 
         results.append({
             "id": case["id"],
@@ -158,6 +163,9 @@ def evaluate_retrieval_cases(
             "correct_abstention": correct_abstention,
             "unanswerable": unanswerable,
             "false_positive_retrieval": false_positive_retrieval,
+            "relevant_retrieved": relevant_count,
+            "irrelevant_retrieved": irrelevant_count,
+            "precision_at_returned": round(relevant_count / len(titles), 4) if titles else 0.0,
         })
 
     total = len(rows)
@@ -172,6 +180,12 @@ def evaluate_retrieval_cases(
             "correct_abstentions": values["correct_abstentions"],
             "unanswerable_cases": values["unanswerable_cases"],
             "false_positive_retrievals": values["false_positive_retrievals"],
+            "irrelevant_retrievals": values["irrelevant_retrievals"],
+            "retrieved_documents": values["retrieved_documents"],
+            "retrieval_noise_rate": (
+                round(values["irrelevant_retrievals"] / values["retrieved_documents"], 4)
+                if values["retrieved_documents"] else None
+            ),
             "safe_abstention_rate": (
                 round(values["correct_abstentions"] / values["unanswerable_cases"], 4)
                 if values["unanswerable_cases"] else None
@@ -190,6 +204,15 @@ def evaluate_retrieval_cases(
         "correct_abstentions": abstention_correct,
         "unanswerable_cases": sum(1 for case in rows if not case["expected_titles"]),
         "false_positive_retrievals": sum(1 for result in results if result["false_positive_retrieval"]),
+        "irrelevant_retrievals": sum(result["irrelevant_retrieved"] for result in results),
+        "retrieved_documents": sum(len(result["retrieved_titles"]) for result in results),
+        "retrieval_noise_rate": (
+            round(
+                sum(result["irrelevant_retrieved"] for result in results)
+                / sum(len(result["retrieved_titles"]) for result in results), 4
+            )
+            if any(result["retrieved_titles"] for result in results) else None
+        ),
         "safe_abstention_rate": (
             round(
                 abstention_correct / sum(1 for case in rows if not case["expected_titles"]),
