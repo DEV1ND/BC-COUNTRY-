@@ -10,8 +10,9 @@ import torch.nn as nn
 from fastapi import FastAPI, Header, HTTPException, Request
 from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
+from generation_sampling import apply_top_k_logits, normalize_prompt
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
@@ -288,10 +289,14 @@ def retrieve_knowledge(question, limit=3):
 
 class GenerateRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
-    max_new_tokens: int = Field(default=96, ge=8, le=160)
+    max_new_tokens: StrictInt = Field(default=96, ge=8, le=160)
     temperature: float = Field(default=0.0, ge=0.0, le=1.2)
-    top_k: int = Field(default=20, ge=0, le=100)
+    top_k: StrictInt = Field(default=20, ge=0, le=100)
     repetition_penalty: float = Field(default=1.08, ge=1.0, le=1.5)
+
+    @validator("prompt")
+    def validate_prompt_text(cls, value):
+        return normalize_prompt(value)
 
 @app.get("/")
 def root_status():
@@ -526,9 +531,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             next_id = int(torch.argmax(logits).item())
         else:
             logits = logits / req.temperature
-            if req.top_k and req.top_k < logits.numel():
-                threshold = torch.topk(logits, req.top_k).values[-1]
-                logits[logits < threshold] = -float("inf")
+            logits = apply_top_k_logits(logits, req.top_k)
             probs = torch.softmax(logits, dim=-1)
             if not torch.isfinite(probs).all() or float(probs.sum()) <= 0:
                 next_id = int(torch.argmax(logits).item())
@@ -539,6 +542,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         if step >= 5 and "\n\n" in decoded:
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
+    if not answer:
+        raise HTTPException(503, "Quantum 후보 모델이 빈 답변을 생성했습니다.")
     return {"answer": answer, "model": "quantum-bpe-candidate",
             "model_parameters": MODEL_PARAMETER_COUNT,
             "is_live_inference": True,
