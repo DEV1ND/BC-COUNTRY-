@@ -509,7 +509,9 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         return {
             "answer": qa_match["answer"],
             "model": "quantum-approved-knowledge",
-            "is_live_inference": True,
+            "is_live_inference": False,
+            "is_live_retrieval": True,
+            "is_model_generation": False,
             "response_mode": "approved_qa_retrieval",
             "retrieval_match": {
                 "question": qa_match.get("question"),
@@ -567,5 +569,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     return {"answer": answer, "model": "quantum-bpe-candidate",
             "model_parameters": MODEL_PARAMETER_COUNT,
             "is_live_inference": True,
+            "is_live_retrieval": False,
+            "is_model_generation": True,
+            "response_mode": "model_generation",
             "knowledge_sources": knowledge_sources,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
