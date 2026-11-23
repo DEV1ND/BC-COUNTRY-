@@ -3,8 +3,24 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from datetime import datetime
 
 REQUIRED_SOURCE_FIELDS = ("kind", "reference", "license", "attribution", "permission_basis")
+_PLACEHOLDER_VALUES = {"unknown", "n/a", "na", "tbd", "todo", "pending", "curated-v1"}
+
+
+def _has_real_value(value):
+    return isinstance(value, str) and bool(value.strip()) and value.strip().casefold() not in _PLACEHOLDER_VALUES
+
+
+def _valid_timezone_aware_timestamp(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
 
 
 def audit_rows(rows):
@@ -24,16 +40,16 @@ def audit_rows(rows):
         else:
             for field in REQUIRED_SOURCE_FIELDS:
                 value = source.get(field)
-                if not isinstance(value, str) or not value.strip():
+                if not _has_real_value(value):
                     missing.append("source." + field)
         review = row.get("provenance_review")
         if not isinstance(review, dict) or review.get("approved") is not True:
             missing.append("provenance_review.approved")
         reviewer = review.get("reviewer") if isinstance(review, dict) else None
         reviewed_at = review.get("reviewed_at") if isinstance(review, dict) else None
-        if not isinstance(reviewer, str) or not reviewer.strip():
+        if not _has_real_value(reviewer):
             missing.append("provenance_review.reviewer")
-        if not isinstance(reviewed_at, str) or not reviewed_at.strip():
+        if not _valid_timezone_aware_timestamp(reviewed_at):
             missing.append("provenance_review.reviewed_at")
         question = str(row.get("question", ""))
         findings.append({
