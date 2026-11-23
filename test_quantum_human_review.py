@@ -61,8 +61,11 @@ class QuantumHumanReviewTests(unittest.TestCase):
             summarize_reviews(template)
 
     def test_empty_generated_answer_cannot_pass(self):
-        template = self.review_template()
-        template["records"][0]["generated_answer"] = ""
+        report = self.sample_report()
+        report["strategies"]["greedy"]["samples"][0]["generated_answer"] = ""
+        template = build_review_template(report)
+        template["reviewer"] = "test-reviewer"
+        template["reviewed_at"] = "2026-11-23T09:00:00Z"
         template["records"][0]["ratings"] = {dimension: 5 for dimension in DIMENSIONS}
         summary = summarize_reviews(template)
         self.assertFalse(summary["human_review_passed"])
