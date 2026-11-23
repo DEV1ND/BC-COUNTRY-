@@ -241,7 +241,7 @@ class InferenceContractTests(unittest.TestCase):
                 quantum_app, "serialize_knowledge_sources", return_value=[source]
             ))
             stack.enter_context(patch.object(
-                quantum_app, "build_generation_context", return_value=([1], True)
+                quantum_app, "build_generation_context", return_value=([1], True, {"context_truncated": True, "prompt_tokens": 1})
             ))
             stack.enter_context(patch.object(quantum_app, "safe_ngram_bans", return_value=[]))
             result = quantum_app.generate(
