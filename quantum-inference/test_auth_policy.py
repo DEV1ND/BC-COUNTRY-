@@ -25,6 +25,9 @@ class GenerationAuthPolicyTests(unittest.TestCase):
             (503, "후보 추론 서버 인증 설정이 완료되지 않았습니다."),
         )
 
+    def test_unicode_token_is_compared_safely(self):
+        self.assertIsNone(generation_auth_error("퀀텀-비밀", "Bearer 퀀텀-비밀"))
+
     def test_correct_authorization_is_accepted(self):
         self.assertIsNone(generation_auth_error("secret", "Bearer secret"))
 
