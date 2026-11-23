@@ -1,7 +1,8 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3, hashlib, io, logging, time, math
+import os, json, re, sqlite3, io, logging, time, math
 from threading import Thread
 from knowledge_provenance import has_valid_wikipedia_attribution
+from knowledge_import_validation import validate_import_documents
 from seed_quality import summarize_seed_outcome, canonical_seed_title, should_skip_wikipedia_seed
 from pathlib import Path
 from typing import Optional
@@ -424,51 +425,70 @@ def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=N
 
 @app.post("/admin/knowledge/import")
 async def import_knowledge(request: Request, authorization: Optional[str] = Header(default=None)):
+    """Validate the entire batch before writing; any failure rolls back every row."""
     require_admin(authorization)
-    try: payload = await request.json()
-    except Exception: raise HTTPException(400, "JSON 본문이 필요합니다.")
-    docs = payload.get("documents") if isinstance(payload, dict) else None
-    if not isinstance(docs, list) or not docs or len(docs) > 10:
-        raise HTTPException(400, "documents는 1~10개여야 합니다.")
-    conn = knowledge_db()
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(400, "JSON 본문이 필요합니다.")
+    documents = payload.get("documents") if isinstance(payload, dict) else None
+    try:
+        docs = validate_import_documents(documents)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+    try:
+        conn = knowledge_db()
+    except sqlite3.Error as exc:
+        raise HTTPException(503, "지식 데이터베이스에 연결할 수 없습니다.") from exc
     imported = 0
     try:
         for doc in docs:
-            if not isinstance(doc, dict): raise HTTPException(400, "문서 형식이 올바르지 않습니다.")
-            page_id=str(doc.get("page_id","")).strip()
-            title=str(doc.get("title","")).strip()
-            url=str(doc.get("url","")).strip()
-            body=str(doc.get("text","")).strip()
-            license_name=str(doc.get("license","")).strip()
-            attribution=str(doc.get("attribution","")).strip()
-            revision_id=str(doc.get("revision_id","")).strip()
-            content_hash=str(doc.get("content_hash","")).strip().lower()
-            actual_hash=hashlib.sha256(body.encode("utf-8")).hexdigest()
-            if not page_id or not title or not body or len(body)<200 or len(body)>50000:
-                raise HTTPException(422, "문서 식별자·제목·본문 길이를 확인하세요.")
-            if not has_valid_wikipedia_attribution(title, url, license_name, attribution):
-                raise HTTPException(422, "위키백과 URL·문서 제목·CC BY-SA 4.0 저작자 표시가 모두 필요합니다.")
-            if not revision_id or not re.fullmatch(r"[0-9]+", revision_id):
-                raise HTTPException(422, "위키백과 원문 리비전 ID가 필요합니다.")
-            if not re.fullmatch(r"[a-f0-9]{64}", content_hash) or content_hash != actual_hash:
-                raise HTTPException(422, "본문 SHA-256 해시가 일치하지 않습니다.")
-            conn.execute("""INSERT INTO knowledge_docs(page_id,title,url,text,license,attribution,revision_id,content_hash)
-                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(page_id) DO UPDATE SET
-                title=excluded.title,url=excluded.url,text=excluded.text,
-                license=excluded.license,attribution=excluded.attribution,
-                revision_id=excluded.revision_id,content_hash=excluded.content_hash,
-                imported_at=CURRENT_TIMESTAMP""",
-                (page_id,title,url,body,license_name,attribution,revision_id,content_hash))
+            page_id = doc["page_id"]
+            title = doc["title"]
+            url = doc["url"]
+            body = doc["text"]
+            license_name = doc["license"]
+            attribution = doc["attribution"]
+            revision_id = doc["revision_id"]
+            content_hash = doc["content_hash"]
+            conn.execute(
+                """INSERT INTO knowledge_docs(
+                    page_id,title,url,text,license,attribution,revision_id,content_hash
+                ) VALUES(?,?,?,?,?,?,?,?)
+                ON CONFLICT(page_id) DO UPDATE SET
+                    title=excluded.title,url=excluded.url,text=excluded.text,
+                    license=excluded.license,attribution=excluded.attribution,
+                    revision_id=excluded.revision_id,content_hash=excluded.content_hash,
+                    imported_at=CURRENT_TIMESTAMP""",
+                (page_id,title,url,body,license_name,attribution,revision_id,content_hash),
+            )
             try:
-                conn.execute("DELETE FROM knowledge_fts WHERE page_id=?",(page_id,))
-                conn.execute("INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",(page_id,title,body))
+                conn.execute("DELETE FROM knowledge_fts WHERE page_id=?", (page_id,))
+                conn.execute(
+                    "INSERT INTO knowledge_fts(page_id,title,text) VALUES(?,?,?)",
+                    (page_id,title,body),
+                )
             except sqlite3.OperationalError as exc:
-                conn.rollback()
-                raise HTTPException(503, "검색 인덱스 저장에 실패해 전체 가져오기를 취소했습니다.") from exc
+                raise HTTPException(
+                    503, "검색 인덱스 저장에 실패해 전체 가져오기를 취소했습니다."
+                ) from exc
             imported += 1
         conn.commit()
-    finally: conn.close()
-    return {"ok":True,"imported":imported,"storage":"local-cache-rebuildable","production_model_touched":False}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except sqlite3.Error as exc:
+        conn.rollback()
+        raise HTTPException(503, "지식 문서 저장에 실패해 전체 가져오기를 취소했습니다.") from exc
+    finally:
+        conn.close()
+    return {
+        "ok": True,
+        "imported": imported,
+        "storage": "local-cache-rebuildable",
+        "production_model_touched": False,
+    }
 
 @app.get("/admin/knowledge/status")
 def knowledge_status(authorization: Optional[str] = Header(default=None)):
