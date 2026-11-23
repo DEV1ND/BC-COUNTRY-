@@ -76,7 +76,7 @@ class GenerationContextTests(unittest.TestCase):
             tokenizer, "ABCDEFGHIJKLMN", "Q?", block_size=20,
             return_diagnostics=True,
         )
-        question_tokens = len(tokenizer.encode("質問:Q?\\n答え:"))
+        question_tokens = len(tokenizer.encode("질문:Q?\\n답변:"))
         self.assertTrue(truncated)
         self.assertEqual(diagnostics["question_tokens"], question_tokens)
         self.assertEqual(diagnostics["retrieved_context_tokens"], len("ABCDEFGHIJKLMN"))
