@@ -34,6 +34,10 @@ class GenerationContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "문맥 한도"):
             build_generation_context(FakeTokenizer(), "문맥", "질문이 너무 깁니다", block_size=8)
 
+    def test_return_diagnostics_requires_boolean(self):
+        with self.assertRaisesRegex(ValueError, "불리언"):
+            build_generation_context(FakeTokenizer(), "", "질문", return_diagnostics=1)
+
     def test_invalid_block_size_is_rejected(self):
         for value in (True, 1, 2.5):
             with self.subTest(value=value):
