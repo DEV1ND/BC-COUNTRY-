@@ -233,5 +233,87 @@ class InferenceContractTests(unittest.TestCase):
         self.assertNotIn("private", str(result))
 
 
+    def test_malformed_model_output_tensor_is_rejected_without_leaking_details(self):
+        class FakeTokenizer:
+            vocab = ["<unk>", "가", "나"]
+
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "후보 답변"
+
+        malformed_outputs = (
+            torch.zeros((3,)),
+            torch.zeros((1, 3)),
+            torch.zeros((2, 1, 3)),
+            torch.zeros((1, 2, 3)),
+            torch.zeros((1, 1, 4)),
+            {"logits": torch.zeros((1, 1, 3))},
+        )
+
+        class FakeModel:
+            def __init__(self, output):
+                self.output = output
+
+            def __call__(self, _input_ids):
+                return self.output
+
+        from contextlib import ExitStack
+        for output in malformed_outputs:
+            with self.subTest(output_type=type(output).__name__, shape=getattr(output, "shape", None)):
+                with ExitStack() as stack:
+                    stack.enter_context(patch.object(quantum_app, "model", FakeModel(output)))
+                    stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+                    stack.enter_context(patch.object(
+                        quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+                    ))
+                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+                    stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
+                    stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
+                    with self.assertRaises(HTTPException) as raised:
+                        quantum_app.generate(
+                            quantum_app.GenerateRequest(prompt="새 질문", max_new_tokens=8),
+                            authorization="Bearer candidate-test-token",
+                        )
+                self.assertEqual(raised.exception.status_code, 503)
+                self.assertEqual(
+                    raised.exception.detail,
+                    "Quantum 후보 모델이 올바른 출력 형식을 반환하지 않았습니다.",
+                )
+
+    def test_model_runtime_failure_returns_generic_service_error(self):
+        class FakeTokenizer:
+            vocab = ["<unk>", "가", "나"]
+
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "후보 답변"
+
+        class BrokenModel:
+            def __call__(self, _input_ids):
+                raise RuntimeError("private checkpoint implementation detail")
+
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(quantum_app, "model", BrokenModel()))
+            stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+            ))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
+            stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
+            with self.assertRaises(HTTPException) as raised:
+                quantum_app.generate(
+                    quantum_app.GenerateRequest(prompt="새 질문", max_new_tokens=8),
+                    authorization="Bearer candidate-test-token",
+                )
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertNotIn("private checkpoint", raised.exception.detail)
+
+
 if __name__ == "__main__":
     unittest.main()
