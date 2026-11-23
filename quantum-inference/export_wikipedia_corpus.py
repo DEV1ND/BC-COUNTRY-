@@ -116,8 +116,8 @@ def fetch_page(api_base, token, corpus, after, limit, access_client_id="", acces
         raise RuntimeError("Worker returned a mismatched corpus label")
     if not isinstance(payload.get("documents"), list):
         raise RuntimeError("Worker response is missing documents")
-    if len(payload["documents"]) > 10:
-        raise RuntimeError("Worker response exceeded the 10-document page limit")
+    if len(payload["documents"]) > limit:
+        raise RuntimeError("Worker response exceeded the requested page limit")
     return payload
 
 
