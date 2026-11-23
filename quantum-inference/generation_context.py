@@ -15,6 +15,8 @@ def _validate_token_ids(token_ids, label, tokenizer):
 
 
 def build_generation_context(tokenizer, knowledge_context, question, block_size=256, return_diagnostics=False):
+    if not isinstance(return_diagnostics, bool):
+        raise ValueError("return_diagnostics는 불리언이어야 합니다.")
     if isinstance(block_size, bool) or not isinstance(block_size, int) or block_size < 2:
         raise ValueError("block_size는 2 이상의 정수여야 합니다.")
     if not isinstance(knowledge_context, str) or not isinstance(question, str):
