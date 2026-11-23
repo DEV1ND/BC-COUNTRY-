@@ -182,6 +182,42 @@ class InferenceContractTests(unittest.TestCase):
         self.assertNotIn("private", str(result))
         self.assertNotIn("secret-checkpoint", str(result))
 
+    def test_valid_candidate_checkpoint_path_is_labeled_model_generation(self):
+        class FakeTokenizer:
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "Quantum 후보 답변입니다."
+
+        class FakeModel:
+            def __call__(self, input_ids):
+                logits = torch.zeros((1, input_ids.shape[1], 4))
+                logits[:, :, 2] = 5.0
+                return logits
+
+        from contextlib import ExitStack
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(quantum_app, "model", FakeModel()))
+            stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+            ))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
+            stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
+            result = quantum_app.generate(
+                quantum_app.GenerateRequest(prompt="새 질문", max_new_tokens=8),
+                authorization="Bearer candidate-test-token",
+            )
+
+        self.assertEqual(result["response_mode"], "model_generation")
+        self.assertTrue(result["is_live_inference"])
+        self.assertFalse(result["is_live_retrieval"])
+        self.assertTrue(result["is_model_generation"])
+        self.assertEqual(result["answer"], "Quantum 후보 답변입니다.")
+
 
 if __name__ == "__main__":
     unittest.main()
