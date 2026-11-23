@@ -1,0 +1,82 @@
+name: Quantum Candidate Live API Contract
+
+on:
+  push:
+    branches: [quantum-worker-runtime-test]
+    paths:
+      - ".github/workflows/quantum-candidate-live-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-live-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check public Candidate health contract
+        env:
+          BASE_URL: https://juckex-quantum-candidate.onrender.com
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 8); do
+            if curl --silent --show-error --fail --max-time 20 "$BASE_URL/health" -o /tmp/health.json; then
+              break
+            fi
+            if [ "$attempt" -eq 8 ]; then
+              echo "Candidate /health did not become reachable."
+              exit 1
+            fi
+            sleep 10
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path("/tmp/health.json").read_text())
+          required = {
+              "ok": bool,
+              "model_loaded": bool,
+              "model_parameters": int,
+              "checkpoint_source": str,
+              "production_model_touched": bool,
+          }
+          for key, expected_type in required.items():
+              if key not in data or not isinstance(data[key], expected_type):
+                  raise SystemExit(f"Invalid /health field: {key}")
+          if data["ok"] is not True:
+              raise SystemExit("Candidate health reports ok=false")
+          print("Candidate health contract: PASS")
+          print(json.dumps({
+              "ok": data["ok"],
+              "model_loaded": data["model_loaded"],
+              "model_parameters": data["model_parameters"],
+              "checkpoint_source": data["checkpoint_source"],
+              "production_model_touched": data["production_model_touched"],
+              "knowledge_documents": data.get("knowledge_documents"),
+              "approved_qa_pairs": data.get("approved_qa_pairs"),
+          }, ensure_ascii=False, indent=2))
+          if data["production_model_touched"] is not False:
+              raise SystemExit("Safety invariant failed: production_model_touched is not false")
+          if data["model_loaded"] is not True or data["model_parameters"] <= 0:
+              raise SystemExit("Candidate checkpoint is missing: a live model must be loaded before this contract can pass.")
+          PY
+
+      - name: Verify generation endpoint fails closed without credentials
+        env:
+          BASE_URL: https://juckex-quantum-candidate.onrender.com
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --max-time 20 \
+            -o /tmp/generate-response.json -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d '{"prompt":"안녕하세요"}' \
+            "$BASE_URL/v1/generate")
+          echo "Unauthenticated /v1/generate HTTP status: $status"
+          if [ "$status" != "401" ] && [ "$status" != "503" ]; then
+            echo "Expected fail-closed authentication response (401 or 503)."
+            cat /tmp/generate-response.json
+            exit 1
+          fi
+          echo "Unauthenticated generation is blocked: PASS"

@@ -1,0 +1,28 @@
+name: Quantum Worker Runtime Tests
+
+on:
+  push:
+    branches: [quantum-worker-runtime-test]
+    paths:
+      - "tests/worker-runtime/**"
+      - ".github/workflows/quantum-worker-runtime-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  worker-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated test dependency
+        working-directory: tests/worker-runtime
+        run: npm install --no-audit --no-fund
+      - name: Execute Worker against isolated Miniflare D1
+        working-directory: tests/worker-runtime
+        run: npm test
