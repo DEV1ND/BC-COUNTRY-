@@ -579,6 +579,12 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc))
+    # Fail closed on citations when token-budget truncation makes the exact
+    # subset of source passages in the final model context unverifiable.
+    retrieved_source_count = len(knowledge_sources)
+    citations_suppressed_reason = "context_truncated" if context_truncated and knowledge_sources else None
+    if citations_suppressed_reason:
+        knowledge_sources = []
     generated = []
     generation_stop_reason = "max_new_tokens"
     for step in range(req.max_new_tokens):
@@ -652,6 +658,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 "status": knowledge_retrieval["status"],
                 "used_fallback": knowledge_retrieval["used_fallback"],
                 "source_count": len(knowledge_sources),
+                "retrieved_source_count": retrieved_source_count,
+                "citations_suppressed_reason": citations_suppressed_reason,
                 "rejected_source_rows": knowledge_retrieval.get("rejected_source_rows", 0),
                 "rejected_integrity_rows": knowledge_retrieval.get("rejected_integrity_rows", 0),
             },
@@ -664,5 +672,6 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다. "
                 + ("출력 토큰이 지나치게 잘게 분리되는 현상이 감지되었습니다. "
                    if generation_diagnostics["character_fragmentation_suspected"] else "")
+                + ("검색 문맥이 잘려 출처 인용을 표시하지 않았습니다. " if citations_suppressed_reason else "")
                 + "토큰 진단은 문장 품질 평가가 아닙니다."
             )}
