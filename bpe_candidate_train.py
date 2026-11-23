@@ -63,16 +63,53 @@ def clean_pairs(rows):
 
 
 def split_pairs(rows):
+    """Split connected duplicate groups so exact questions or answers cannot leak."""
+    if not rows:
+        raise RuntimeError("분리할 학습 데이터가 없습니다.")
+    parent = list(range(len(rows)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left, right):
+        root_left, root_right = find(left), find(right)
+        if root_left != root_right:
+            parent[max(root_left, root_right)] = min(root_left, root_right)
+
+    seen_questions, seen_answers = {}, {}
+    for index, row in enumerate(rows):
+        question = str(row.get("question", "")).casefold()
+        answer = str(row.get("answer", "")).casefold()
+        if question in seen_questions:
+            union(index, seen_questions[question])
+        else:
+            seen_questions[question] = index
+        if answer in seen_answers:
+            union(index, seen_answers[answer])
+        else:
+            seen_answers[answer] = index
+
     groups = {}
-    for row in rows:
-        key = row["question"].casefold()
-        groups.setdefault(key, []).append(row)
-    keys = sorted(groups, key=lambda x: __import__("hashlib").sha256(x.encode("utf-8")).hexdigest())
-    if len(keys) < 2:
-        raise RuntimeError("독립 검증을 위해 서로 다른 질문이 최소 2개 필요합니다.")
-    cut = max(1, min(len(keys) - 1, int(len(keys) * 0.9)))
-    train = [item for key in keys[:cut] for item in groups[key]]
-    valid = [item for key in keys[cut:] for item in groups[key]]
+    for index, row in enumerate(rows):
+        groups.setdefault(find(index), []).append(row)
+
+    def stable_group_key(group):
+        pairs = sorted(
+            (str(item.get("question", "")).casefold(), str(item.get("answer", "")).casefold())
+            for item in group
+        )
+        serialized = json.dumps(pairs, ensure_ascii=False, separators=(",", ":"))
+        return __import__("hashlib").sha256(serialized.encode("utf-8")).hexdigest()
+
+    ordered_groups = sorted(groups.values(), key=stable_group_key)
+    if len(ordered_groups) < 2:
+        raise RuntimeError("독립 검증을 위해 서로 다른 질문·답변 그룹이 최소 2개 필요합니다.")
+    cut = max(1, min(len(ordered_groups) - 1, int(len(ordered_groups) * 0.9)))
+    train = [item for group in ordered_groups[:cut] for item in group]
+    valid = [item for group in ordered_groups[cut:] for item in group]
     return train, valid
 
 
