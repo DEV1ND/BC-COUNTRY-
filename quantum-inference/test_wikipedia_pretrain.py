@@ -129,6 +129,26 @@ class TrainingWindowIntegrityTests(unittest.TestCase):
         self.assertEqual(x[0, 2:].count_nonzero().item(), 0)
         self.assertTrue((y[0, 2:] == -100).all().item())
 
+    def test_batch_rejects_empty_windows(self):
+        with self.assertRaisesRegex(ValueError, "비어 있지 않은"):
+            batch_windows([], batch_size=1, device="cpu")
+
+    def test_batch_rejects_invalid_batch_size(self):
+        for size in (0, -1, True, 1.5):
+            with self.subTest(size=size):
+                with self.assertRaisesRegex(ValueError, "batch_size"):
+                    batch_windows([[1, 2]], batch_size=size, device="cpu")
+
+    def test_batch_rejects_short_or_malformed_windows(self):
+        for windows in ([[]], [[1]], [[1, -2]], [[1, True]], [["1", 2]]):
+            with self.subTest(windows=windows):
+                with self.assertRaises(ValueError):
+                    batch_windows(windows, batch_size=1, device="cpu")
+
+    def test_batch_rejects_windows_longer_than_context(self):
+        with self.assertRaisesRegex(ValueError, "BLOCK 크기"):
+            batch_windows([list(range(258))], batch_size=1, device="cpu")
+
 
 if __name__ == "__main__":
     unittest.main()
