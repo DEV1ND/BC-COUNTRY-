@@ -200,6 +200,62 @@ class InferenceContractTests(unittest.TestCase):
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
 
+    def test_generation_suppresses_citations_when_knowledge_context_is_truncated(self):
+        class FakeTokenizer:
+            vocab = ["a", "b", "c"]
+
+            def decode(self, _ids):
+                return "후보 답변"
+
+        class FakeModel:
+            def __call__(self, input_ids):
+                return torch.zeros((1, input_ids.shape[1], 3))
+
+        source = {
+            "title": "태양계",
+            "url": "https://ko.wikipedia.org/wiki/태양계",
+            "license": "CC BY-SA 4.0",
+            "attribution": "Wikipedia contributors",
+        }
+        retrieval = {
+            "documents": [{"title": "태양계", "text": "행성 정보"}],
+            "status": "ok",
+            "used_fallback": False,
+            "rejected_source_rows": 0,
+            "rejected_integrity_rows": 0,
+        }
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(quantum_app, "model", FakeModel()))
+            stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_knowledge_diagnostic", return_value=retrieval
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "build_knowledge_context", return_value="참고 지식"
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "serialize_knowledge_sources", return_value=[source]
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "build_generation_context", return_value=([1], True)
+            ))
+            result = quantum_app.generate(
+                quantum_app.GenerateRequest(prompt="태양계란?", max_new_tokens=8, temperature=0),
+                authorization="Bearer candidate-test-token",
+            )
+        self.assertEqual(result["knowledge_sources"], [])
+        self.assertEqual(result["knowledge_retrieval"]["source_count"], 0)
+        self.assertEqual(result["knowledge_retrieval"]["retrieved_source_count"], 1)
+        self.assertEqual(
+            result["knowledge_retrieval"]["citations_suppressed_reason"],
+            "context_truncated",
+        )
+        self.assertIn("출처 인용을 표시하지 않았습니다", result["quality_warning"])
+
     def test_public_health_redacts_checkpoint_exception_details(self):
         from unittest.mock import Mock
 
