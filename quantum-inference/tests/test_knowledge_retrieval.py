@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from knowledge_retrieval import build_fts_query, query_terms, rank_documents, score_document
+from knowledge_retrieval import build_fts_query, query_terms, rank_documents, score_document, search_knowledge_index
 
 
 class KnowledgeRetrievalTests(unittest.TestCase):
@@ -163,6 +163,71 @@ class KnowledgeRetrievalTests(unittest.TestCase):
 
     def test_stopword_only_question_returns_no_results(self):
         self.assertEqual(rank_documents("무엇인가요 어떻게 설명", []), [])
+
+
+    def _knowledge_connection(self, include_fts=True):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute("CREATE TABLE knowledge_docs(page_id TEXT, title, url, text, attribution TEXT, license TEXT)")
+        conn.execute(
+            "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?)",
+            ("1", "태양계", "https://ko.wikipedia.org/wiki/태양계",
+             "태양계 행성은 태양 주위를 공전한다", "저작자 표시", "CC BY-SA 4.0"),
+        )
+        if include_fts:
+            conn.execute("CREATE VIRTUAL TABLE knowledge_fts USING fts5(page_id UNINDEXED,title,text)")
+            conn.execute("INSERT INTO knowledge_fts VALUES(?,?,?)",
+                         ("1", "태양계", "태양계 행성은 태양 주위를 공전한다"))
+        return conn
+
+    def test_index_search_uses_fts_and_returns_diagnostic_state(self):
+        conn = self._knowledge_connection()
+        try:
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "ok")
+            self.assertFalse(result["used_fallback"])
+            self.assertEqual(result["documents"][0]["title"], "태양계")
+        finally:
+            conn.close()
+
+    def test_index_search_falls_back_when_fts_table_is_missing(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "fts_fallback")
+            self.assertTrue(result["used_fallback"])
+            self.assertEqual(result["documents"][0]["title"], "태양계")
+        finally:
+            conn.close()
+
+    def test_index_search_reports_invalid_rows_without_coercion(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute("UPDATE knowledge_docs SET title=123")
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "index_invalid")
+            self.assertEqual(result["documents"], [])
+        finally:
+            conn.close()
+
+    def test_index_search_reports_database_failure(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            result = search_knowledge_index(conn, "태양계")
+            self.assertEqual(result["status"], "search_unavailable")
+            self.assertEqual(result["documents"], [])
+        finally:
+            conn.close()
+
+    def test_index_search_reports_empty_query_without_database_access(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            result = search_knowledge_index(conn, "무엇인가요?")
+            self.assertEqual(result, {
+                "documents": [], "status": "empty_query", "used_fallback": False
+            })
+        finally:
+            conn.close()
 
 
 if __name__ == "__main__":
