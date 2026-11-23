@@ -343,12 +343,12 @@ export default {
       const eligibility=corpus==="manual"
         ? "status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%'"
         : "status='pending_review'";
-      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,status,reviewer_note FROM pages WHERE "+eligibility+" AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,status,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE "+eligibility+" AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
         license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
         revision_id:row.revision_id,content_hash:row.content_hash,status:row.status,
-        reviewer_note:row.reviewer_note||""
+        reviewer_note:row.reviewer_note||"",reviewed_at:row.reviewed_at||null
       })).filter(row=>row.text.length>=200);
       return json({corpus,documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
     }
