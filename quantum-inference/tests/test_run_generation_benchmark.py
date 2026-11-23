@@ -30,6 +30,7 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
             "version": 1,
             "purpose": "held_out_evaluation_only",
             "training_eligible": False,
+            "categories": ["long_context"],
             "cases": [{
                 "id": "LC-TEST",
                 "category": "long_context",
@@ -51,7 +52,13 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
                 "model_parameters": 273086,
                 "checkpoint_source": "github_release",
             }
-            answer = {"answer": "토요일 오후 2시에 닫습니다.", "model": "quantum-bpe-candidate", "is_live_inference": True}
+            answer = {
+                "answer": "토요일 오후 2시에 닫습니다.",
+                "model": "quantum-bpe-candidate",
+                "response_mode": "model_generation",
+                "is_live_inference": True,
+                "is_model_generation": True,
+            }
             with patch("urllib.request.urlopen", side_effect=[FakeResponse(health), FakeResponse(answer)]) as mocked:
                 report = run_benchmark(
                     "https://candidate.example",
@@ -86,6 +93,7 @@ class GenerationBenchmarkRunnerTests(unittest.TestCase):
                 "model": "quantum-approved-knowledge",
                 "response_mode": "approved_qa_retrieval",
                 "is_live_inference": True,
+                "is_model_generation": False,
             }
             with patch("urllib.request.urlopen", side_effect=[FakeResponse(health), FakeResponse(answer)]):
                 report = run_benchmark("https://candidate.example", "token", dataset_path)
