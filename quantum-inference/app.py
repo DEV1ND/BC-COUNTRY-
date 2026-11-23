@@ -556,6 +556,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     except ValueError as exc:
         raise HTTPException(422, str(exc))
     generated = []
+    generation_stop_reason = "max_new_tokens"
     for step in range(req.max_new_tokens):
         context = (prompt_ids + generated)[-BLOCK:]
         x = torch.tensor(context, dtype=torch.long, device=DEVICE).unsqueeze(0)
@@ -622,5 +623,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "response_mode": "model_generation",
             "knowledge_sources": knowledge_sources,
             "input_tokens": len(prompt_ids),
+            "generated_tokens": len(generated),
+            "generation_stop_reason": generation_stop_reason,
             "context_truncated": context_truncated,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
