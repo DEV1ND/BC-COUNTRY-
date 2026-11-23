@@ -58,15 +58,24 @@ def should_skip_wikipedia_seed(index_status, required_documents=1, force=False, 
     """Reuse an already healthy local index; never skip an explicitly forced refresh."""
     if force or not isinstance(index_status, dict):
         return False
-    try:
-        required = max(1, int(required_documents))
-        documents = int(index_status.get("documents", 0) or 0)
-    except (TypeError, ValueError):
+    if (isinstance(required_documents, bool) or not isinstance(required_documents, int)
+            or required_documents < 1):
+        return False
+    required = required_documents
+    documents = index_status.get("documents", 0)
+    if isinstance(documents, bool) or not isinstance(documents, int) or documents < 0:
         return False
     integrity = index_status.get("integrity")
-    if required_titles:
-        available_titles = {str(title or "").strip().casefold() for title in index_status.get("titles", [])}
-        expected_titles = {str(title or "").strip().casefold() for title in required_titles if str(title or "").strip()}
+    if required_titles is not None:
+        if not isinstance(required_titles, (list, tuple)) or not required_titles:
+            return False
+        titles = index_status.get("titles")
+        if not isinstance(titles, (list, tuple)) or any(not isinstance(title, str) for title in titles):
+            return False
+        if any(not isinstance(title, str) for title in required_titles):
+            return False
+        available_titles = {title.strip().casefold() for title in titles if title.strip()}
+        expected_titles = {title.strip().casefold() for title in required_titles if title.strip()}
         if not expected_titles or not expected_titles.issubset(available_titles):
             return False
     return (
