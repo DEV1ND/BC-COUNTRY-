@@ -94,7 +94,7 @@ class BPETokenizer:
             except (TypeError, ValueError, OverflowError):
                 output.append("�")
                 continue
-            output.append(self.itos.get(token_id, "�"))
+            output.append("�" if token_id == 0 else self.itos.get(token_id, "�"))
         return "".join(output)
 
     def to_dict(self):
