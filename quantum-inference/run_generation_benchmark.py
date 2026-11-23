@@ -13,6 +13,33 @@ import urllib.parse
 import urllib.request
 
 
+def diagnose_answer_output(answer):
+    """Flag obvious token-fragmentation symptoms without assigning a quality score."""
+    if not isinstance(answer, str):
+        raise TypeError("answer must be a string")
+    tokens = answer.strip().split()
+    lexical_tokens = [token for token in tokens if any(char.isalnum() for char in token)]
+    single_character_tokens = [
+        token for token in lexical_tokens
+        if sum(1 for char in token if char.isalnum()) == 1
+    ]
+    ratio = (
+        len(single_character_tokens) / len(lexical_tokens)
+        if lexical_tokens else 0.0
+    )
+    warnings = []
+    if len(lexical_tokens) >= 12 and ratio >= 0.60:
+        warnings.append("high_single_character_token_fragmentation")
+    return {
+        "whitespace_token_count": len(tokens),
+        "lexical_token_count": len(lexical_tokens),
+        "single_character_token_count": len(single_character_tokens),
+        "single_character_token_ratio": round(ratio, 4),
+        "warnings": warnings,
+        "suspicious_fragmentation": bool(warnings),
+    }
+
+
 DEFAULT_BENCHMARK = Path(__file__).resolve().parent / "evaluation" / "benchmark_v1.json"
 
 
@@ -151,6 +178,7 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
             generation_invocations += 1
         else:
             raise RuntimeError("Candidate returned an unknown response mode for " + str(case["id"]) + ".")
+        output_diagnostics = diagnose_answer_output(answer)
         results.append({
             "id": case["id"],
             "category": case["category"],
@@ -159,6 +187,7 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
             "answer": answer,
             "response_model": response.get("model"),
             "response_mode": response_mode,
+            "output_diagnostics": output_diagnostics,
             "must_include_rubric": case.get("must_include", []),
             "human_review_status": "pending",
         })
@@ -186,6 +215,11 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
         "model_invoked": generation_invocations > 0,
         "generation_invocations": generation_invocations,
         "approved_qa_retrieval_cases": approved_qa_retrieval_cases,
+        "generation_outputs_flagged_for_fragmentation": sum(
+            1 for item in results
+            if item["response_mode"] == "model_generation"
+            and item["output_diagnostics"]["suspicious_fragmentation"]
+        ),
         "model_training": False,
         "production_model_touched": False,
     }
