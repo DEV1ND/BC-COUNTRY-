@@ -207,3 +207,40 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   // Fixture cleanup is confined to the ephemeral Miniflare database.
   await db.prepare("DELETE FROM pages").run();
 });
+
+
+test("automated review never approves a structurally complete document", async () => {
+  const content = Array.from({ length: 60 }, (_, index) =>
+    `인공지능은 컴퓨터 과학의 한 분야이다. 검토용 설명 문장 번호 ${index}은 서로 다른 예시와 개념을 설명합니다.`
+  ).join("\n\n");
+  const hash = createHash("sha256").update(content).digest("hex");
+  await db.prepare(`
+    INSERT INTO pages (
+      id,provider,domain,title,url,content,status,license_status,license_name,
+      attribution,revision_id,content_hash,discovered_at
+    ) VALUES (
+      'auto-review-fixture','wikipedia','ko.wikipedia.org','인공지능',
+      'https://ko.wikipedia.org/wiki/Artificial_intelligence',?1,'pending_review',
+      'attribution_required','CC BY-SA 4.0','Wikipedia contributors',
+      'revision-auto-review',?2,'2026-01-05T00:00:00.000Z'
+    )
+  `).bind(content, hash).run();
+
+  const response = await request("/auto-review", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ limit: 1 }),
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.review.checked, 1);
+  assert.equal(result.review.approved, 0);
+  assert.equal(result.review.pending, 1);
+
+  const stored = await db.prepare(
+    "SELECT status, reviewer_note FROM pages WHERE id='auto-review-fixture'"
+  ).first();
+  assert.equal(stored.status, "pending_review");
+  assert.match(stored.reviewer_note, /^AUTO_REVIEW:/);
+  assert.match(stored.reviewer_note, /score=100/);
+});
