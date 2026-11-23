@@ -43,8 +43,6 @@ class TokenizerDiagnosticsTests(unittest.TestCase):
             summarize_tokenizer_usage(tokenizer, ["가나"])
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class GeneratedTokenDiagnosticsTests(unittest.TestCase):
@@ -70,3 +68,7 @@ class GeneratedTokenDiagnosticsTests(unittest.TestCase):
             with self.subTest(token_ids=token_ids):
                 with self.assertRaises(ValueError):
                     summarize_generated_tokens(tokenizer, token_ids)
+
+
+if __name__ == "__main__":
+    unittest.main()
