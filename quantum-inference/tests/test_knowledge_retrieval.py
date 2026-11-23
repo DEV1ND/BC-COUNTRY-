@@ -117,6 +117,50 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         ]
         self.assertEqual(len(rank_documents("태양계 행성", rows, limit=2)), 2)
 
+    def test_query_rejects_non_string_input(self):
+        for value in (None, 123, True, ["태양계"]):
+            with self.subTest(value=value):
+                with self.assertRaises(TypeError):
+                    query_terms(value)
+                with self.assertRaises(TypeError):
+                    build_fts_query(value)
+
+    def test_fts_term_limit_requires_bounded_integer(self):
+        for value in (True, 1.5, "5", 0, 21):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    build_fts_query("태양계", max_terms=value)
+
+    def test_rank_limit_requires_bounded_integer(self):
+        rows = [{"title": "태양계", "text": "태양계 행성", "url": "x"}]
+        for value in (True, 1.5, "2", 0, 11):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    rank_documents("태양계", rows, limit=value)
+
+    def test_min_score_rejects_non_finite_and_out_of_range_values(self):
+        rows = [{"title": "태양계", "text": "태양계 행성", "url": "x"}]
+        for value in (True, "0.2", float("nan"), float("inf"), -0.1, 1.1):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    rank_documents("태양계", rows, min_score=value)
+
+    def test_search_document_fields_must_be_strings(self):
+        for row in (
+            {"title": 123, "text": "태양계 행성", "url": "x"},
+            {"title": "태양계", "text": None, "url": "x"},
+            {"title": "태양계", "text": "태양계 행성", "url": 42},
+        ):
+            with self.subTest(row=row):
+                with self.assertRaisesRegex(ValueError, "문자열"):
+                    rank_documents("태양계", [row])
+
+    def test_rows_must_be_an_explicit_sequence(self):
+        for rows in ("invalid", iter([]), None):
+            with self.subTest(rows_type=type(rows).__name__):
+                with self.assertRaises(ValueError):
+                    rank_documents("태양계", rows)
+
     def test_stopword_only_question_returns_no_results(self):
         self.assertEqual(rank_documents("무엇인가요 어떻게 설명", []), [])
 
