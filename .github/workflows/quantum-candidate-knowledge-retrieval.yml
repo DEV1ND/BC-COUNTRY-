@@ -23,6 +23,12 @@ on:
       - "quantum-inference/app.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
       - ".github/workflows/quantum-candidate-knowledge-retrieval.yml"
+      - "quantum-inference/knowledge_import_validation.py"
+      - "quantum-inference/knowledge_provenance.py"
+      - "quantum-inference/generation_sources.py"
+      - "quantum-inference/tests/test_knowledge_import_validation.py"
+      - "quantum-inference/tests/test_knowledge_provenance.py"
+      - "quantum-inference/tests/test_generation_sources.py"
 
 permissions:
   contents: read
