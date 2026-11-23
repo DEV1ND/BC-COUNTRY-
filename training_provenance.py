@@ -10,9 +10,13 @@ REQUIRED_SOURCE_FIELDS = ("kind", "reference", "license", "attribution", "permis
 def audit_rows(rows):
     if not isinstance(rows, list):
         raise ValueError("학습 데이터 최상위 구조는 JSON 배열이어야 합니다.")
-    approved = [row for row in rows if isinstance(row, dict) and row.get("approved") is True]
+    approved = [
+        (original_index, row)
+        for original_index, row in enumerate(rows)
+        if isinstance(row, dict) and row.get("approved") is True
+    ]
     findings = []
-    for index, row in enumerate(approved):
+    for original_index, row in approved:
         source = row.get("source")
         missing = []
         if not isinstance(source, dict):
@@ -33,8 +37,9 @@ def audit_rows(rows):
             missing.append("provenance_review.reviewed_at")
         question = str(row.get("question", ""))
         findings.append({
-            "record_index": index,
+            "record_index": original_index,
             "question_sha256_prefix": hashlib.sha256(question.encode("utf-8")).hexdigest()[:16],
+            "legacy_source_label": row.get("source") if isinstance(row.get("source"), str) else None,
             "metadata_complete": not missing,
             "missing_fields": missing,
             "human_review_required": True,
