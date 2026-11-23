@@ -103,3 +103,10 @@ This binds the ratings to the exact report content reviewed and helps prevent ac
 ## Provenance review and reviewer identity boundary
 
 The provenance audit distinguishes metadata completeness from proof of reviewer identity. A non-empty reviewer identifier and timezone-aware review timestamp are required metadata, but they are not cryptographic authentication. Audit output therefore reports `reviewer_identity_verified=false`, `reviewer_identity_verification_required=true`, and explains that `training_release_eligible` is a metadata-completeness gate only. The review-application tool also reports this limitation explicitly. Do not interpret a completed metadata audit as proof that a named person authenticated or that source claims are true.
+
+
+## Candidate decoding and seed-result input validation
+
+The Candidate n-gram repetition guard accepts only integer token IDs within the current logits vocabulary before building repetition bans. Invalid, boolean, negative, out-of-range, or non-integer history values are rejected rather than causing an unhandled set-membership failure or masking an unintended token.
+
+Wikipedia seed completion summaries also require non-negative integer counters (booleans, floats, numeric strings, and negative values are rejected). Retrieval pass counts cannot exceed the total. This prevents malformed workflow/API values from being coerced into a misleading `completed` status. These checks validate report integrity; they do not establish retrieval relevance or factual correctness.
