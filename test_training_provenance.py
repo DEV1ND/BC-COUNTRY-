@@ -63,6 +63,29 @@ class TrainingProvenanceTests(unittest.TestCase):
         self.assertFalse(report["training_release_eligible"])
         self.assertIn("source.kind", report["records"][0]["missing_fields"])
 
+    def test_placeholder_source_values_do_not_pass_audit(self):
+        row = self.complete_row()
+        row["source"]["license"] = "unknown"
+        report = audit_rows([row])
+        self.assertFalse(report["training_release_eligible"])
+        self.assertIn("source.license", report["records"][0]["missing_fields"])
+
+    def test_review_timestamp_must_be_timezone_aware_iso8601(self):
+        for timestamp in ("yesterday", "2026-11-23T09:00:00", "pending"):
+            with self.subTest(timestamp=timestamp):
+                row = self.complete_row()
+                row["provenance_review"]["reviewed_at"] = timestamp
+                report = audit_rows([row])
+                self.assertFalse(report["training_release_eligible"])
+                self.assertIn("provenance_review.reviewed_at", report["records"][0]["missing_fields"])
+
+    def test_placeholder_reviewer_is_not_accepted(self):
+        row = self.complete_row()
+        row["provenance_review"]["reviewer"] = "TBD"
+        report = audit_rows([row])
+        self.assertFalse(report["training_release_eligible"])
+        self.assertIn("provenance_review.reviewer", report["records"][0]["missing_fields"])
+
     def test_non_array_input_is_rejected(self):
         with self.assertRaises(ValueError):
             audit_rows({"question": "bad"})
