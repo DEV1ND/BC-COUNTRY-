@@ -110,3 +110,6 @@ The provenance audit distinguishes metadata completeness from proof of reviewer 
 The Candidate n-gram repetition guard accepts only integer token IDs within the current logits vocabulary before building repetition bans. Invalid, boolean, negative, out-of-range, or non-integer history values are rejected rather than causing an unhandled set-membership failure or masking an unintended token.
 
 Wikipedia seed completion summaries also require non-negative integer counters (booleans, floats, numeric strings, and negative values are rejected). Retrieval pass counts cannot exceed the total. This prevents malformed workflow/API values from being coerced into a misleading `completed` status. These checks validate report integrity; they do not establish retrieval relevance or factual correctness.
+
+
+The Wikipedia seed reuse shortcut applies the same strictness to cached index metadata: document counts and required thresholds must be actual integers (not booleans or floats), and requested/available title collections must be lists or tuples of strings. Malformed metadata causes a fresh seed path instead of incorrectly treating an index as reusable.
