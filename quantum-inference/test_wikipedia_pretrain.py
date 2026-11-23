@@ -27,7 +27,7 @@ class CorpusValidationTests(unittest.TestCase):
         handle = tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False)
         with handle:
             for item in rows:
-                handle.write(json.dumps(item, ensure_ascii=False) + "\\n")
+                handle.write(json.dumps(item, ensure_ascii=False) + "\n")
         self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
         return handle.name
 
