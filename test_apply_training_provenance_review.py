@@ -22,9 +22,9 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
             },
         ]
 
-    def completed_template(self, rows=None):
+    def completed_template(self, rows=None, include_content=True):
         rows = rows or self.source_rows()
-        template = export_template(rows)
+        template = export_template(rows, include_content=include_content)
         for record in template["records"]:
             record["source"] = {
                 "kind": "user_authored",
@@ -49,6 +49,13 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         self.assertEqual(reviewed[0]["source_legacy_label"], "curated-v1")
         self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
 
+    def test_redacted_template_can_be_applied_without_exporting_training_text(self):
+        rows = self.source_rows()
+        template = self.completed_template(rows, include_content=False)
+        reviewed = apply_review(rows, template)
+        self.assertEqual(reviewed[0]["question"], rows[0]["question"])
+        self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
+
     def test_missing_review_record_is_rejected(self):
         rows = self.source_rows()
         template = self.completed_template(rows)
@@ -58,11 +65,13 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
             apply_review(rows, template)
 
     def test_modified_question_or_answer_is_rejected(self):
-        rows = self.source_rows()
-        template = self.completed_template(rows)
-        template["records"][0]["answer"] = "바뀐 답변"
-        with self.assertRaises(ValueError):
-            apply_review(rows, template)
+        for field in ("question", "answer"):
+            with self.subTest(field=field):
+                rows = self.source_rows()
+                template = self.completed_template(rows)
+                template["records"][0][field] = "바뀐 내용"
+                with self.assertRaises(ValueError):
+                    apply_review(rows, template)
 
     def test_empty_provenance_field_is_rejected(self):
         rows = self.source_rows()
