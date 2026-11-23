@@ -1,6 +1,6 @@
 import unittest
 
-from generation_sampling import normalize_prompt, select_top_k_indices
+from generation_sampling import normalize_prompt, select_top_k_indices, validate_sampling_probabilities
 
 
 class GenerationSamplingTests(unittest.TestCase):
