@@ -44,6 +44,25 @@ class TrainingProvenanceTests(unittest.TestCase):
         self.assertEqual(report["approved_records"], 0)
         self.assertFalse(report["training_release_eligible"])
 
+    def test_record_index_points_to_original_dataset_position(self):
+        unapproved = {
+            "question": "보류 질문",
+            "answer": "보류 답변입니다.",
+            "approved": False,
+        }
+        rows = [unapproved, self.complete_row(), unapproved, self.complete_row()]
+        report = audit_rows(rows)
+        self.assertEqual([item["record_index"] for item in report["records"]], [1, 3])
+        self.assertEqual(report["records"][0]["legacy_source_label"], "internal:dataset-001")
+
+    def test_legacy_string_source_is_reported_without_being_treated_as_provenance(self):
+        row = self.complete_row()
+        row["source"] = "curated-v1"
+        report = audit_rows([row])
+        self.assertEqual(report["records"][0]["legacy_source_label"], "curated-v1")
+        self.assertFalse(report["training_release_eligible"])
+        self.assertIn("source.kind", report["records"][0]["missing_fields"])
+
     def test_non_array_input_is_rejected(self):
         with self.assertRaises(ValueError):
             audit_rows({"question": "bad"})
