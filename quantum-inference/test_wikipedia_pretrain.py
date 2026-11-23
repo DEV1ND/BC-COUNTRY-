@@ -62,6 +62,38 @@ class CorpusValidationTests(unittest.TestCase):
         self.assertEqual(len(docs), 2)
         self.assertEqual(rejected["invalid_metadata"], 1)
 
+
+    def test_validation_fraction_and_minimum_documents_are_checked(self):
+        docs = [{"page_id": "a"}, {"page_id": "b"}]
+        for value in (0, 1, -0.1, 1.1, float("nan"), float("inf"), "bad"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    split_documents(docs, validation_fraction=value)
+        with self.assertRaises(ValueError):
+            split_documents([{"page_id": "only-one"}])
+        with self.assertRaises(ValueError):
+            split_documents([{"page_id": ""}, {"page_id": "b"}])
+
+    def test_revisions_of_one_page_never_cross_train_validation_boundary(self):
+        docs = [
+            {"page_id": "same-page", "revision_id": "1"},
+            {"page_id": "same-page", "revision_id": "2"},
+            {"page_id": "other-page", "revision_id": "1"},
+            {"page_id": "third-page", "revision_id": "1"},
+        ]
+        train, valid = split_documents(docs, validation_fraction=0.34)
+        train_pages = {doc["page_id"] for doc in train}
+        valid_pages = {doc["page_id"] for doc in valid}
+        self.assertFalse(train_pages & valid_pages)
+        same_page_revisions = [
+            doc for doc in train + valid if doc["page_id"] == "same-page"
+        ]
+        self.assertEqual(len(same_page_revisions), 2)
+        self.assertTrue(
+            all(doc["page_id"] in train_pages for doc in same_page_revisions)
+            or all(doc["page_id"] in valid_pages for doc in same_page_revisions)
+        )
+
     def test_split_is_stable_and_keeps_documents_separate(self):
         docs = [{"page_id": str(i)} for i in range(10)]
         train_a, valid_a = split_documents(docs)
