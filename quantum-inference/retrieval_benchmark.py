@@ -108,7 +108,7 @@ def evaluate_retrieval_cases(
         retrieved = retrieved[:k]
         titles = [item.get("title") for item in retrieved]
         if any(not isinstance(title, str) or not title.strip() for title in titles):
-            raise ValueError(f"Retriever returned an empty or invalid title for case {case['id']}.")
+            raise ValueError(f"Retriever returned an empty title or invalid title for case {case['id']}.")
         titles = [title.strip() for title in titles]
         normalized_titles = [normalize_retrieval_title(title) for title in titles]
         if len(normalized_titles) != len(set(normalized_titles)):
