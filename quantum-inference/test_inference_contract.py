@@ -217,6 +217,8 @@ class InferenceContractTests(unittest.TestCase):
         self.assertFalse(result["is_live_retrieval"])
         self.assertTrue(result["is_model_generation"])
         self.assertEqual(result["answer"], "Quantum 후보 답변입니다.")
+        self.assertEqual(result["generated_tokens"], 8)
+        self.assertEqual(result["generation_stop_reason"], "max_new_tokens")
 
     def test_public_wikipedia_seed_summary_redacts_exception_and_document_details(self):
         result = quantum_app.public_wikipedia_seed_status({
@@ -313,6 +315,41 @@ class InferenceContractTests(unittest.TestCase):
                 )
         self.assertEqual(raised.exception.status_code, 503)
         self.assertNotIn("private checkpoint", raised.exception.detail)
+
+
+    def test_generation_reports_separator_stop_reason(self):
+        class FakeTokenizer:
+            vocab = ["<unk>", "가", "나"]
+
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "답변입니다.\\n\\n"
+
+        class FakeModel:
+            def __call__(self, input_ids):
+                logits = torch.zeros((1, input_ids.shape[1], 3))
+                logits[:, :, 2] = 5.0
+                return logits
+
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(quantum_app, "model", FakeModel()))
+            stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+            ))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
+            stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
+            result = quantum_app.generate(
+                quantum_app.GenerateRequest(prompt="새 질문", max_new_tokens=20),
+                authorization="Bearer candidate-test-token",
+            )
+        self.assertEqual(result["answer"], "답변입니다.")
+        self.assertEqual(result["generated_tokens"], 6)
+        self.assertEqual(result["generation_stop_reason"], "separator")
 
 
 if __name__ == "__main__":
