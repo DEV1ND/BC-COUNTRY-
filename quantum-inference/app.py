@@ -374,6 +374,8 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
         "count": len(matches),
         "retrieval_status": retrieval["status"],
         "used_fallback": retrieval["used_fallback"],
+        "rejected_source_rows": retrieval.get("rejected_source_rows", 0),
+        "rejected_integrity_rows": retrieval.get("rejected_integrity_rows", 0),
         "results": [{
             "title": str(item.get("title", "")),
             "url": str(item.get("url", "")),
@@ -390,7 +392,7 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
 
 @app.get("/admin/knowledge/evaluate")
 def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=None)):
-    """Run the fixed 27-domain retrieval benchmark; never invokes or trains the model."""
+    """Run the fixed retrieval benchmark; never invokes or trains the model."""
     require_admin(authorization)
     cases_path = Path(__file__).resolve().parent / "evaluation" / "knowledge_retrieval_cases.json"
     try:
@@ -647,6 +649,8 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 "status": knowledge_retrieval["status"],
                 "used_fallback": knowledge_retrieval["used_fallback"],
                 "source_count": len(knowledge_sources),
+                "rejected_source_rows": knowledge_retrieval.get("rejected_source_rows", 0),
+                "rejected_integrity_rows": knowledge_retrieval.get("rejected_integrity_rows", 0),
             },
             "input_tokens": len(prompt_ids),
             "generated_tokens": len(generated),
