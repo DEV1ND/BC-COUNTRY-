@@ -78,3 +78,9 @@ test("Wikipedia crawler stores complete CC BY-SA attribution metadata", () => {
   assert.match(worker, /license_status='attribution_required',license_name='CC BY-SA 4\.0',attribution=\?/);
   assert.doesNotMatch(worker, /Wikipedia contributors; retain page title, URL, license/);
 });
+
+
+test("manual Wikipedia exports include a timezone-aware review timestamp", () => {
+  assert.match(worker, /strftime\('%Y-%m-%dT%H:%M:%fZ',reviewed_at\) AS reviewed_at/);
+  assert.match(worker, /reviewed_at:row\.reviewed_at\|\|null/);
+});
