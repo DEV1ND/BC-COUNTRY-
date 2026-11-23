@@ -149,6 +149,16 @@ class TrainingWindowIntegrityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "BLOCK 크기"):
             batch_windows([list(range(258))], batch_size=1, device="cpu")
 
+    def test_batch_rejects_token_ids_outside_vocabulary(self):
+        with self.assertRaisesRegex(ValueError, "vocab_size 범위"):
+            batch_windows([[1, 2, 8]], batch_size=1, device="cpu", vocab_size=8)
+
+    def test_batch_rejects_invalid_vocabulary_size(self):
+        for size in (0, -1, True, 1.5):
+            with self.subTest(size=size):
+                with self.assertRaisesRegex(ValueError, "vocab_size"):
+                    batch_windows([[1, 2]], batch_size=1, device="cpu", vocab_size=size)
+
 
 if __name__ == "__main__":
     unittest.main()
