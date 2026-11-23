@@ -1,0 +1,30 @@
+name: Quantum Candidate tokenizer isolation tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [quantum-candidate-security-hardening]
+    paths:
+      - 'quantum-inference/bpe_tokenizer.py'
+      - 'quantum-inference/test_bpe_tokenizer_isolation.py'
+      - '.github/workflows/quantum-candidate-tokenizer-isolation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantum-candidate-tokenizer-isolation
+  cancel-in-progress: false
+
+jobs:
+  tokenizer-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test tokenizer isolation and round-trip
+        working-directory: quantum-inference
+        run: python -m unittest test_bpe_tokenizer_isolation.py
