@@ -2,7 +2,7 @@
 from collections.abc import Mapping
 from typing import Iterable
 
-from knowledge_provenance import has_valid_wikipedia_attribution
+from knowledge_provenance import has_valid_content_integrity, has_valid_wikipedia_attribution
 
 
 WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
@@ -27,12 +27,16 @@ def _is_citable(item: Mapping) -> bool:
     license_name = item.get("license")
     attribution = item.get("attribution")
     text = item.get("text")
+    revision_id = item.get("revision_id")
+    content_hash = item.get("content_hash")
     if not all(isinstance(value, str) for value in (
-        title, url, license_name, attribution, text
+        title, url, license_name, attribution, text, revision_id, content_hash
     )):
         return False
-    return bool(text.strip()) and has_valid_wikipedia_attribution(
-        title, url, license_name, attribution
+    return (
+        bool(text.strip())
+        and has_valid_wikipedia_attribution(title, url, license_name, attribution)
+        and has_valid_content_integrity(text, revision_id, content_hash)
     )
 
 
