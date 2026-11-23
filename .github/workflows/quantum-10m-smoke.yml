@@ -2,6 +2,18 @@ name: JUCKEX Quantum 10M extended training experiment
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [quantum-data-repair]
+    paths:
+      - 'quantum_10m_config.json'
+      - 'training_extra.json'
+      - 'bpe_candidate_train.py'
+      - 'test_bpe_candidate_pipeline.py'
+      - 'test_quality_benchmark.py'
+      - 'quantum_retrieval.py'
+      - 'test_quantum_retrieval.py'
+      - 'quantum_generation_eval.py'
+      - '.github/workflows/quantum-10m-smoke.yml'
   push:
     branches: [main, quantum-generation-quality, quantum-candidate-security-hardening]
     paths:
