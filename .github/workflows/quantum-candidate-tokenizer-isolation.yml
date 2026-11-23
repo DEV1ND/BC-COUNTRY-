@@ -5,8 +5,8 @@ on:
   push:
     branches: [quantum-candidate-security-hardening]
     paths:
-      - 'quantum-inference/bpe_tokenizer.py'
-      - 'quantum-inference/test_bpe_tokenizer_isolation.py'
+      - 'bpe_tokenizer.py'
+      - 'test_bpe_tokenizer_isolation.py'
       - '.github/workflows/quantum-candidate-tokenizer-isolation.yml'
 
 permissions:
@@ -26,5 +26,4 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test tokenizer isolation and round-trip
-        working-directory: quantum-inference
         run: python -m unittest test_bpe_tokenizer_isolation.py
