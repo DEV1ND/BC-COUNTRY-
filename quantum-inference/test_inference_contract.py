@@ -243,6 +243,7 @@ class InferenceContractTests(unittest.TestCase):
             stack.enter_context(patch.object(
                 quantum_app, "build_generation_context", return_value=([1], True)
             ))
+            stack.enter_context(patch.object(quantum_app, "safe_ngram_bans", return_value=[]))
             result = quantum_app.generate(
                 quantum_app.GenerateRequest(prompt="태양계란?", max_new_tokens=8, temperature=0),
                 authorization="Bearer candidate-test-token",
