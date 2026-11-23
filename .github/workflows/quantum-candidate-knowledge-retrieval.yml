@@ -6,6 +6,8 @@ on:
       - quantum-candidate-security-hardening
     paths:
       - "quantum-inference/knowledge_retrieval.py"
+      - "quantum-inference/knowledge_import_validation.py"
+      - "quantum-inference/tests/test_knowledge_import_validation.py"
       - "quantum-inference/app.py"
       - "quantum-inference/knowledge_provenance.py"
       - "quantum-inference/generation_sources.py"
@@ -38,6 +40,8 @@ jobs:
       - name: Compile retrieval and inference modules
         run: |
           python -m py_compile quantum-inference/knowledge_retrieval.py
+          python -m py_compile quantum-inference/knowledge_import_validation.py
+          python -m py_compile quantum-inference/tests/test_knowledge_import_validation.py
           python -m py_compile quantum-inference/app.py
           python -m py_compile quantum-inference/knowledge_provenance.py
           python -m py_compile quantum-inference/generation_sources.py
@@ -46,6 +50,6 @@ jobs:
           python -m py_compile quantum-inference/tests/test_generation_sources.py
       - name: Run retrieval, provenance, and citation contract tests
         run: |
-          for pattern in test_knowledge_retrieval.py test_knowledge_provenance.py test_generation_sources.py; do
+          for pattern in test_knowledge_retrieval.py test_knowledge_provenance.py test_generation_sources.py test_knowledge_import_validation.py; do
             python -m unittest discover -s quantum-inference/tests -p "$pattern" -v
           done
