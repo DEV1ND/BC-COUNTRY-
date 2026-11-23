@@ -115,6 +115,12 @@ Wikipedia seed completion summaries also require non-negative integer counters (
 The Wikipedia seed reuse shortcut applies the same strictness to cached index metadata: document counts and required thresholds must be actual integers (not booleans or floats), and requested/available title collections must be lists or tuples of strings. Malformed metadata causes a fresh seed path instead of incorrectly treating an index as reusable.
 
 
+## Retrieval content-integrity enforcement
+
+At read time, knowledge retrieval now requires a numeric Wikipedia revision ID and a lowercase SHA-256 digest that exactly matches the stored UTF-8 text. Missing revision metadata, malformed digests, and text/hash mismatches are excluded from model context and citations. The generation-source serializer repeats this integrity check as a second boundary, so callers cannot bypass retrieval filtering by passing a malformed row directly.
+
+The API reports `rejected_integrity_rows` separately from `rejected_source_rows`. This detects accidental or unauthorized local database edits; it does not prove the upstream article is factually correct or authenticate who reviewed it.
+
 ## Retrieval source-attribution enforcement
 
 The SQLite knowledge retrieval path validates the source metadata again at read time before returning any document. A row is eligible only when its URL is a canonical HTTPS Korean Wikipedia page and its attribution includes the exact title, exact URL, CC BY-SA 4.0 name, and canonical license URL. Rows that fail this check are excluded even if their lexical relevance score is high.
