@@ -1,4 +1,5 @@
 """Conservative, local-only retrieval for approved Quantum examples."""
+import math
 import re
 
 _STOP_WORDS = {
@@ -76,10 +77,15 @@ def token_similarity(left, right):
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     """Return a stored answer only for a clear topic AND question-intent match."""
-    if not 0.0 <= float(threshold) <= 1.0:
-        raise ValueError("threshold는 0과 1 사이여야 합니다.")
-    if not 0.0 <= float(min_margin) <= 1.0:
-        raise ValueError("min_margin은 0과 1 사이여야 합니다.")
+    try:
+        threshold = float(threshold)
+        min_margin = float(min_margin)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("threshold와 min_margin은 유한한 숫자여야 합니다.") from exc
+    if not math.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
+        raise ValueError("threshold는 0과 1 사이의 유한한 숫자여야 합니다.")
+    if not math.isfinite(min_margin) or not 0.0 <= min_margin <= 1.0:
+        raise ValueError("min_margin은 0과 1 사이의 유한한 숫자여야 합니다.")
     ranked = []
     seen = set()
     query_intent = intent_signature(question)
