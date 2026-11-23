@@ -59,6 +59,7 @@ def audit_rows(rows):
             "metadata_complete": not missing,
             "missing_fields": missing,
             "human_review_required": True,
+            "reviewer_identity_verified": False,
         })
     complete = sum(item["metadata_complete"] for item in findings)
     return {
@@ -69,6 +70,9 @@ def audit_rows(rows):
         "metadata_incomplete_records": len(findings) - complete,
         "metadata_completeness_ratio": round(complete / max(1, len(findings)), 4),
         "training_release_eligible": bool(findings) and complete == len(findings),
+        "release_gate_scope": "metadata_completeness_only; reviewer identity and factual truth are not cryptographically verified",
+        "reviewer_identity_verified_records": 0,
+        "reviewer_identity_verification_required": True,
         "important_limit": (
             "메타데이터 완전성은 출처·라이선스·사용 권한의 진실성을 증명하지 않습니다. "
             "모든 승인 데이터는 별도 사람 검토가 필요합니다."
