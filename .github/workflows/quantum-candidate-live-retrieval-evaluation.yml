@@ -38,6 +38,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import time
           import urllib.error
           import urllib.request
           from pathlib import Path
@@ -45,7 +46,7 @@ jobs:
           base = os.environ["QUANTUM_CANDIDATE_URL"].rstrip("/")
           token = os.environ.get("QUANTUM_API_TOKEN", "")
 
-          def request_json(path, authenticated=False):
+          def request_json(path, authenticated=False, timeout=90):
               headers = {
                   "Accept": "application/json",
                   "User-Agent": "JUCKEX-Quantum-Candidate-Evaluator",
@@ -62,7 +63,7 @@ jobs:
                   base + path, headers=headers, method="GET"
               )
               try:
-                  with urllib.request.urlopen(request, timeout=90) as response:
+                  with urllib.request.urlopen(request, timeout=timeout) as response:
                       raw = response.read(2 * 1024 * 1024 + 1)
               except urllib.error.HTTPError as exc:
                   raise SystemExit(
@@ -83,21 +84,56 @@ jobs:
               return value
 
           # /health is intentionally public and read-only; do not send a token.
-          health = request_json("/health")
-          if health.get("ok") is not True:
-              raise SystemExit("Candidate health check did not report ok=true.")
-          if int(health.get("knowledge_documents") or 0) < 40:
-              raise SystemExit("Candidate knowledge index has fewer than 40 documents.")
+          # Candidate seeds Wikipedia asynchronously at startup. Wait for that
+          # background task instead of racing it and failing on a temporary count of 0.
+          deadline = time.monotonic() + 240
+          health = None
+          last_readiness = "health endpoint has not responded"
+          while time.monotonic() < deadline:
+              try:
+                  candidate_health = request_json("/health", timeout=15)
+              except SystemExit as exc:
+                  last_readiness = str(exc)
+                  print("Candidate is not ready yet: " + last_readiness)
+                  time.sleep(10)
+                  continue
+
+              seed_state = candidate_health.get("wikipedia_seed") or {}
+              documents = int(candidate_health.get("knowledge_documents") or 0)
+              smoke_passed = seed_state.get("retrieval_tests_passed")
+              smoke_total = seed_state.get("retrieval_tests_total")
+              smoke_ready = (
+                  smoke_passed is None
+                  or smoke_total is None
+                  or (int(smoke_passed) == 40 and int(smoke_total) == 40)
+              )
+              if (
+                  candidate_health.get("ok") is True
+                  and documents >= 40
+                  and smoke_ready
+              ):
+                  health = candidate_health
+                  break
+
+              last_readiness = (
+                  "ok=" + str(candidate_health.get("ok"))
+                  + ", knowledge_documents=" + str(documents)
+                  + ", retrieval_smoke=" + str(smoke_passed) + "/" + str(smoke_total)
+                  + ", seed_status=" + str(seed_state.get("status"))
+              )
+              print("Waiting for Candidate knowledge seed: " + last_readiness)
+              time.sleep(10)
+
+          if health is None:
+              raise SystemExit(
+                  "Candidate did not reach 40 indexed documents and a passing "
+                  "retrieval smoke check within 240 seconds. Last status: "
+                  + last_readiness
+              )
 
           seed = health.get("wikipedia_seed") or {}
           smoke_passed = seed.get("retrieval_tests_passed")
           smoke_total = seed.get("retrieval_tests_total")
-          if smoke_passed is not None and smoke_total is not None:
-              if int(smoke_passed) != 40 or int(smoke_total) != 40:
-                  raise SystemExit(
-                      "Wikipedia retrieval smoke test is not 40/40: "
-                      + str(smoke_passed) + "/" + str(smoke_total)
-                  )
 
           # Admin endpoint requires the Candidate's own QUANTUM_API_TOKEN.
           evaluation = request_json("/admin/knowledge/evaluate", authenticated=True)
