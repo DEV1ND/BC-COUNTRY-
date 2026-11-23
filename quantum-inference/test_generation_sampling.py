@@ -44,6 +44,42 @@ class GenerationSamplingTests(unittest.TestCase):
     def test_negative_infinity_is_ignored_when_selecting_candidates(self):
         self.assertEqual(select_top_k_indices([2.0, -float("inf"), 1.0], 2), [0, 2])
 
+    def test_sampling_probabilities_accept_valid_distribution(self):
+        self.assertAlmostEqual(validate_sampling_probabilities([0.2, 0.3, 0.5]), 1.0)
+
+    def test_sampling_probabilities_reject_empty_or_zero_distribution(self):
+        for values in ([], [0.0, 0.0]):
+            with self.subTest(values=values):
+                with self.assertRaises(ValueError):
+                    validate_sampling_probabilities(values)
+
+    def test_sampling_probabilities_reject_negative_non_finite_and_non_numeric(self):
+        invalid = ([0.5, -0.1], [float("nan"), 1.0], [float("inf")], [True, 0.0], ["0.5"])
+        for values in invalid:
+            with self.subTest(values=values):
+                with self.assertRaises(ValueError):
+                    validate_sampling_probabilities(values)
+
+    def test_ngram_guard_blocks_repeated_continuation_when_alternative_exists(self):
+        self.assertEqual(safe_ngram_bans([0.1, 0.2, 0.3, 0.4], [1, 2, 3, 1, 2]), {3})
+
+    def test_ngram_guard_relaxes_when_it_would_mask_every_valid_token(self):
+        self.assertEqual(safe_ngram_bans([0.1, 0.2, -float("inf")], [1, 2, 3, 1, 2]), set())
+
+    def test_ngram_guard_ignores_short_histories(self):
+        self.assertEqual(safe_ngram_bans([0.1, 0.2], [1]), set())
+
+    def test_ngram_guard_rejects_invalid_logits_and_ngram_size(self):
+        for values, history, n in (
+            ([float("nan")], [1, 2], 2),
+            ([float("inf")], [1, 2], 2),
+            ([-float("inf")], [1, 2], 2),
+            ([0.1], [1, 2], 1),
+        ):
+            with self.subTest(values=values, history=history, n=n):
+                with self.assertRaises(ValueError):
+                    safe_ngram_bans(values, history, n)
+
 
 if __name__ == "__main__":
     unittest.main()
