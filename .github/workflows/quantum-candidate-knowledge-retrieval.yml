@@ -7,7 +7,11 @@ on:
     paths:
       - "quantum-inference/knowledge_retrieval.py"
       - "quantum-inference/app.py"
+      - "quantum-inference/knowledge_provenance.py"
+      - "quantum-inference/generation_sources.py"
       - "quantum-inference/tests/test_knowledge_retrieval.py"
+      - "quantum-inference/tests/test_knowledge_provenance.py"
+      - "quantum-inference/tests/test_generation_sources.py"
       - ".github/workflows/quantum-candidate-knowledge-retrieval.yml"
   pull_request:
     branches:
@@ -35,10 +39,14 @@ jobs:
         run: |
           python -m py_compile quantum-inference/knowledge_retrieval.py
           python -m py_compile quantum-inference/app.py
+          python -m py_compile quantum-inference/knowledge_provenance.py
+          python -m py_compile quantum-inference/generation_sources.py
           python -m py_compile quantum-inference/tests/test_knowledge_retrieval.py
+          python -m py_compile quantum-inference/tests/test_knowledge_provenance.py
+          python -m py_compile quantum-inference/tests/test_generation_sources.py
       - name: Run knowledge retrieval and failure-isolation tests
         run: |
           python -m unittest discover \
             -s quantum-inference/tests \
-            -p "test_knowledge_retrieval.py" \
+            -p "test_*.py" \
             -v
