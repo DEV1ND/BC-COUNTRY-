@@ -73,14 +73,14 @@ jobs:
           report = json.loads(Path("training_provenance_audit.json").read_text(encoding="utf-8"))
           eligible = bool(report["training_release_eligible"])
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"eligible={'true' if eligible else 'false'}\\n")
+              output.write(f"eligible={'true' if eligible else 'false'}\n")
           if not eligible:
               with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
                   summary.write(
-                      "## Quantum candidate training blocked\\n"
-                      f"- Provenance complete: {report['metadata_complete_records']}/{report['approved_records']}\\n"
-                      "- Training and generation evaluation were skipped; no checkpoint was created by this run.\\n"
-                      "- Complete source/license/permission metadata and human review before retrying.\\n"
+                      "## Quantum candidate training blocked\n"
+                      f"- Provenance complete: {report['metadata_complete_records']}/{report['approved_records']}\n"
+                      "- Training and generation evaluation were skipped; no checkpoint was created by this run.\n"
+                      "- Complete source/license/permission metadata and human review before retrying.\n"
                   )
           PY
 
@@ -94,6 +94,7 @@ jobs:
           retention-days: 14
 
       - name: Verify and smoke-train Quantum 10M
+        if: steps.provenance.outputs.eligible == 'true'
         run: |
           python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
           python - <<'PY'
@@ -113,12 +114,15 @@ jobs:
           PY
 
       - name: Compare Quantum decoding strategies on independent questions
+        if: steps.provenance.outputs.eligible == 'true'
         run: python quantum_generation_eval.py --checkpoint bpe_candidate_checkpoint.pt --evaluation bpe_independent_eval.json --output quantum_decoding_sweep.json
 
       - name: Create human answer-quality review template
+        if: steps.provenance.outputs.eligible == 'true'
         run: python quantum_human_review.py --input quantum_decoding_sweep.json --template-output quantum_human_review_template.json
 
       - name: Upload 10M smoke-test artifacts
+        if: steps.provenance.outputs.eligible == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: juckex-quantum-10m-smoke
