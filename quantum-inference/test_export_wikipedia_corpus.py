@@ -41,6 +41,28 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             count = export_corpus("https://example.workers.dev", "token", corpus, destination)
         return count, Path(destination)
 
+
+    def test_export_rejects_boolean_page_limit_before_network_access(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            destination = Path(temp_dir) / "corpus.jsonl"
+            with patch("export_wikipedia_corpus.fetch_page") as fetch:
+                with self.assertRaisesRegex(ValueError, "limit must be an integer"):
+                    export_corpus("https://example.workers.dev", "token", "unverified", destination, limit=True)
+            fetch.assert_not_called()
+            self.assertFalse(destination.exists())
+
+    def test_export_rejects_body_larger_than_import_contract(self):
+        text = "가" * 50001
+        bad = document(text=text, content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest())
+        with tempfile.TemporaryDirectory() as temp_dir:
+            destination = Path(temp_dir) / "corpus.jsonl"
+            with patch("export_wikipedia_corpus.fetch_page", return_value={
+                "documents": [bad], "has_more": False, "next_after": None
+            }):
+                with self.assertRaisesRegex(RuntimeError, "outside the 200-50000"):
+                    export_corpus("https://example.workers.dev", "token", "unverified", destination)
+            self.assertFalse(destination.exists())
+
     def test_valid_document_is_exported_as_jsonl(self):
         count, path = self.export_with_pages([
             {"documents": [document()], "has_more": False, "next_after": None}
