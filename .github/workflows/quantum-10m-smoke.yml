@@ -75,9 +75,10 @@ jobs:
         run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py test_apply_training_provenance_review.py test_training_data_quality.py
 
       - name: Audit candidate training-data quality
-        run: python training_data_quality.py --input training_extra.json --output training_data_quality_audit.json
+        run: python training_data_quality.py --input training_extra.json --output training_data_quality_audit.json --strict
 
       - name: Upload training-data quality audit
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: quantum-training-data-quality-audit
