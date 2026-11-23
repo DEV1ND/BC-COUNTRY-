@@ -60,6 +60,33 @@ class QuantumRetrievalTests(unittest.TestCase):
         self.assertFalse(result["matched"])
         self.assertIsNone(result["answer"])
 
+    def test_rejection_reason_explains_low_similarity(self):
+        result = retrieve("완전히 무관한 질문", self.rows)
+        self.assertFalse(result["matched"])
+        self.assertEqual(result["rejection_reason"], "score_below_threshold")
+        self.assertIsNone(result["answer"])
+
+    def test_rejection_reason_explains_ambiguous_top_match(self):
+        rows = [
+            {"question": "민주주의란 무엇인가요?", "answer": "첫 번째 답변입니다.", "approved": True},
+            {"question": "민주주의란 무엇인가요", "answer": "두 번째 답변입니다.", "approved": True},
+        ]
+        result = retrieve("민주주의란 무엇인가요?", rows)
+        self.assertFalse(result["matched"])
+        self.assertEqual(result["rejection_reason"], "ambiguous_margin")
+        self.assertIsNone(result["answer"])
+
+    def test_accepted_match_has_explicit_reason(self):
+        result = retrieve("민주주의의 뜻을 설명해줘.", self.rows)
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["rejection_reason"], "accepted")
+
+    def test_thresholds_must_be_between_zero_and_one(self):
+        with self.assertRaises(ValueError):
+            retrieve("질문", self.rows, threshold=1.1)
+        with self.assertRaises(ValueError):
+            retrieve("질문", self.rows, min_margin=-0.1)
+
     def test_empty_index_rejects(self):
         self.assertFalse(retrieve("질문", [])["matched"])
 
