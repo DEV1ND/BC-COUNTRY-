@@ -93,6 +93,7 @@ def evaluate_retrieval_cases(
     domain_rows = defaultdict(lambda: {
         "cases": 0, "hits": 0, "reciprocal_rank_sum": 0.0,
         "precision_at_k_sum": 0.0, "correct_abstentions": 0,
+        "unanswerable_cases": 0, "false_positive_retrievals": 0,
     })
 
     for case in rows:
