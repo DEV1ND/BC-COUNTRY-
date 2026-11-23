@@ -12,7 +12,7 @@ from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
-from generation_sampling import select_top_k_indices, normalize_prompt
+from generation_sampling import select_top_k_indices, normalize_prompt, validate_sampling_probabilities
 from generation_context import build_generation_context
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
@@ -582,10 +582,11 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 keep_mask[keep_indices] = False
                 logits[keep_mask] = -float("inf")
             probs = torch.softmax(logits, dim=-1)
-            if not torch.isfinite(probs).all() or float(probs.sum()) <= 0:
-                next_id = int(torch.argmax(logits).item())
-            else:
-                next_id = int(torch.multinomial(probs, 1).item())
+            try:
+                validate_sampling_probabilities(probs.tolist())
+            except ValueError:
+                raise HTTPException(503, "Quantum 후보 모델의 샘플링 확률 분포가 유효하지 않습니다.")
+            next_id = int(torch.multinomial(probs, 1).item())
         generated.append(next_id)
         decoded = tokenizer.decode(generated)
         if step >= 5 and "\n\n" in decoded:
