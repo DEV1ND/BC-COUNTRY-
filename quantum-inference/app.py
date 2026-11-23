@@ -12,7 +12,7 @@ from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
-from generation_sampling import apply_top_k_logits, normalize_prompt
+from generation_sampling import select_top_k_indices, normalize_prompt
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
@@ -531,7 +531,14 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             next_id = int(torch.argmax(logits).item())
         else:
             logits = logits / req.temperature
-            logits = apply_top_k_logits(logits, req.top_k)
+            try:
+                keep_indices = select_top_k_indices(logits.tolist(), req.top_k)
+            except ValueError:
+                raise HTTPException(503, "Quantum 후보 모델이 유효한 다음 토큰 점수를 생성하지 못했습니다.")
+            if req.top_k > 0 and req.top_k < logits.numel():
+                keep_mask = torch.ones_like(logits, dtype=torch.bool)
+                keep_mask[keep_indices] = False
+                logits[keep_mask] = -float("inf")
             probs = torch.softmax(logits, dim=-1)
             if not torch.isfinite(probs).all() or float(probs.sum()) <= 0:
                 next_id = int(torch.argmax(logits).item())
