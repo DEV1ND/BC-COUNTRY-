@@ -221,6 +221,9 @@ class InferenceContractTests(unittest.TestCase):
         self.assertTrue(result["is_model_generation"])
         self.assertEqual(result["answer"], "Quantum 후보 답변입니다.")
         self.assertEqual(result["generated_tokens"], 8)
+        self.assertEqual(result["generation_diagnostics"]["generated_tokens"], 8)
+        self.assertIn("interpretation_limit", result["generation_diagnostics"])
+        self.assertIn("토큰 진단은 문장 품질 평가가 아닙니다.", result["quality_warning"])
         self.assertEqual(result["generation_stop_reason"], "max_new_tokens")
 
     def test_public_wikipedia_seed_summary_redacts_exception_and_document_details(self):
