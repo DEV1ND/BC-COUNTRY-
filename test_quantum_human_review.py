@@ -18,8 +18,14 @@ class QuantumHumanReviewTests(unittest.TestCase):
             },
         }
 
+    def review_template(self):
+        template = self.review_template()
+        template["reviewer"] = "test-reviewer"
+        template["reviewed_at"] = "2026-11-23T09:00:00Z"
+        return template
+
     def test_template_contains_human_scored_dimensions(self):
-        template = build_review_template(self.sample_report())
+        template = self.review_template()
         self.assertEqual(len(template["records"]), 1)
         self.assertEqual(set(template["records"][0]["ratings"]), set(DIMENSIONS))
         self.assertTrue(all(value is None for value in template["records"][0]["ratings"].values()))
@@ -61,6 +67,29 @@ class QuantumHumanReviewTests(unittest.TestCase):
         summary = summarize_reviews(template)
         self.assertFalse(summary["human_review_passed"])
         self.assertEqual(summary["empty_generated_answer_count"], 1)
+
+    def test_modified_generation_sample_is_rejected(self):
+        template = self.review_template()
+        template["records"][0]["generated_answer"] = "변조된 답변"
+        template["records"][0]["ratings"] = {dimension: 5 for dimension in DIMENSIONS}
+        with self.assertRaises(ValueError):
+            summarize_reviews(template)
+
+    def test_missing_reviewer_or_invalid_timestamp_is_rejected(self):
+        template = self.review_template()
+        template["reviewer"] = ""
+        with self.assertRaises(ValueError):
+            summarize_reviews(template)
+        template = self.review_template()
+        template["reviewed_at"] = "어제"
+        with self.assertRaises(ValueError):
+            summarize_reviews(template)
+
+    def test_duplicate_review_record_ids_are_rejected(self):
+        template = self.review_template()
+        template["records"].append(dict(template["records"][0]))
+        with self.assertRaises(ValueError):
+            summarize_reviews(template)
 
     def test_malformed_sample_is_rejected(self):
         report = self.sample_report()
