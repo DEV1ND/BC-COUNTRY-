@@ -28,4 +28,4 @@ jobs:
       - name: Compile candidate Python sources
         run: python -m compileall -q .
       - name: Run auth and generation sampling tests
-        run: python -m unittest -v test_auth_policy.py test_generation_sampling.py test_generation_context.py test_review_generation_evaluation.py test_export_generation_review_template.py test_generation_benchmark_dataset.py test_run_generation_benchmark.py test_generation_output_diagnostics.py
+        run: python -m unittest -v test_auth_policy.py test_generation_sampling.py test_generation_context.py test_review_generation_evaluation.py test_export_generation_review_template.py test_generation_benchmark_dataset.py test_run_generation_benchmark.py test_generation_output_diagnostics.py test_tokenizer_diagnostics.py test_bpe_tokenizer_integrity.py test_wikipedia_pretrain.py
