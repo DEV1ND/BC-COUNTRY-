@@ -7,7 +7,7 @@ import re
 import sqlite3
 import unicodedata
 
-from knowledge_provenance import has_valid_wikipedia_attribution
+from knowledge_provenance import has_valid_content_integrity, has_valid_wikipedia_attribution
 
 _STOP = {
     "무엇", "무엇인가요", "무엇인가", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
@@ -174,7 +174,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
     try:
         try:
             rows = conn.execute(
-                """SELECT d.title,d.url,d.text,d.attribution,d.license
+                """SELECT d.title,d.url,d.text,d.attribution,d.license,d.revision_id,d.content_hash
                    FROM knowledge_fts f
                    JOIN knowledge_docs d ON d.page_id=f.page_id
                    WHERE knowledge_fts MATCH ?
@@ -192,7 +192,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
             for term in terms:
                 args.extend(["%" + term + "%", "%" + term + "%"])
             rows = conn.execute(
-                "SELECT title,url,text,attribution,license FROM knowledge_docs WHERE "
+                "SELECT title,url,text,attribution,license,revision_id,content_hash FROM knowledge_docs WHERE "
                 + clauses + " LIMIT 100",
                 args,
             ).fetchall()
@@ -219,19 +219,29 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
     # missing or malformed, even if their lexical relevance is high.
     eligible = []
     rejected_source_rows = 0
+    rejected_integrity_rows = 0
     for document in documents:
-        if has_valid_wikipedia_attribution(
+        if not has_valid_wikipedia_attribution(
             document.get("title"),
             document.get("url"),
             document.get("license"),
             document.get("attribution"),
         ):
-            eligible.append(document)
-        else:
             rejected_source_rows += 1
+            continue
+        if not has_valid_content_integrity(
+            document.get("text"),
+            document.get("revision_id"),
+            document.get("content_hash"),
+        ):
+            rejected_integrity_rows += 1
+            continue
+        eligible.append(document)
 
-    if rejected_source_rows and not eligible:
+    if rejected_source_rows and not eligible and not rejected_integrity_rows:
         status = "source_metadata_invalid"
+    elif rejected_integrity_rows and not eligible:
+        status = "document_integrity_invalid"
     elif eligible:
         status = "fts_fallback" if used_fallback else "ok"
     else:
@@ -242,4 +252,5 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
         "status": status,
         "used_fallback": used_fallback,
         "rejected_source_rows": rejected_source_rows,
+        "rejected_integrity_rows": rejected_integrity_rows,
     }
