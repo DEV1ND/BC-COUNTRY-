@@ -6,6 +6,8 @@ network access, checkpoint, training, or Production service is required.
 import unittest
 from unittest.mock import patch
 
+import torch
+
 from fastapi import HTTPException
 from pydantic import ValidationError
 
@@ -108,6 +110,49 @@ class InferenceContractTests(unittest.TestCase):
             with self.subTest(field=field, value=value):
                 with self.assertRaises(ValidationError):
                     quantum_app.GenerateRequest(prompt="질문", **{field: value})
+
+    def test_non_finite_sampling_configuration_is_rejected(self):
+        for field, value in (
+            ("temperature", float("nan")),
+            ("temperature", float("inf")),
+            ("temperature", True),
+            ("temperature", "0.7"),
+            ("repetition_penalty", float("-inf")),
+            ("repetition_penalty", False),
+        ):
+            with self.subTest(field=field, value=value):
+                with self.assertRaises(ValidationError):
+                    quantum_app.GenerateRequest(prompt="질문", **{field: value})
+
+    def test_greedy_generation_rejects_non_finite_or_fully_masked_logits(self):
+        class FakeTokenizer:
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "후보 답변"
+
+        class FakeModel:
+            def __init__(self, value):
+                self.value = value
+
+            def __call__(self, input_ids):
+                return torch.full((1, input_ids.shape[1], 3), self.value)
+
+        for invalid_value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(invalid_value=invalid_value):
+                with patch.object(quantum_app, "model", FakeModel(invalid_value)), \\
+                     patch.object(quantum_app, "tokenizer", FakeTokenizer()), \\
+                     patch.object(quantum_app, "retrieve_approved_qa", return_value={"matched": False}), \\
+                     patch.object(quantum_app, "retrieve_knowledge", return_value=[]), \\
+                     patch.object(quantum_app, "build_knowledge_context", return_value=""), \\
+                     patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]):
+                    with self.assertRaises(HTTPException) as raised:
+                        quantum_app.generate(
+                            quantum_app.GenerateRequest(prompt="새 질문", temperature=0),
+                            authorization="Bearer candidate-test-token",
+                        )
+                self.assertEqual(raised.exception.status_code, 503)
 
 
 if __name__ == "__main__":
