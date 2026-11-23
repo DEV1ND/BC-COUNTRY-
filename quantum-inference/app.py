@@ -254,8 +254,10 @@ def knowledge_db():
     return conn
 
 def require_admin(authorization):
-    if not API_TOKEN or authorization != "Bearer " + API_TOKEN:
-        raise HTTPException(401, "관리자 인증이 필요합니다.")
+    auth_error = generation_auth_error(API_TOKEN, authorization)
+    if auth_error is not None:
+        status_code, message = auth_error
+        raise HTTPException(status_code, "관리자 인증이 필요합니다." if status_code == 401 else message)
 
 def retrieve_knowledge(question, limit=3):
     # FTS5 discovers broad candidates; title-weighted reranking filters weak OR matches.
