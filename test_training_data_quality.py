@@ -69,11 +69,13 @@ class TrainingDataQualityTests(unittest.TestCase):
         self.assertEqual(report["records_total"], 2)
         self.assertEqual(report["malformed_rows"], 1)
         self.assertFalse(report["training_data_modified"])
+        self.assertFalse(report["quality_gate_passed"])
 
     def test_empty_and_non_string_fields_are_blocking(self):
         from training_data_quality import audit_dataset
         report = audit_dataset([self.row(question=""), self.row(answer=None)])
         self.assertEqual(report["approved_rows_with_blocking_issues"], 2)
+        self.assertFalse(report["quality_gate_passed"])
         self.assertIn("question_empty", report["issue_counts"])
         self.assertIn("answer_not_string", report["issue_counts"])
 
@@ -114,6 +116,7 @@ class TrainingDataQualityTests(unittest.TestCase):
         report = audit_dataset([self.row(answer="", approved=False)])
         self.assertEqual(report["rows_with_blocking_issues"], 1)
         self.assertEqual(report["approved_rows_with_blocking_issues"], 0)
+        self.assertTrue(report["quality_gate_passed"])
 
     def test_non_array_input_is_rejected(self):
         from training_data_quality import audit_dataset
