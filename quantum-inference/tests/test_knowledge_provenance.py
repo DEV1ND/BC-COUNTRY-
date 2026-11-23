@@ -22,6 +22,17 @@ class KnowledgeProvenanceTests(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertFalse(is_valid_wikipedia_url(url))
 
+    def test_non_string_provenance_values_are_rejected(self):
+        self.assertFalse(is_valid_wikipedia_url(123))
+        self.assertFalse(is_valid_wikipedia_url(None))
+        self.assertFalse(has_valid_wikipedia_attribution(
+            123, "https://ko.wikipedia.org/wiki/인공지능",
+            WIKIPEDIA_LICENSE, "some attribution"
+        ))
+        self.assertFalse(has_valid_wikipedia_attribution(
+            "인공지능", 123, WIKIPEDIA_LICENSE, "some attribution"
+        ))
+
     def test_requires_complete_attribution(self):
         url = "https://ko.wikipedia.org/wiki/인공지능"
         attribution = f"Wikipedia contributors, 인공지능, {url}; licensed under {WIKIPEDIA_LICENSE} ({WIKIPEDIA_LICENSE_URL})."
