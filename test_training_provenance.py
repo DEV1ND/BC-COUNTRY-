@@ -55,7 +55,7 @@ class TrainingProvenanceTests(unittest.TestCase):
         rows = [unapproved, first_approved, unapproved, self.complete_row()]
         report = audit_rows(rows)
         self.assertEqual([item["record_index"] for item in report["records"]], [1, 3])
-        self.assertEqual(report["records"][0]["legacy_source_label"], "internal:dataset-001")
+        self.assertEqual(report["records"][0]["legacy_source_label"], "curated-v1")
 
     def test_legacy_string_source_is_reported_without_being_treated_as_provenance(self):
         row = self.complete_row()
