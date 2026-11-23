@@ -73,7 +73,7 @@ class GenerationContextTests(unittest.TestCase):
     def test_context_budget_diagnostics_account_for_truncation_exactly(self):
         tokenizer = FakeTokenizer()
         prompt_ids, truncated, diagnostics = build_generation_context(
-            tokenizer, "ABCDEFGHIJKLMN", "Q?", block_size=24,
+            tokenizer, "ABCDEFGHIJKLMN", "Q?", block_size=20,
             return_diagnostics=True,
         )
         question_tokens = len(tokenizer.encode("質問:Q?\\n答え:"))
@@ -82,7 +82,7 @@ class GenerationContextTests(unittest.TestCase):
         self.assertEqual(diagnostics["retrieved_context_tokens"], len("ABCDEFGHIJKLMN"))
         self.assertEqual(
             diagnostics["included_context_tokens"],
-            24 - question_tokens,
+            20 - question_tokens,
         )
         self.assertEqual(
             diagnostics["dropped_context_tokens"],
@@ -91,7 +91,7 @@ class GenerationContextTests(unittest.TestCase):
         self.assertEqual(diagnostics["prompt_tokens"], len(prompt_ids))
         self.assertEqual(
             diagnostics["remaining_generation_capacity"],
-            24 - len(prompt_ids),
+            20 - len(prompt_ids),
         )
         self.assertEqual(diagnostics["context_policy"], "keep_tail")
 
