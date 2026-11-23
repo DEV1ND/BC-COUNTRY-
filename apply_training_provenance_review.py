@@ -49,6 +49,8 @@ def apply_review(source_rows, template):
     records = template.get("records")
     if not isinstance(records, list) or template.get("records_total") != len(records):
         raise ValueError("검토 템플릿 records 또는 records_total 값이 올바르지 않습니다.")
+    if "content_included" in template and not isinstance(template["content_included"], bool):
+        raise ValueError("content_included 값은 bool이어야 합니다.")
 
     expected = {}
     for index, row in enumerate(source_rows):
@@ -71,9 +73,9 @@ def apply_review(source_rows, template):
             raise ValueError("원본과 일치하지 않는 record_id가 있습니다.")
         if original_index in reviewed:
             raise ValueError("중복 original_index가 있습니다.")
-        if record.get("question") != str(original.get("question", "")):
+        if "question" in record and record["question"] != str(original.get("question", "")):
             raise ValueError("질문 내용이 원본과 일치하지 않습니다.")
-        if record.get("answer") != str(original.get("answer", "")):
+        if "answer" in record and record["answer"] != str(original.get("answer", "")):
             raise ValueError("답변 내용이 원본과 일치하지 않습니다.")
 
         source = record.get("source")
