@@ -1,12 +1,18 @@
 """Tests for encrypted GitHub Release checkpoint restoration."""
 import io
-import json
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from checkpoint_storage import ASSET_NAME, MAGIC, decrypt_checkpoint, download_release_checkpoint
+from checkpoint_storage import (
+    ASSET_NAME,
+    MAGIC,
+    MAX_CHECKPOINT_BYTES,
+    decrypt_checkpoint,
+    download_release_checkpoint,
+)
 
 
 KEY = "11" * 32
@@ -46,56 +52,39 @@ class CheckpointStorageTests(unittest.TestCase):
             decrypt_checkpoint(b"BADHDR" + bytes(40), KEY)
 
     @patch("checkpoint_storage.urllib.request.urlopen")
-    def test_downloads_only_pinned_release_asset_and_decrypts(self, mocked_open):
+    def test_downloads_only_fixed_asset_from_pinned_release(self, mocked_open):
         ciphertext = encrypted_payload()
-        release = {
-            "tag_name": TAG,
-            "draft": False,
-            "assets": [{
-                "name": ASSET_NAME,
-                "size": len(ciphertext),
-                "browser_download_url": f"https://github.com/{REPO}/releases/download/{TAG}/{ASSET_NAME}",
-            }],
-        }
-        mocked_open.side_effect = [
-            FakeResponse(json.dumps(release).encode("utf-8")),
-            FakeResponse(ciphertext),
-        ]
-        result = download_release_checkpoint(REPO, TAG, KEY)
-        self.assertEqual(result, b"checkpoint-bytes")
-        self.assertEqual(mocked_open.call_count, 2)
-        self.assertIn(f"/releases/tags/{TAG}", mocked_open.call_args_list[0].args[0].full_url)
+        mocked_open.return_value = FakeResponse(ciphertext)
 
+        result = download_release_checkpoint(REPO, TAG, KEY)
+
+        self.assertEqual(result, b"checkpoint-bytes")
+        self.assertEqual(mocked_open.call_count, 1)
+        request = mocked_open.call_args.args[0]
+        self.assertEqual(
+            request.full_url,
+            f"https://github.com/{REPO}/releases/download/{TAG}/{ASSET_NAME}",
+        )
+        self.assertEqual(request.get_header("User-agent"), "JUCKEX-Quantum-Candidate")
+
+    @patch("checkpoint_storage.MAX_CHECKPOINT_BYTES", 64)
     @patch("checkpoint_storage.urllib.request.urlopen")
-    def test_rejects_oversized_asset_before_download(self, mocked_open):
-        release = {
-            "tag_name": TAG,
-            "draft": False,
-            "assets": [{
-                "name": ASSET_NAME,
-                "size": 512 * 1024 * 1024 + 1,
-                "browser_download_url": f"https://github.com/{REPO}/releases/download/{TAG}/{ASSET_NAME}",
-            }],
-        }
-        mocked_open.return_value = FakeResponse(json.dumps(release).encode("utf-8"))
+    def test_rejects_oversized_download(self, mocked_open):
+        mocked_open.return_value = FakeResponse(b"x" * 65)
         with self.assertRaises(RuntimeError):
             download_release_checkpoint(REPO, TAG, KEY)
         self.assertEqual(mocked_open.call_count, 1)
 
     @patch("checkpoint_storage.urllib.request.urlopen")
-    def test_rejects_unexpected_asset_host(self, mocked_open):
-        ciphertext = encrypted_payload()
-        release = {
-            "tag_name": TAG,
-            "draft": False,
-            "assets": [{
-                "name": ASSET_NAME,
-                "size": len(ciphertext),
-                "browser_download_url": "https://attacker.example/file",
-            }],
-        }
-        mocked_open.return_value = FakeResponse(json.dumps(release).encode("utf-8"))
-        with self.assertRaises(RuntimeError):
+    def test_rejects_http_errors_without_falling_back_to_unpinned_asset(self, mocked_open):
+        mocked_open.side_effect = urllib.error.HTTPError(
+            f"https://github.com/{REPO}/releases/download/{TAG}/{ASSET_NAME}",
+            404,
+            "Not Found",
+            {},
+            None,
+        )
+        with self.assertRaisesRegex(RuntimeError, "HTTP status 404"):
             download_release_checkpoint(REPO, TAG, KEY)
         self.assertEqual(mocked_open.call_count, 1)
 
