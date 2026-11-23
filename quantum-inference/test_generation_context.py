@@ -47,6 +47,29 @@ class GenerationContextTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_generation_context(InvalidTokenizer(), "", "질문")
 
+    def test_negative_token_ids_are_rejected(self):
+        class NegativeTokenizer:
+            def encode(self, text):
+                return [-1]
+        with self.assertRaisesRegex(ValueError, "토큰 형식"):
+            build_generation_context(NegativeTokenizer(), "", "질문")
+
+    def test_token_ids_outside_known_vocabulary_are_rejected(self):
+        class OutOfRangeTokenizer:
+            vocab = ["<unk>", "가"]
+            def encode(self, text):
+                return [2]
+        with self.assertRaisesRegex(ValueError, "어휘 범위"):
+            build_generation_context(OutOfRangeTokenizer(), "", "질문")
+
+    def test_context_token_ids_are_validated_before_truncation(self):
+        class InvalidContextTokenizer:
+            vocab = ["<unk>", "가", "나"]
+            def encode(self, text):
+                return [1, 99] if text == "검색 문맥" else [1]
+        with self.assertRaisesRegex(ValueError, "어휘 범위"):
+            build_generation_context(InvalidContextTokenizer(), "검색 문맥", "질문")
+
     def test_question_only_mode_works_without_retrieved_context(self):
         ids, truncated = build_generation_context(FakeTokenizer(), "", "질문", block_size=32)
         self.assertFalse(truncated)
