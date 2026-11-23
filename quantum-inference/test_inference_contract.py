@@ -165,6 +165,41 @@ class InferenceContractTests(unittest.TestCase):
                         )
                 self.assertEqual(raised.exception.status_code, 503)
 
+    def test_knowledge_search_exposes_stable_source_revision_and_integrity_trace(self):
+        document = {
+            "page_id": "12345",
+            "revision_id": "987654",
+            "content_hash": "a" * 64,
+            "title": "태양계",
+            "url": "https://ko.wikipedia.org/wiki/태양계",
+            "license": "CC BY-SA 4.0",
+            "attribution": "Wikipedia contributors",
+            "text": "태양계 행성 설명",
+            "relevance_score": 0.91,
+        }
+        retrieval = {
+            "documents": [document],
+            "status": "ok",
+            "used_fallback": False,
+            "rejected_source_rows": 0,
+            "rejected_integrity_rows": 0,
+        }
+        class FakeRequest:
+            async def json(self):
+                return {"question": "태양계 행성"}
+
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value=retrieval):
+                result = asyncio.run(quantum_app.knowledge_search(FakeRequest()))
+        self.assertEqual(result["count"], 1)
+        trace = result["results"][0]
+        self.assertEqual(trace["page_id"], "12345")
+        self.assertEqual(trace["revision_id"], "987654")
+        self.assertEqual(trace["content_sha256"], "a" * 64)
+        self.assertEqual(trace["relevance_score"], 0.91)
+        self.assertFalse(result["model_invoked"])
+        self.assertFalse(result["model_training"])
+
     def test_public_health_redacts_checkpoint_exception_details(self):
         from unittest.mock import Mock
 
