@@ -20,6 +20,39 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
         self.assertEqual(tokenizer.decode(tokenizer.encode("나")), "�")
         self.assertEqual(tokenizer.decode([1, 999, -1, "bad"]), "가���")
 
+    def test_unicode_codepoint_round_trip_preserves_original_text(self):
+        samples = [
+            "한글 조합 자모 가",
+            "가́",  # Combining mark must not be silently normalized.
+            "👩‍🔬 🧪 🌍",
+            "기호 ∑ ∞ → ≠",
+            "줄바꿈\r\n탭\t공백  두 칸",
+        ]
+        tokenizer = BPETokenizer.train(
+            ["기본 한국어 문장"],
+            vocab_size=64,
+            extra_alphabet_texts=samples,
+        )
+        for sample in samples:
+            with self.subTest(sample=sample):
+                self.assertEqual(tokenizer.decode(tokenizer.encode(sample)), sample)
+
+    def test_serialization_round_trip_preserves_token_ids(self):
+        texts = ["Quantum 토크나이저", "한글 BPE 테스트"]
+        tokenizer = BPETokenizer.train(texts, vocab_size=64)
+        restored = BPETokenizer.from_dict(tokenizer.to_dict())
+        samples = texts + ["새로운 문장", "🙂"]
+        for sample in samples:
+            with self.subTest(sample=sample):
+                self.assertEqual(restored.encode(sample), tokenizer.encode(sample))
+                self.assertEqual(restored.decode(restored.encode(sample)), sample)
+
+    def test_training_is_deterministic_for_identical_corpus(self):
+        texts = ["가나다라마바사", "가나다라마바사", "한글 토큰"]
+        first = BPETokenizer.train(texts, vocab_size=48)
+        second = BPETokenizer.train(texts, vocab_size=48)
+        self.assertEqual(first.to_dict(), second.to_dict())
+
     def test_serialized_vocab_size_is_verified(self):
         payload = BPETokenizer(initial_symbols=["가", "나"]).to_dict()
         payload["vocab_size"] += 1
