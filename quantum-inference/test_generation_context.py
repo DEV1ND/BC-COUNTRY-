@@ -70,6 +70,45 @@ class GenerationContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "어휘 범위"):
             build_generation_context(InvalidContextTokenizer(), "검색 문맥", "질문")
 
+    def test_context_budget_diagnostics_account_for_truncation_exactly(self):
+        tokenizer = FakeTokenizer()
+        prompt_ids, truncated, diagnostics = build_generation_context(
+            tokenizer, "ABCDEFGHIJKLMN", "Q?", block_size=24,
+            return_diagnostics=True,
+        )
+        question_tokens = len(tokenizer.encode("質問:Q?\\n答え:"))
+        self.assertTrue(truncated)
+        self.assertEqual(diagnostics["question_tokens"], question_tokens)
+        self.assertEqual(diagnostics["retrieved_context_tokens"], len("ABCDEFGHIJKLMN"))
+        self.assertEqual(
+            diagnostics["included_context_tokens"],
+            24 - question_tokens,
+        )
+        self.assertEqual(
+            diagnostics["dropped_context_tokens"],
+            diagnostics["retrieved_context_tokens"] - diagnostics["included_context_tokens"],
+        )
+        self.assertEqual(diagnostics["prompt_tokens"], len(prompt_ids))
+        self.assertEqual(
+            diagnostics["remaining_generation_capacity"],
+            24 - len(prompt_ids),
+        )
+        self.assertEqual(diagnostics["context_policy"], "keep_tail")
+
+    def test_context_budget_diagnostics_report_no_truncation(self):
+        _, truncated, diagnostics = build_generation_context(
+            FakeTokenizer(), "짧은 문맥", "질문", block_size=64,
+            return_diagnostics=True,
+        )
+        self.assertFalse(truncated)
+        self.assertEqual(diagnostics["dropped_context_tokens"], 0)
+        self.assertEqual(
+            diagnostics["retrieved_context_tokens"],
+            diagnostics["included_context_tokens"],
+        )
+        self.assertEqual(diagnostics["remaining_generation_capacity"],
+                         64 - diagnostics["prompt_tokens"])
+
     def test_question_only_mode_works_without_retrieved_context(self):
         ids, truncated = build_generation_context(FakeTokenizer(), "", "질문", block_size=32)
         self.assertFalse(truncated)
