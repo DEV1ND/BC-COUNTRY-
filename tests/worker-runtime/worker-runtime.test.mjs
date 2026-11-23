@@ -119,16 +119,50 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
   assert.equal(rejected.status, 422);
   assert.equal((await rejected.json()).error, "manual_review_required");
 
-  const accepted = await request("/approve", {
+  // HTTP references must not satisfy the independent-source requirement.
+  const insecureReference = await request("/approve", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       id: "manual-fixture",
-      note: "문서의 정의와 핵심 설명을 공식 기술 문서와 대조하여 확인했습니다. https://example.org/reference",
+      note: "문서의 핵심 내용을 확인했으나 보안 연결이 아닌 참고자료입니다. http://example.org/reference",
     }),
+  });
+  assert.equal(insecureReference.status, 422);
+  assert.equal((await insecureReference.json()).error, "manual_review_required");
+
+  // Wikipedia itself cannot be used as its own independent reference.
+  const selfReference = await request("/approve", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      id: "manual-fixture",
+      note: "문서의 핵심 내용을 확인했으나 동일 위키백과 문서만 참고했습니다. https://en.wikipedia.org/wiki/Example",
+    }),
+  });
+  assert.equal(selfReference.status, 422);
+  assert.equal((await selfReference.json()).error, "manual_review_required");
+
+  const stillPending = await db.prepare("SELECT status FROM pages WHERE id='manual-fixture'").first();
+  assert.equal(stillPending.status, "pending_review");
+
+  const acceptedNote = "문서의 정의와 핵심 설명을 공식 기술 문서와 대조하여 확인했습니다. https://example.org/reference";
+  const accepted = await request("/approve", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: "manual-fixture", note: acceptedNote }),
   });
   assert.equal(accepted.status, 200);
   assert.equal((await accepted.json()).status, "approved");
+
+  // An already approved page cannot be approved again.
+  const duplicateApproval = await request("/approve", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: "manual-fixture", note: acceptedNote }),
+  });
+  assert.equal(duplicateApproval.status, 409);
+  assert.equal((await duplicateApproval.json()).error, "only_pending_pages_can_be_approved");
 
   const stored = await db.prepare("SELECT status, reviewer_note FROM pages WHERE id='manual-fixture'").first();
   assert.equal(stored.status, "approved");
