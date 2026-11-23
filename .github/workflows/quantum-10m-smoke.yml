@@ -29,6 +29,8 @@ on:
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
+      - 'training_data_quality.py'
+      - 'test_training_data_quality.py'
       - 'bpe_candidate_train.py'
       - 'training_provenance.py'
       - 'test_training_provenance.py'
