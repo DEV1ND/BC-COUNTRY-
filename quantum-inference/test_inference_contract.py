@@ -218,6 +218,20 @@ class InferenceContractTests(unittest.TestCase):
         self.assertTrue(result["is_model_generation"])
         self.assertEqual(result["answer"], "Quantum 후보 답변입니다.")
 
+    def test_public_wikipedia_seed_summary_redacts_exception_and_document_details(self):
+        result = quantum_app.public_wikipedia_seed_status({
+            "status": "failed",
+            "error": "OSError: /private/runtime/secret.db",
+            "imported_this_start": 0,
+            "page_diagnostics": [{"title": "private draft", "url": "https://internal.invalid"}],
+        })
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["error_type"], "OSError")
+        self.assertEqual(result["imported_this_start"], 0)
+        self.assertNotIn("error", result)
+        self.assertNotIn("page_diagnostics", result)
+        self.assertNotIn("private", str(result))
+
 
 if __name__ == "__main__":
     unittest.main()
