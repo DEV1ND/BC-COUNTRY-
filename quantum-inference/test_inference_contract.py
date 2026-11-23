@@ -125,6 +125,8 @@ class InferenceContractTests(unittest.TestCase):
                     quantum_app.GenerateRequest(prompt="질문", **{field: value})
 
     def test_greedy_generation_rejects_non_finite_or_fully_masked_logits(self):
+        from contextlib import ExitStack
+
         class FakeTokenizer:
             def encode(self, _text):
                 return [1]
@@ -141,12 +143,15 @@ class InferenceContractTests(unittest.TestCase):
 
         for invalid_value in (float("nan"), float("inf"), float("-inf")):
             with self.subTest(invalid_value=invalid_value):
-                with patch.object(quantum_app, "model", FakeModel(invalid_value)), \\
-                     patch.object(quantum_app, "tokenizer", FakeTokenizer()), \\
-                     patch.object(quantum_app, "retrieve_approved_qa", return_value={"matched": False}), \\
-                     patch.object(quantum_app, "retrieve_knowledge", return_value=[]), \\
-                     patch.object(quantum_app, "build_knowledge_context", return_value=""), \\
-                     patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]):
+                with ExitStack() as stack:
+                    stack.enter_context(patch.object(quantum_app, "model", FakeModel(invalid_value)))
+                    stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+                    stack.enter_context(patch.object(
+                        quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+                    ))
+                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+                    stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
+                    stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
                     with self.assertRaises(HTTPException) as raised:
                         quantum_app.generate(
                             quantum_app.GenerateRequest(prompt="새 질문", temperature=0),
