@@ -124,6 +124,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         )
         self.assertEqual(report["answerable_cases"], 1)
         self.assertEqual(report["mean_recall_at_k"], 0.6667)
+        self.assertEqual(report["micro_recall_at_k"], 0.6667)
         self.assertEqual(report["results"][0]["expected_title_count"], 3)
         self.assertEqual(report["results"][0]["relevant_retrieved"], 2)
         self.assertEqual(report["results"][0]["recall_at_k"], 0.6667)
@@ -137,6 +138,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         )
         self.assertEqual(report["answerable_cases"], 0)
         self.assertIsNone(report["mean_recall_at_k"])
+        self.assertIsNone(report["micro_recall_at_k"])
         self.assertIsNone(report["results"][0]["recall_at_k"])
         self.assertIsNone(report["domain_metrics"]["미확인"]["mean_recall_at_k"])
 
