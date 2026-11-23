@@ -46,6 +46,7 @@ class HumanReviewSummaryTests(unittest.TestCase):
         result = summarize_human_reviews(self.report, self.reviews)
         self.assertTrue(result["human_review_complete"])
         self.assertEqual(result["reviewed_cases"], 2)
+        self.assertEqual(result["report_sha256"], report_fingerprint(self.report))
         self.assertEqual(result["human_rating_means"]["correctness"], 3.0)
         self.assertEqual(result["category_rating_means"]["science"]["relevance"], 5.0)
         self.assertEqual(result["hallucination_reports"], 1)
