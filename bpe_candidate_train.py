@@ -16,6 +16,7 @@ import torch.nn.functional as F
 
 import app as live
 from bpe_tokenizer import BPETokenizer, encode_prompt_answer
+from training_provenance import audit_rows
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
@@ -286,6 +287,16 @@ def main():
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+    provenance_report = audit_rows(source_rows)
+    (ROOT / "training_provenance_audit.json").write_text(
+        json.dumps(provenance_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    if not provenance_report["training_release_eligible"]:
+        raise RuntimeError(
+            "학습 중단: 출처·라이선스 메타데이터 및 사람 검토가 완료된 데이터만 후보 학습에 사용할 수 있습니다. "
+            f"메타데이터 완전 {provenance_report['metadata_complete_records']}/"
+            f"{provenance_report['approved_records']}개"
+        )
     rows = clean_pairs(source_rows)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
