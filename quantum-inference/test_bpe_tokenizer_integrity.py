@@ -39,7 +39,11 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
 
     def test_serialization_round_trip_preserves_token_ids(self):
         texts = ["Quantum 토크나이저", "한글 BPE 테스트"]
-        tokenizer = BPETokenizer.train(texts, vocab_size=64)
+        tokenizer = BPETokenizer.train(
+            texts,
+            vocab_size=64,
+            extra_alphabet_texts=["새로운 문장", "🙂"],
+        )
         restored = BPETokenizer.from_dict(tokenizer.to_dict())
         samples = texts + ["새로운 문장", "🙂"]
         for sample in samples:
