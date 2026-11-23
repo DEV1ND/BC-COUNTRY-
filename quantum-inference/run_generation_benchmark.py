@@ -42,34 +42,76 @@ def _request_json(url, method, api_token, payload=None, timeout=90):
     return result
 
 
+def validate_benchmark_dataset(dataset):
+    """Validate the complete held-out dataset before contacting Candidate."""
+    if not isinstance(dataset, dict) or dataset.get("purpose") != "held_out_evaluation_only":
+        raise ValueError("Only the held-out evaluation benchmark may be used.")
+    if dataset.get("training_eligible") is not False:
+        raise ValueError("Benchmark must explicitly be marked training_eligible=false.")
+    benchmark_id = dataset.get("benchmark_id")
+    version = dataset.get("version")
+    categories = dataset.get("categories")
+    cases = dataset.get("cases")
+    if not isinstance(benchmark_id, str) or not benchmark_id.strip():
+        raise ValueError("Benchmark must have a non-empty benchmark_id.")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        raise ValueError("Benchmark version must be a positive integer.")
+    if not isinstance(categories, list) or not categories or any(
+        not isinstance(item, str) or not item.strip() for item in categories
+    ):
+        raise ValueError("Benchmark categories must be a non-empty string list.")
+    if len(categories) != len(set(categories)):
+        raise ValueError("Benchmark categories must be unique.")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("Benchmark must contain at least one evaluation case.")
+    ids = []
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            raise ValueError("Benchmark case " + str(index) + " must be an object.")
+        case_id = case.get("id")
+        category = case.get("category")
+        prompt = case.get("prompt")
+        context = case.get("context", "")
+        rubric = case.get("must_include")
+        if not isinstance(case_id, str) or not case_id.strip():
+            raise ValueError("Every benchmark case must have a non-empty string ID.")
+        if not isinstance(category, str) or category not in categories:
+            raise ValueError("Benchmark case " + case_id + " has an unknown category.")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("Benchmark case " + case_id + " has an empty or invalid prompt.")
+        if not isinstance(context, str):
+            raise ValueError("Benchmark case " + case_id + " context must be a string.")
+        if not isinstance(rubric, list) or any(
+            not isinstance(item, str) or not item.strip() for item in rubric
+        ):
+            raise ValueError("Benchmark case " + case_id + " rubric must be a string list.")
+        ids.append(case_id.strip())
+    if len(ids) != len(set(ids)):
+        raise ValueError("Benchmark cases must have unique non-empty IDs.")
+    return cases
+
+
 def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_path=None, limit=None):
-    parsed = urllib.parse.urlsplit(str(base_url or "").strip())
+    if not isinstance(base_url, str) or not base_url.strip():
+        raise ValueError("Candidate URL must be a non-empty string.")
+    if not isinstance(api_token, str) or not api_token:
+        raise ValueError("QUANTUM_API_TOKEN is required; do not put it in source files.")
+    parsed = urllib.parse.urlsplit(base_url.strip())
     if parsed.scheme not in ("https", "http") or not parsed.netloc:
         raise ValueError("Candidate URL must be an absolute HTTP(S) URL.")
     if parsed.scheme != "https" and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
         raise ValueError("Non-local Candidate URLs must use HTTPS.")
-    if not api_token:
-        raise ValueError("QUANTUM_API_TOKEN is required; do not put it in source files.")
-    base = str(base_url).rstrip("/")
+    base = base_url.rstrip("/")
 
     try:
         dataset = json.loads(Path(benchmark_path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError("Could not read the held-out benchmark JSON.") from exc
-    if not isinstance(dataset, dict) or dataset.get("purpose") != "held_out_evaluation_only":
-        raise ValueError("Only the held-out evaluation benchmark may be used.")
-    if dataset.get("training_eligible") is not False:
-        raise ValueError("Benchmark must explicitly be marked training_eligible=false.")
-    cases = dataset.get("cases")
-    if not isinstance(cases, list) or not cases:
-        raise ValueError("Benchmark must contain at least one evaluation case.")
-    ids = [str(case.get("id", "")).strip() for case in cases if isinstance(case, dict)]
-    if len(ids) != len(cases) or any(not item for item in ids) or len(set(ids)) != len(ids):
-        raise ValueError("Benchmark cases must be objects with unique non-empty IDs.")
+    cases = validate_benchmark_dataset(dataset)
     if limit is not None:
-        if int(limit) < 1:
-            raise ValueError("limit must be at least 1.")
-        cases = cases[:int(limit)]
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("limit must be a positive integer.")
+        cases = cases[:limit]
 
     health = _request_json(base + "/health", "GET", api_token)
     if health.get("generation_ready") is not True or health.get("model_loaded") is not True:
@@ -80,8 +122,8 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
     generation_invocations = 0
     approved_qa_retrieval_cases = 0
     for case in cases:
-        prompt = str(case.get("prompt", "")).strip()
-        context = str(case.get("context", "")).strip()
+        prompt = case["prompt"].strip()
+        context = case.get("context", "").strip()
         if not prompt:
             raise ValueError("Benchmark case " + str(case["id"]) + " has an empty prompt.")
         full_prompt = (context + "\n\n" if context else "") + prompt
@@ -98,11 +140,17 @@ def run_benchmark(base_url, api_token, benchmark_path=DEFAULT_BENCHMARK, output_
             raise RuntimeError("Candidate response for " + str(case["id"]) + " is not marked as live inference.")
         if response.get("model") not in ("quantum-approved-knowledge", "quantum-bpe-candidate"):
             raise RuntimeError("Candidate returned an unrecognized model identity for " + str(case["id"]) + ".")
-        response_mode = response.get("response_mode", "candidate_generation")
+        response_mode = response.get("response_mode")
         if response_mode == "approved_qa_retrieval":
+            if response.get("model") != "quantum-approved-knowledge" or response.get("is_model_generation") is not False:
+                raise RuntimeError("Candidate approved-QA response metadata is inconsistent for " + str(case["id"]) + ".")
             approved_qa_retrieval_cases += 1
-        else:
+        elif response_mode == "model_generation":
+            if response.get("model") != "quantum-bpe-candidate" or response.get("is_model_generation") is not True:
+                raise RuntimeError("Candidate model-generation metadata is inconsistent for " + str(case["id"]) + ".")
             generation_invocations += 1
+        else:
+            raise RuntimeError("Candidate returned an unknown response mode for " + str(case["id"]) + ".")
         results.append({
             "id": case["id"],
             "category": case["category"],
