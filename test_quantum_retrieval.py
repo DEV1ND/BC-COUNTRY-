@@ -60,6 +60,34 @@ class QuantumRetrievalTests(unittest.TestCase):
         self.assertFalse(result["matched"])
         self.assertIsNone(result["answer"])
 
+    def test_conflicting_answers_for_same_question_are_rejected(self):
+        rows = [
+            {"question": "민주주의란 무엇인가요?", "answer": "답변 A", "approved": True},
+            {"question": "민주주의란 무엇인가요?", "answer": "답변 B", "approved": True},
+        ]
+        result = retrieve("민주주의란 무엇인가요?", rows, threshold=0.0, min_margin=0.0)
+        self.assertFalse(result["matched"])
+        self.assertIsNone(result["answer"])
+        self.assertEqual(result["rejection_reason"], "conflicting_answers")
+
+    def test_identical_duplicate_answers_are_deduplicated(self):
+        rows = [
+            {"question": "민주주의란 무엇인가요?", "answer": "같은 답변", "approved": True},
+            {"question": "민주주의란 무엇인가요?", "answer": "같은 답변", "approved": True},
+        ]
+        result = retrieve("민주주의란 무엇인가요?", rows)
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["answer"], "같은 답변")
+
+    def test_invalid_index_input_is_handled(self):
+        result = retrieve("민주주의란 무엇인가요?", None)
+        self.assertFalse(result["matched"])
+        self.assertEqual(result["rejection_reason"], "invalid_index")
+        for value in ("not-a-list", {"question": "x"}):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    retrieve("민주주의란 무엇인가요?", value)
+
     def test_rejection_reason_explains_low_similarity(self):
         result = retrieve("광합성의 정의는 무엇인가요?", self.rows)
         self.assertFalse(result["matched"])
