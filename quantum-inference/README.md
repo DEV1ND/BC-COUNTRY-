@@ -156,3 +156,8 @@ The trace endpoint is retrieval-only: it does not invoke Quantum, change model w
 ### Citation suppression when the model context is truncated
 
 Candidate generation suppresses Wikipedia citations when the retrieved knowledge context is truncated to fit the model's token window. The current token-budget helper keeps the tail of the serialized context; without per-passage token-span accounting, the API cannot prove which complete source passages remain. In that case the response returns an empty `knowledge_sources` list, preserves the original `retrieved_source_count`, sets the effective `source_count` to zero, and reports `citations_suppressed_reason: "context_truncated"`. This is intentionally conservative: it avoids presenting retrieved-but-not-provably-included documents as citations. It does not establish that any untruncated source semantically supports the generated answer.
+
+
+### Candidate generation context-window diagnostics
+
+The model-generation response includes a `context_diagnostics` object calculated from the active tokenizer output and the configured model block size. It reports the block size, question tokens, retrieved context tokens before truncation, context tokens actually included, dropped context tokens, total prompt tokens, remaining generation capacity, truncation state, and the current `keep_tail` context policy. These values are token-budget accounting, not a measure of semantic coverage, factual support, or answer quality. The remaining generation capacity describes unused input-window positions at prompt construction time; the request's separate `max_new_tokens` limit and generation loop determine actual output length.
