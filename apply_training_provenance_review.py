@@ -15,6 +15,15 @@ from training_provenance import audit_rows
 
 
 TEMPLATE_SCHEMA = "juckex-training-provenance-review-template-v1"
+_PLACEHOLDER_VALUES = {"unknown", "n/a", "na", "tbd", "todo", "pending", "curated-v1"}
+
+
+def _has_real_value(value):
+    return (
+        isinstance(value, str)
+        and bool(value.strip())
+        and value.strip().casefold() not in _PLACEHOLDER_VALUES
+    )
 
 
 def _record_id(question, answer):
@@ -25,10 +34,10 @@ def _valid_timestamp(value):
     if not isinstance(value, str) or not value.strip():
         return False
     try:
-        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        return True
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
     except ValueError:
         return False
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
 
 
 def apply_review(source_rows, template):
@@ -54,7 +63,7 @@ def apply_review(source_rows, template):
         if not isinstance(record, dict):
             raise ValueError("검토 레코드는 객체여야 합니다.")
         original_index = record.get("original_index")
-        if not isinstance(original_index, int) or original_index not in expected:
+        if not isinstance(original_index, int) or isinstance(original_index, bool) or original_index not in expected:
             raise ValueError("원본과 일치하지 않는 original_index가 있습니다.")
         record_id = record.get("record_id")
         expected_id, original = expected[original_index]
@@ -71,19 +80,18 @@ def apply_review(source_rows, template):
         if not isinstance(source, dict):
             raise ValueError("source 메타데이터는 객체여야 합니다.")
         for field in SOURCE_FIELDS:
-            value = source.get(field)
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"source.{field} 값이 비어 있습니다.")
+            if not _has_real_value(source.get(field)):
+                raise ValueError(f"source.{field}에 실제 검토된 값이 필요합니다.")
 
         review = record.get("provenance_review")
         if not isinstance(review, dict) or review.get("approved") is not True:
             raise ValueError("사람 검토 승인되지 않은 레코드가 있습니다.")
         reviewer = review.get("reviewer")
         reviewed_at = review.get("reviewed_at")
-        if not isinstance(reviewer, str) or not reviewer.strip():
-            raise ValueError("검토자 정보가 비어 있습니다.")
+        if not _has_real_value(reviewer):
+            raise ValueError("실제 검토자 정보가 필요합니다.")
         if not _valid_timestamp(reviewed_at):
-            raise ValueError("reviewed_at은 ISO 8601 날짜·시간이어야 합니다.")
+            raise ValueError("reviewed_at은 시간대가 포함된 ISO 8601 날짜·시간이어야 합니다.")
         reviewed[original_index] = (source, {
             "approved": True,
             "reviewer": reviewer.strip(),
