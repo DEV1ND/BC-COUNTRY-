@@ -87,6 +87,40 @@ class CandidateDataPipelineTests(unittest.TestCase):
         self.assertNotIn("🧪", tokenizer.initial_symbols)
         self.assertNotIn("☃", tokenizer.initial_symbols)
 
+    def test_clean_pairs_rejects_non_string_approved_fields(self):
+        for row in (
+            {"approved": True, "question": 123, "answer": "정상적인 답변입니다."},
+            {"approved": True, "question": "정상 질문", "answer": None},
+        ):
+            with self.subTest(row=row):
+                with self.assertRaisesRegex(ValueError, "문자열"):
+                    clean_pairs([row])
+
+    def test_clean_pairs_rejects_short_or_overlong_approved_text(self):
+        cases = (
+            {"approved": True, "question": "?", "answer": "충분히 긴 답변입니다."},
+            {"approved": True, "question": "정상 질문", "answer": "짧"},
+            {"approved": True, "question": "질" * 501, "answer": "충분히 긴 답변입니다."},
+            {"approved": True, "question": "정상 질문", "answer": "답" * 2001},
+        )
+        for row in cases:
+            with self.subTest(lengths=(len(row["question"]), len(row["answer"]))):
+                with self.assertRaises(ValueError):
+                    clean_pairs([row])
+
+    def test_clean_pairs_does_not_truncate_record_separators(self):
+        cleaned = clean_pairs([
+            {"approved": True, "question": "정상 질문", "answer": "충분히 긴 답변입니다."}
+        ])
+        self.assertEqual(
+            cleaned[0]["text"],
+            "질문:정상 질문\\n답변:충분히 긴 답변입니다.\\n\\n",
+        )
+
+    def test_clean_pairs_requires_array_input(self):
+        with self.assertRaisesRegex(ValueError, "배열"):
+            clean_pairs({"approved": True})
+
 
 if __name__ == "__main__":
     unittest.main()
