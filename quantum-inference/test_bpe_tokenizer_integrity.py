@@ -67,8 +67,8 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
 
         tokenizer = BPETokenizer(initial_symbols=list("질문답변"))
         for prompt, answer, suffix in (
-            (123, "정상적인 답변입니다.", "\\n\\n"),
-            ("질문", 456, "\\n\\n"),
+            (123, "정상적인 답변입니다.", "\n\n"),
+            ("질문", 456, "\n\n"),
             ("질문", "정상적인 답변입니다.", None),
         ):
             with self.subTest(prompt=prompt, answer=answer, suffix=suffix):
@@ -81,7 +81,7 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
         tokenizer = BPETokenizer.train(["질문 답변"], vocab_size=32)
         ids, prompt_length = encode_prompt_answer("질문", "답변", tokenizer)
         self.assertEqual(ids[:prompt_length], tokenizer.encode("질문"))
-        self.assertEqual(ids[prompt_length:], tokenizer.encode("답변\\n\\n"))
+        self.assertEqual(ids[prompt_length:], tokenizer.encode("답변\n\n"))
 
     def test_training_rejects_coercible_or_invalid_inputs(self):
         invalid_calls = (
