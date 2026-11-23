@@ -4,6 +4,7 @@ The admin token is read only from JUCKEX_WIKI_ADMIN_TOKEN. It is never written t
 or printed. The JSONL output is created with owner-only permissions and atomically renamed.
 """
 import argparse
+from datetime import datetime
 import hashlib
 import json
 import re
@@ -47,6 +48,20 @@ def validate_export_document(row, corpus):
         raise RuntimeError("Worker returned an invalid content hash")
     if hashlib.sha256(text.encode("utf-8")).hexdigest() != digest:
         raise RuntimeError("Worker returned a content hash that does not match its text")
+    if "reviewed_at" not in row:
+        raise RuntimeError("Worker export is missing the review timestamp field")
+    reviewed_at = row["reviewed_at"]
+    if corpus == "manual":
+        if not isinstance(reviewed_at, str) or not reviewed_at.strip():
+            raise RuntimeError("Manual corpus requires a review timestamp")
+        try:
+            parsed_reviewed_at = datetime.fromisoformat(reviewed_at.strip().replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise RuntimeError("Manual corpus review timestamp must be ISO-8601") from exc
+        if parsed_reviewed_at.tzinfo is None or parsed_reviewed_at.utcoffset() is None:
+            raise RuntimeError("Manual corpus review timestamp must include a timezone")
+    elif reviewed_at is not None:
+        raise RuntimeError("Unverified corpus must not contain a review timestamp")
     expected_status = "approved" if corpus == "manual" else "pending_review"
     if row["status"] != expected_status:
         raise RuntimeError("Worker returned a document outside the selected trust class")
