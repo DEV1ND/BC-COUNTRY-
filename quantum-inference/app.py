@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
 from generation_sampling import select_top_k_indices, normalize_prompt
+from generation_context import build_generation_context
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
@@ -548,7 +549,6 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     # and non-empty attribution are passed into generation or exposed as citations.
     knowledge_context = build_knowledge_context(knowledge)
     knowledge_sources = serialize_knowledge_sources(knowledge)
-    from generation_context import build_generation_context
     try:
         prompt_ids, context_truncated = build_generation_context(
             tokenizer, knowledge_context, req.prompt, block_size=BLOCK
