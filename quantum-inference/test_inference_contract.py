@@ -424,7 +424,8 @@ class InferenceContractTests(unittest.TestCase):
         connection.execute("""
             CREATE TABLE knowledge_docs(
                 page_id TEXT PRIMARY KEY, title TEXT, url TEXT, text TEXT,
-                license TEXT, attribution TEXT, revision_id TEXT, content_hash TEXT
+                license TEXT, attribution TEXT, revision_id TEXT, content_hash TEXT,
+                imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
         connection.execute("""
