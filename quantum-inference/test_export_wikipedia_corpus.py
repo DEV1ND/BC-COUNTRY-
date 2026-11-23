@@ -16,7 +16,11 @@ def document(**overrides):
         "url": "https://ko.wikipedia.org/wiki/테스트_문서",
         "text": text,
         "license": "CC BY-SA 4.0",
-        "attribution": "Wikipedia contributors, 테스트 문서",
+        "attribution": (
+            "Wikipedia contributors, 테스트 문서, "
+            "https://ko.wikipedia.org/wiki/테스트_문서; licensed under "
+            "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)."
+        ),
         "revision_id": "67890",
         "content_hash": hashlib.sha256(text.strip().encode("utf-8")).hexdigest(),
         "status": "pending_review",
@@ -88,6 +92,18 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             }):
                 with self.assertRaisesRegex(RuntimeError, "without human approval"):
                     export_corpus("https://example.workers.dev", "token", "manual", destination)
+            self.assertFalse(destination.exists())
+
+
+    def test_incomplete_attribution_is_rejected(self):
+        bad = document(attribution="Wikipedia contributors, 테스트 문서")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            destination = Path(temp_dir) / "corpus.jsonl"
+            with patch("export_wikipedia_corpus.fetch_page", return_value={
+                "documents": [bad], "has_more": False, "next_after": None
+            }):
+                with self.assertRaisesRegex(RuntimeError, "incomplete or invalid CC BY-SA attribution"):
+                    export_corpus("https://example.workers.dev", "token", "unverified", destination)
             self.assertFalse(destination.exists())
 
     def test_duplicate_page_ids_are_rejected(self):
