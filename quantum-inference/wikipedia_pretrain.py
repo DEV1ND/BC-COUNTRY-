@@ -123,12 +123,20 @@ def split_documents(docs, validation_fraction=0.1):
         raise ValueError("학습/검증 분리를 위해 문서가 최소 2개 필요합니다.")
     if any(not isinstance(doc, dict) or not str(doc.get("page_id", "")).strip() for doc in docs):
         raise ValueError("모든 문서에는 비어 있지 않은 page_id가 필요합니다.")
-    ordered = sorted(
-        docs,
-        key=lambda d: hashlib.sha256(str(d["page_id"]).encode("utf-8")).hexdigest()
+    groups = {}
+    for doc in docs:
+        groups.setdefault(str(doc["page_id"]), []).append(doc)
+    page_ids = sorted(
+        groups,
+        key=lambda page_id: hashlib.sha256(page_id.encode("utf-8")).hexdigest()
     )
-    valid_count = max(1, min(len(ordered) - 1, round(len(ordered) * fraction)))
-    return ordered[:-valid_count], ordered[-valid_count:]
+    if len(page_ids) < 2:
+        raise ValueError("학습/검증 분리를 위해 서로 다른 page_id가 최소 2개 필요합니다.")
+    valid_count = max(1, min(len(page_ids) - 1, round(len(page_ids) * fraction)))
+    train_ids, valid_ids = set(page_ids[:-valid_count]), set(page_ids[-valid_count:])
+    train_docs = [doc for doc in docs if str(doc["page_id"]) in train_ids]
+    valid_docs = [doc for doc in docs if str(doc["page_id"]) in valid_ids]
+    return train_docs, valid_docs
 
 
 def make_windows(documents, tokenizer):
