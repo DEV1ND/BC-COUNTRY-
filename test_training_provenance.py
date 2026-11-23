@@ -28,6 +28,10 @@ class TrainingProvenanceTests(unittest.TestCase):
         self.assertTrue(report["training_release_eligible"])
         self.assertEqual(report["metadata_completeness_ratio"], 1.0)
         self.assertIn("진실성을 증명하지 않습니다", report["important_limit"])
+        self.assertFalse(report["reviewer_identity_verified_records"])
+        self.assertTrue(report["reviewer_identity_verification_required"])
+        self.assertIn("not cryptographically verified", report["release_gate_scope"])
+        self.assertFalse(report["records"][0]["reviewer_identity_verified"])
 
     def test_missing_source_and_review_fields_are_ineligible(self):
         row = self.complete_row()
