@@ -60,6 +60,16 @@ class GenerationSamplingTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     validate_sampling_probabilities(values)
 
+
+    def test_sampling_rejects_numeric_values_outside_float_range(self):
+        huge_integer = 10 ** 10000
+        with self.assertRaisesRegex(ValueError, "범위"):
+            select_top_k_indices([huge_integer, 1], 1)
+        with self.assertRaisesRegex(ValueError, "범위"):
+            validate_sampling_probabilities([huge_integer])
+        with self.assertRaisesRegex(ValueError, "범위"):
+            safe_ngram_bans([huge_integer, 1], [0, 1], 2)
+
     def test_ngram_guard_blocks_repeated_continuation_when_alternative_exists(self):
         self.assertEqual(safe_ngram_bans([0.1, 0.2, 0.3, 0.4], [1, 2, 3, 1, 2]), {3})
 
