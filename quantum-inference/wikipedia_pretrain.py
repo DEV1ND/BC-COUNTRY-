@@ -113,11 +113,21 @@ def load_corpus(path, allow_unverified):
 
 
 def split_documents(docs, validation_fraction=0.1):
+    try:
+        fraction = float(validation_fraction)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("validation_fraction은 0과 1 사이의 유한한 숫자여야 합니다.") from exc
+    if not math.isfinite(fraction) or not 0.0 < fraction < 1.0:
+        raise ValueError("validation_fraction은 0과 1 사이의 유한한 숫자여야 합니다.")
+    if not isinstance(docs, (list, tuple)) or len(docs) < 2:
+        raise ValueError("학습/검증 분리를 위해 문서가 최소 2개 필요합니다.")
+    if any(not isinstance(doc, dict) or not str(doc.get("page_id", "")).strip() for doc in docs):
+        raise ValueError("모든 문서에는 비어 있지 않은 page_id가 필요합니다.")
     ordered = sorted(
         docs,
-        key=lambda d: hashlib.sha256(d["page_id"].encode("utf-8")).hexdigest()
+        key=lambda d: hashlib.sha256(str(d["page_id"]).encode("utf-8")).hexdigest()
     )
-    valid_count = max(1, min(len(ordered) - 1, round(len(ordered) * validation_fraction)))
+    valid_count = max(1, min(len(ordered) - 1, round(len(ordered) * fraction)))
     return ordered[:-valid_count], ordered[-valid_count:]
 
 
