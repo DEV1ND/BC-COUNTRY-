@@ -45,6 +45,22 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
                 "merges": [],
             })
 
+    def test_encode_rejects_non_string_inputs_instead_of_coercing(self):
+        tokenizer = BPETokenizer(initial_symbols=["가"])
+        for value in (None, 123, True, ["가"]):
+            with self.subTest(value=value):
+                with self.assertRaises(TypeError):
+                    tokenizer.encode(value)
+
+    def test_decode_rejects_non_sequence_and_does_not_coerce_ids(self):
+        tokenizer = BPETokenizer(initial_symbols=["가"])
+        with self.assertRaises(TypeError):
+            tokenizer.decode("1")
+        self.assertEqual(
+            tokenizer.decode([1, True, 1.5, "1", 999, -1]),
+            "가�����",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
