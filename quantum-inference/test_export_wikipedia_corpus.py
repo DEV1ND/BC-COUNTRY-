@@ -79,7 +79,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             with patch("export_wikipedia_corpus.fetch_page", return_value={
                 "documents": [bad], "has_more": False, "next_after": None
             }):
-                with self.assertRaisesRegex(RuntimeError, "invalid Korean Wikipedia URL"):
+                with self.assertRaisesRegex(RuntimeError, "incomplete or invalid CC BY-SA attribution"):
                     export_corpus("https://example.workers.dev", "token", "unverified", destination)
             self.assertFalse(destination.exists())
 
