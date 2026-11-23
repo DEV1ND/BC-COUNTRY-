@@ -19,7 +19,7 @@ class QuantumHumanReviewTests(unittest.TestCase):
         }
 
     def review_template(self):
-        template = self.review_template()
+        template = build_review_template(self.sample_report())
         template["reviewer"] = "test-reviewer"
         template["reviewed_at"] = "2026-11-23T09:00:00Z"
         return template
@@ -33,12 +33,12 @@ class QuantumHumanReviewTests(unittest.TestCase):
         self.assertFalse(template["production_model_changed"])
 
     def test_incomplete_review_cannot_pass(self):
-        summary = summarize_reviews(build_review_template(self.sample_report()))
+        summary = summarize_reviews(self.review_template())
         self.assertEqual(summary["status"], "incomplete")
         self.assertFalse(summary["human_review_passed"])
 
     def test_complete_high_quality_review_passes_quality_gate(self):
-        template = build_review_template(self.sample_report())
+        template = self.review_template()
         template["records"][0]["ratings"] = {dimension: 5 for dimension in DIMENSIONS}
         summary = summarize_reviews(template)
         self.assertEqual(summary["status"], "passed")
@@ -46,7 +46,7 @@ class QuantumHumanReviewTests(unittest.TestCase):
         self.assertEqual(summary["average_ratings"]["factuality"], 5.0)
 
     def test_low_factuality_blocks_quality_gate(self):
-        template = build_review_template(self.sample_report())
+        template = self.review_template()
         template["records"][0]["ratings"] = {dimension: 4 for dimension in DIMENSIONS}
         template["records"][0]["ratings"]["factuality"] = 2
         summary = summarize_reviews(template)
@@ -54,14 +54,14 @@ class QuantumHumanReviewTests(unittest.TestCase):
         self.assertFalse(summary["human_review_passed"])
 
     def test_invalid_rating_is_rejected(self):
-        template = build_review_template(self.sample_report())
+        template = self.review_template()
         template["records"][0]["ratings"] = {dimension: 4 for dimension in DIMENSIONS}
         template["records"][0]["ratings"]["relevance"] = 6
         with self.assertRaises(ValueError):
             summarize_reviews(template)
 
     def test_empty_generated_answer_cannot_pass(self):
-        template = build_review_template(self.sample_report())
+        template = self.review_template()
         template["records"][0]["generated_answer"] = ""
         template["records"][0]["ratings"] = {dimension: 5 for dimension in DIMENSIONS}
         summary = summarize_reviews(template)
