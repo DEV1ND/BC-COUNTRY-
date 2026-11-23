@@ -1,6 +1,7 @@
 import sys
 import sqlite3
 import unittest
+import hashlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -168,11 +169,11 @@ class KnowledgeRetrievalTests(unittest.TestCase):
     def _knowledge_connection(self, include_fts=True):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
-        conn.execute("CREATE TABLE knowledge_docs(page_id TEXT, title, url, text, attribution TEXT, license TEXT)")
+        conn.execute("CREATE TABLE knowledge_docs(page_id TEXT, title, url, text, attribution TEXT, license TEXT, revision_id TEXT, content_hash TEXT)")
         conn.execute(
-            "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?)",
+            "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?,?,?)",
             ("1", "태양계", "https://ko.wikipedia.org/wiki/태양계",
-             "태양계 행성은 태양 주위를 공전한다", "태양계 - https://ko.wikipedia.org/wiki/태양계 CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/", "CC BY-SA 4.0"),
+             "태양계 행성은 태양 주위를 공전한다", "태양계 - https://ko.wikipedia.org/wiki/태양계 CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/", "CC BY-SA 4.0", "12345", hashlib.sha256("태양계 행성은 태양 주위를 공전한다".encode("utf-8")).hexdigest()),
         )
         if include_fts:
             conn.execute("CREATE VIRTUAL TABLE knowledge_fts USING fts5(page_id UNINDEXED,title,text)")
@@ -215,9 +216,9 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         conn = self._knowledge_connection(include_fts=False)
         try:
             conn.execute(
-                "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?)",
+                "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?,?,?)",
                 ("2", "태양계", "https://example.com/not-wikipedia",
-                 "태양계 행성 설명", "저작자 표시", "CC BY-SA 4.0"),
+                 "태양계 행성 설명", "저작자 표시", "CC BY-SA 4.0", "12346", hashlib.sha256("태양계 행성 설명".encode("utf-8")).hexdigest()),
             )
             result = search_knowledge_index(conn, "태양계 행성")
             self.assertEqual(result["status"], "fts_fallback")
@@ -235,6 +236,28 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             result = search_knowledge_index(conn, "태양계 행성")
             self.assertEqual(result["status"], "index_invalid")
             self.assertEqual(result["documents"], [])
+        finally:
+            conn.close()
+
+    def test_index_search_rejects_tampered_content_hash(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute("UPDATE knowledge_docs SET content_hash=?", ("0" * 64,))
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "document_integrity_invalid")
+            self.assertEqual(result["documents"], [])
+            self.assertEqual(result["rejected_integrity_rows"], 1)
+        finally:
+            conn.close()
+
+    def test_index_search_rejects_missing_revision_metadata(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute("UPDATE knowledge_docs SET revision_id=NULL")
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "document_integrity_invalid")
+            self.assertEqual(result["documents"], [])
+            self.assertEqual(result["rejected_integrity_rows"], 1)
         finally:
             conn.close()
 
