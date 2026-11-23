@@ -61,7 +61,7 @@ class QuantumRetrievalTests(unittest.TestCase):
         self.assertIsNone(result["answer"])
 
     def test_rejection_reason_explains_low_similarity(self):
-        result = retrieve("완전히 무관한 질문", self.rows)
+        result = retrieve("광합성의 정의는 무엇인가요?", self.rows)
         self.assertFalse(result["matched"])
         self.assertEqual(result["rejection_reason"], "score_below_threshold")
         self.assertIsNone(result["answer"])
