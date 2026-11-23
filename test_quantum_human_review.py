@@ -54,6 +54,20 @@ class QuantumHumanReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summarize_reviews(template)
 
+    def test_empty_generated_answer_cannot_pass(self):
+        template = build_review_template(self.sample_report())
+        template["records"][0]["generated_answer"] = ""
+        template["records"][0]["ratings"] = {dimension: 5 for dimension in DIMENSIONS}
+        summary = summarize_reviews(template)
+        self.assertFalse(summary["human_review_passed"])
+        self.assertEqual(summary["empty_generated_answer_count"], 1)
+
+    def test_malformed_sample_is_rejected(self):
+        report = self.sample_report()
+        report["strategies"]["greedy"]["samples"] = ["not-an-object"]
+        with self.assertRaises(ValueError):
+            build_review_template(report)
+
 
 if __name__ == "__main__":
     unittest.main()
