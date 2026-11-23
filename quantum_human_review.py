@@ -115,6 +115,8 @@ def summarize_reviews(review_payload):
             raise ValueError(f"records[{index}] 질문과 기준 답변은 비어 있으면 안 됩니다.")
         if not isinstance(generated, str):
             raise ValueError(f"records[{index}] 생성 답변은 문자열이어야 합니다.")
+        if not generated.strip():
+            empty_generated += 1
         expected_fingerprint = _sample_fingerprint(question, reference, generated)
         if record.get("sample_sha256") != expected_fingerprint:
             raise ValueError(f"records[{index}]의 평가 원본 내용이 변경되었거나 fingerprint가 없습니다.")
