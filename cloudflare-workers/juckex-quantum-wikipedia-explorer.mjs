@@ -112,6 +112,9 @@ el("skip").addEventListener("click",()=>{selected=null;el("detail").hidden=true;
 </script></body></html>`;
 
 function json(data,status=200){return new Response(JSON.stringify(data,null,2),{status,headers:JSON_HEADERS});}
+function buildWikipediaAttribution(title,url){
+  return `Wikipedia contributors, ${title}, ${url}; licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modifications must be indicated.`;
+}
 async function sha256(value){
   const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));
   return [...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,"0")).join("");
@@ -137,6 +140,7 @@ async function collectTopic(topic,env){
     const sameHash=await env.DB.prepare("SELECT id,url FROM pages WHERE content_hash=?").bind(hash).first();
     const sourceUrl=page.fullurl||("https://ko.wikipedia.org/wiki/"+encodeURIComponent(page.title.replace(/ /g,"_")));
     if(sameHash&&sameHash.url!==sourceUrl) continue;
+    const attribution=buildWikipediaAttribution(page.title,sourceUrl);
     const existing=await env.DB.prepare("SELECT id,content_hash FROM pages WHERE url=?").bind(sourceUrl).first();
     if(existing&&existing.content_hash===hash){
       await env.DB.prepare("UPDATE pages SET last_seen_at=datetime('now') WHERE id=?").bind(existing.id).run();
@@ -145,17 +149,15 @@ async function collectTopic(topic,env){
     const id=existing?.id||crypto.randomUUID();
     if(existing){
       await env.DB.prepare(`UPDATE pages SET title=?,snippet=?,content_hash=?,content=?,revision_id=?,status='pending_review',
-        license_status='attribution_required',license_name='CC BY-SA 4.0',
-        attribution='Wikipedia contributors; retain page title, URL, license, and indicate modifications',
+        license_status='attribution_required',license_name='CC BY-SA 4.0',attribution=?,
         discovered_at=datetime('now'),last_seen_at=datetime('now'),reviewed_at=NULL,reviewer_note=NULL,synced_at=NULL,sync_error=NULL
-        WHERE id=?`).bind(page.title,String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,page.lastrevid||null,id).run();
+        WHERE id=?`).bind(page.title,String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,attribution,page.lastrevid||null,id).run();
       updated++;
     }else{
       await env.DB.prepare(`INSERT INTO pages
         (id,provider,title,url,domain,snippet,content_hash,content,r2_key,status,license_status,license_name,attribution,revision_id,discovered_at,last_seen_at)
-        VALUES (?,'wikipedia',?,?,?,?,?,?, '', 'pending_review','attribution_required','CC BY-SA 4.0',
-        'Wikipedia contributors; retain page title, URL, license, and indicate modifications',?,datetime('now'),datetime('now'))`)
-        .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,page.lastrevid||null).run();
+        VALUES (?,'wikipedia',?,?,?,?,?,?, '', 'pending_review','attribution_required','CC BY-SA 4.0',?,?,datetime('now'),datetime('now'))`)
+        .bind(id,page.title,sourceUrl,"ko.wikipedia.org",String(hit.snippet||"").replace(/<[^>]+>/g,""),hash,text,attribution,page.lastrevid||null).run();
       discovered++;
     }
   }
