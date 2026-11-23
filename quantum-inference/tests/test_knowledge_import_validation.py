@@ -22,7 +22,7 @@ def valid_document(**overrides):
             "(https://creativecommons.org/licenses/by-sa/4.0/)."
         ),
         "revision_id": "987654",
-        "content_hash": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "content_hash": hashlib.sha256(body.strip().encode("utf-8")).hexdigest(),
     }
     row.update(overrides)
     return row
