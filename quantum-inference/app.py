@@ -333,7 +333,10 @@ def health():
             "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
             "checkpoint_source": CHECKPOINT_SOURCE,
             "checkpoint_release_tag": CHECKPOINT_RELEASE_TAG or None,
-            "checkpoint_load_error": CHECKPOINT_LOAD_ERROR,
+            # Public health output exposes only the exception class, never filesystem paths or details.
+            "checkpoint_load_error": (
+                CHECKPOINT_LOAD_ERROR.split(":", 1)[0] if CHECKPOINT_LOAD_ERROR else None
+            ),
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 
