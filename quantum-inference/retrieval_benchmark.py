@@ -50,6 +50,15 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
                 or not isinstance(domain, str) or not domain.strip()
                 or not isinstance(expected, list)):
             raise ValueError(f"Case {index} requires id, domain, question, and expected_titles.")
+        if len(case_id.strip()) > 128:
+            raise ValueError(f"Case {index} id exceeds 128 characters.")
+        if len(domain.strip()) > 80:
+            raise ValueError(f"Case {index} domain exceeds 80 characters.")
+        if len(question.strip()) > 2000:
+            raise ValueError(f"Case {index} question exceeds 2000 characters.")
+        if len(expected) > 20:
+            raise ValueError(f"Case {index} has more than 20 expected titles.")
+
         folded_id = case_id.strip().casefold()
         if folded_id in seen_ids:
             raise ValueError(f"Duplicate evaluation case id: {case_id}")
@@ -61,6 +70,8 @@ def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> 
             if not isinstance(raw_title, str) or not raw_title.strip():
                 raise ValueError(f"Case {case_id} contains an invalid expected title.")
             title = raw_title.strip()
+            if len(title) > 256:
+                raise ValueError(f"Case {case_id} expected title exceeds 256 characters.")
             normalized_title = normalize_retrieval_title(title)
             if normalized_title in seen_titles:
                 raise ValueError(f"Case {case_id} contains duplicate expected titles.")
