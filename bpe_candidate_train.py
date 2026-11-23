@@ -197,20 +197,21 @@ def live_answer_bits_per_char(rows):
             ids_list, _ = live.encode_text(row["text"])
             prompt_text = "질문:" + row["question"] + "\n답변:"
             prompt_ids, _ = live.encode_text(prompt_text)
-            chunk = ids_list[:live.BLOCK + 1]
-            if len(chunk) < 2:
-                continue
-            ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
-            targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
-            # Character tokenizer: token count equals character count. Use the
-            # encoded prompt length so the first answer character is scored.
-            start = max(0, len(prompt_ids) - 1)
-            if start >= len(targets):
-                continue
-            logits, _ = live.model(ids)
-            losses = F.cross_entropy(logits[0, start:], targets[start:], reduction="none")
-            nll_sum += float(losses.sum().item())
-            char_count += len(targets[start:])
+            # Score the complete answer across context-sized windows, not just
+            # the first block. Prompt tokens remain excluded from the metric.
+            for offset in range(0, max(1, len(ids_list) - 1), live.BLOCK):
+                chunk = ids_list[offset:offset + live.BLOCK + 1]
+                if len(chunk) < 2:
+                    continue
+                ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
+                targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
+                start = max(0, min(len(targets), len(prompt_ids) - offset - 1))
+                if start >= len(targets):
+                    continue
+                logits, _ = live.model(ids)
+                losses = F.cross_entropy(logits[0, start:], targets[start:], reduction="none")
+                nll_sum += float(losses.sum().item())
+                char_count += len(targets[start:])
     finally:
         live.model.train(was_training)
     return nll_sum / max(1, char_count) / math.log(2)
