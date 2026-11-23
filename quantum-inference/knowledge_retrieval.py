@@ -174,7 +174,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
     try:
         try:
             rows = conn.execute(
-                """SELECT d.title,d.url,d.text,d.attribution,d.license,d.revision_id,d.content_hash
+                """SELECT d.page_id,d.title,d.url,d.text,d.attribution,d.license,d.revision_id,d.content_hash
                    FROM knowledge_fts f
                    JOIN knowledge_docs d ON d.page_id=f.page_id
                    WHERE knowledge_fts MATCH ?
@@ -192,7 +192,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
             for term in terms:
                 args.extend(["%" + term + "%", "%" + term + "%"])
             rows = conn.execute(
-                "SELECT title,url,text,attribution,license,revision_id,content_hash FROM knowledge_docs WHERE "
+                "SELECT page_id,title,url,text,attribution,license,revision_id,content_hash FROM knowledge_docs WHERE "
                 + clauses + " LIMIT 100",
                 args,
             ).fetchall()
