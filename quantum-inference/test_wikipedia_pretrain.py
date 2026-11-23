@@ -1,16 +1,18 @@
 import hashlib
 import json
+import random
 import tempfile
 import unittest
 from pathlib import Path
 
-from wikipedia_pretrain import load_corpus, split_documents
+from bpe_tokenizer import BPETokenizer
+from wikipedia_pretrain import batch_windows, load_corpus, make_windows, split_documents
 
 
 def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source"):
     text = ("한국어 문서 내용입니다. " * 20).strip()
     return {
-        "page_id": page_id, "title": "테스트 문서", 
+        "page_id": page_id, "title": "테스트 문서",
         "url": "https://ko.wikipedia.org/wiki/테스트",
         "revision_id": "12345",
         "content_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
@@ -25,7 +27,7 @@ class CorpusValidationTests(unittest.TestCase):
         handle = tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False)
         with handle:
             for item in rows:
-                handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+                handle.write(json.dumps(item, ensure_ascii=False) + "\\n")
         self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
         return handle.name
 
@@ -67,6 +69,33 @@ class CorpusValidationTests(unittest.TestCase):
         self.assertEqual([d["page_id"] for d in train_a], [d["page_id"] for d in train_b])
         self.assertEqual([d["page_id"] for d in valid_a], [d["page_id"] for d in valid_b])
         self.assertFalse(set(d["page_id"] for d in train_a) & set(d["page_id"] for d in valid_a))
+
+
+class TrainingWindowIntegrityTests(unittest.TestCase):
+    def test_long_document_tail_tokens_are_not_dropped(self):
+        tokenizer = BPETokenizer(initial_symbols=["가"])
+        windows, token_count = make_windows([{"text": "가" * 600}], tokenizer)
+        self.assertEqual(token_count, 600)
+        self.assertEqual([len(window) for window in windows], [257, 257, 88])
+        self.assertEqual(sum(len(window) - 1 for window in windows), token_count - 1)
+        self.assertEqual(windows[-1][-1], tokenizer.encode("가")[0])
+
+    def test_windows_never_join_tokens_from_different_documents(self):
+        tokenizer = BPETokenizer(initial_symbols=["가", "나"])
+        windows, _ = make_windows(
+            [{"text": "가" * 300}, {"text": "나" * 300}], tokenizer
+        )
+        self.assertEqual(len(windows), 4)
+        for window in windows:
+            self.assertEqual(len(set(window)), 1)
+
+    def test_batch_padding_is_excluded_from_next_token_loss(self):
+        random.seed(7)
+        x, y = batch_windows([[1, 2, 3]], batch_size=1, device="cpu")
+        self.assertEqual(x[0, :2].tolist(), [1, 2])
+        self.assertEqual(y[0, :2].tolist(), [2, 3])
+        self.assertEqual(x[0, 2:].count_nonzero().item(), 0)
+        self.assertTrue((y[0, 2:] == -100).all().item())
 
 
 if __name__ == "__main__":
