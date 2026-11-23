@@ -97,6 +97,7 @@ def evaluate_retrieval_cases(
         "unanswerable_cases": 0, "false_positive_retrievals": 0,
         "irrelevant_retrievals": 0, "retrieved_documents": 0,
         "recall_at_k_sum": 0.0, "answerable_cases": 0,
+        "relevant_retrieved_total": 0, "expected_titles_total": 0,
     })
 
     for case in rows:
@@ -158,6 +159,8 @@ def evaluate_retrieval_cases(
         if recall_at_k is not None:
             bucket["recall_at_k_sum"] += recall_at_k
             bucket["answerable_cases"] += 1
+            bucket["relevant_retrieved_total"] += relevant_count
+            bucket["expected_titles_total"] += len(expected_titles)
 
         results.append({
             "id": case["id"],
@@ -201,6 +204,10 @@ def evaluate_retrieval_cases(
                 round(values["recall_at_k_sum"] / values["answerable_cases"], 4)
                 if values["answerable_cases"] else None
             ),
+            "micro_recall_at_k": (
+                round(values["relevant_retrieved_total"] / values["expected_titles_total"], 4)
+                if values["expected_titles_total"] else None
+            ),
             "safe_abstention_rate": (
                 round(values["correct_abstentions"] / values["unanswerable_cases"], 4)
                 if values["unanswerable_cases"] else None
@@ -235,6 +242,13 @@ def evaluate_retrieval_cases(
                 / sum(1 for result in results if result["recall_at_k"] is not None), 4
             )
             if any(result["recall_at_k"] is not None for result in results) else None
+        ),
+        "micro_recall_at_k": (
+            round(
+                sum(result["relevant_retrieved"] for result in results)
+                / sum(result["expected_title_count"] for result in results), 4
+            )
+            if sum(result["expected_title_count"] for result in results) else None
         ),
         "safe_abstention_rate": (
             round(
