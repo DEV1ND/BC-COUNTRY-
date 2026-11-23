@@ -48,17 +48,33 @@ class BPECandidate(nn.Module):
 
 
 def clean_pairs(rows):
+    if not isinstance(rows, list):
+        raise ValueError("학습 Q&A 데이터는 JSON 배열이어야 합니다.")
     cleaned, seen = [], set()
-    for row in rows:
+    for index, row in enumerate(rows):
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
-        q = str(row.get("question", "")).strip()[:500]
-        a = str(row.get("answer", "")).strip()[:2000]
+        question = row.get("question")
+        answer = row.get("answer")
+        if not isinstance(question, str) or not isinstance(answer, str):
+            raise ValueError(f"승인 데이터 {index}의 질문과 답변은 문자열이어야 합니다.")
+        q, a = question.strip(), answer.strip()
+        if len(q) < 2 or len(a) < 4:
+            raise ValueError(f"승인 데이터 {index}의 질문 또는 답변이 너무 짧습니다.")
+        if len(q) > 500 or len(a) > 2000:
+            raise ValueError(
+                f"승인 데이터 {index}가 학습 길이 제한을 초과합니다. "
+                "자동 절단하지 말고 원본을 검토하세요."
+            )
         key = (q.casefold(), a.casefold())
-        if len(q) < 2 or len(a) < 4 or key in seen:
+        if key in seen:
             continue
         seen.add(key)
-        cleaned.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
+        cleaned.append({
+            "question": q,
+            "answer": a,
+            "text": "질문:" + q + "\\n답변:" + a + "\\n\\n",
+        })
     return cleaned
 
 
