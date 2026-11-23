@@ -24,6 +24,31 @@ class SeedQualityTests(unittest.TestCase):
     def test_zero_requested_is_not_success(self):
         self.assertFalse(summarize_seed_outcome({},0,0)["complete"])
 
+
+    def test_rejects_coerced_or_negative_completion_counters(self):
+        invalid_results = (
+            {"requested": True},
+            {"requested": 2.5},
+            {"requested": "40"},
+            {"requested": -1},
+            {"requested": 1, "imported_this_start": False},
+            {"requested": 1, "skipped": -1},
+        )
+        for seed_result in invalid_results:
+            with self.subTest(seed_result=seed_result):
+                with self.assertRaises(ValueError):
+                    summarize_seed_outcome(seed_result, 0, 0)
+
+    def test_rejects_invalid_retrieval_counts(self):
+        for passed, total in ((True, 1), (1.5, 2), (-1, 2), (3, 2), (0, "2")):
+            with self.subTest(passed=passed, total=total):
+                with self.assertRaises(ValueError):
+                    summarize_seed_outcome({"requested": 1}, passed, total)
+
+    def test_rejects_non_object_seed_result(self):
+        with self.assertRaises(ValueError):
+            summarize_seed_outcome([], 0, 0)
+
     def test_canonical_seed_title_aliases(self):
         self.assertEqual(canonical_seed_title("기후 변화"), "기후변화")
         self.assertEqual(canonical_seed_title("화학 원소"), "원소 (화학)")
