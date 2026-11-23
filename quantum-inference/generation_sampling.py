@@ -1,5 +1,4 @@
-"""Input normalization and deterministic top-k filtering for Quantum inference."""
-import torch
+"""Input normalization and deterministic top-k selection for Quantum inference."""
 
 
 def normalize_prompt(value):
@@ -19,19 +18,24 @@ def normalize_prompt(value):
     return prompt
 
 
-def apply_top_k_logits(logits, top_k):
-    """Keep only the highest-k logits; zero or oversized k leaves logits unchanged."""
-    if not torch.is_tensor(logits) or logits.ndim != 1 or logits.numel() == 0:
-        raise ValueError("logits는 비어 있지 않은 1차원 Tensor여야 합니다.")
+def select_top_k_indices(logit_values, top_k):
+    """Return indices of the highest-k scores without depending on PyTorch."""
+    if not isinstance(logit_values, (list, tuple)) or not logit_values:
+        raise ValueError("logit_values는 비어 있지 않은 목록이어야 합니다.")
     if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 0:
         raise ValueError("top_k는 0 이상의 정수여야 합니다.")
-    if torch.isnan(logits).any() or torch.isposinf(logits).any():
-        raise ValueError("logits에 NaN 또는 양의 무한대가 포함되어 있습니다.")
-    if not torch.isfinite(logits).any():
-        raise ValueError("logits에 유효한 후보가 없습니다.")
-    if top_k == 0 or top_k >= logits.numel():
-        return logits.clone()
-    values, indices = torch.topk(logits, top_k)
-    filtered = torch.full_like(logits, -float("inf"))
-    filtered.scatter_(0, indices, values)
-    return filtered
+    normalized = []
+    has_finite = False
+    for value in logit_values:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("logit 값은 숫자여야 합니다.")
+        if value != value or value == float("inf"):
+            raise ValueError("logit에 NaN 또는 양의 무한대가 포함되어 있습니다.")
+        if value != -float("inf"):
+            has_finite = True
+        normalized.append(float(value))
+    if not has_finite:
+        raise ValueError("logit에 유효한 후보가 없습니다.")
+    if top_k == 0 or top_k >= len(normalized):
+        return list(range(len(normalized)))
+    return sorted(range(len(normalized)), key=lambda index: (-normalized[index], index))[:top_k]
