@@ -106,9 +106,14 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         self.assertEqual(reviewed[0]["source"], reviewed[2]["source"])
         self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
 
-    def test_record_id_is_stable_for_question_and_answer_pair(self):
+    def test_record_id_is_stable_and_uses_an_unambiguous_separator(self):
         self.assertEqual(_record_id("Q", "A"), _record_id("Q", "A"))
         self.assertNotEqual(_record_id("Q", "A"), _record_id("Q", "B"))
+        self.assertNotEqual(_record_id("AB", "C"), _record_id("A", "BC"))
+        exported = export_template(self.source_rows(), include_content=False)
+        self.assertEqual(exported["records"][0]["record_id"], _record_id(
+            self.source_rows()[0]["question"], self.source_rows()[0]["answer"]
+        ))
 
     def test_non_string_approved_source_fields_are_rejected(self):
         for field, value in (("question", 7), ("answer", ["bad"])):
