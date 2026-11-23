@@ -395,6 +395,8 @@ class InferenceContractTests(unittest.TestCase):
             "status": "search_unavailable",
             "used_fallback": False,
             "source_count": 0,
+            "rejected_source_rows": 0,
+            "rejected_integrity_rows": 0,
         })
 
 
