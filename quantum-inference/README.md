@@ -98,3 +98,8 @@ The crawler generates page-specific attribution when collecting or refreshing a 
 Human-review templates exported by `export_generation_review_template.py` include `report_sha256`, a SHA-256 fingerprint of the complete generation report serialized as deterministic UTF-8 JSON (sorted keys, compact separators, no non-finite numbers). The review summarizer recomputes the fingerprint and rejects a review document if it is missing or references a different report, even when the benchmark ID is unchanged.
 
 This binds the ratings to the exact report content reviewed and helps prevent accidental mixing of separate Candidate runs. It does **not** authenticate the reviewer, prove the truth of ratings, or authorize training or Production promotion. The summary continues to set `reviewer_identity_verified=false`, `training_eligible=false`, and `promotion_approved=false`.
+
+
+## Provenance review and reviewer identity boundary
+
+The provenance audit distinguishes metadata completeness from proof of reviewer identity. A non-empty reviewer identifier and timezone-aware review timestamp are required metadata, but they are not cryptographic authentication. Audit output therefore reports `reviewer_identity_verified=false`, `reviewer_identity_verification_required=true`, and explains that `training_release_eligible` is a metadata-completeness gate only. The review-application tool also reports this limitation explicitly. Do not interpret a completed metadata audit as proof that a named person authenticated or that source claims are true.
