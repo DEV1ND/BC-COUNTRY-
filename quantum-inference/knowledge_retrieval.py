@@ -2,6 +2,7 @@
 
 This is retrieval-only: it never changes Quantum model weights or training data.
 """
+import math
 import re
 import unicodedata
 
