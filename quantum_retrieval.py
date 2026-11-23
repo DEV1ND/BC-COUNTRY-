@@ -88,29 +88,47 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
         raise ValueError("threshold는 0과 1 사이의 유한한 숫자여야 합니다.")
     if not math.isfinite(min_margin) or not 0.0 <= min_margin <= 1.0:
         raise ValueError("min_margin은 0과 1 사이의 유한한 숫자여야 합니다.")
-    ranked = []
-    seen = set()
+    if approved_rows is None:
+        return {"matched": False, "score": 0.0, "margin": 0.0,
+                "question": None, "answer": None, "rejection_reason": "invalid_index"}
+    if isinstance(approved_rows, (str, bytes, dict)):
+        raise ValueError("approved_rows는 Q&A 객체 목록이어야 합니다.")
+    try:
+        rows = iter(approved_rows)
+    except TypeError as exc:
+        raise ValueError("approved_rows는 반복 가능한 Q&A 목록이어야 합니다.") from exc
+
+    candidates = {}
+    conflicting_questions = set()
     if not content_tokens(question):
         return {"matched": False, "score": 0.0, "margin": 0.0,
                 "question": None, "answer": None, "rejection_reason": "invalid_query"}
     query_intent = intent_signature(question)
-    for row in approved_rows:
+    for row in rows:
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
         candidate_q = str(row.get("question", "")).strip()
         answer = str(row.get("answer", "")).strip()
-        key = candidate_q.casefold()
-        if not candidate_q or not answer or key in seen:
+        if not candidate_q or not answer or intent_signature(candidate_q) != query_intent:
             continue
-        seen.add(key)
-        if intent_signature(candidate_q) != query_intent:
+        key = " ".join(candidate_q.casefold().split())
+        previous = candidates.get(key)
+        if previous is None:
+            candidates[key] = (candidate_q, answer)
+        elif previous[1] != answer:
+            conflicting_questions.add(key)
+
+    ranked = []
+    for key, (candidate_q, answer) in candidates.items():
+        if key in conflicting_questions:
             continue
         score = token_similarity(question, candidate_q)
         ranked.append((score, candidate_q, answer))
     ranked.sort(key=lambda item: item[0], reverse=True)
     if not ranked:
+        reason = "conflicting_answers" if conflicting_questions else "no_candidate"
         return {"matched": False, "score": 0.0, "margin": 0.0,
-                "question": None, "answer": None, "rejection_reason": "no_candidate"}
+                "question": None, "answer": None, "rejection_reason": reason}
     score, matched_q, answer = ranked[0]
     second = ranked[1][0] if len(ranked) > 1 else 0.0
     margin = score - second
