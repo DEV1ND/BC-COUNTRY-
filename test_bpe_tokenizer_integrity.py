@@ -60,7 +60,7 @@ class BPETokenizerIntegrityTests(unittest.TestCase):
     def test_merge_output_cannot_duplicate_an_existing_token(self):
         with self.assertRaisesRegex(ValueError, "중복 생성"):
             BPETokenizer(
-                merges=[["가", "나"], ["가나", "가나"]],
+                merges=[["가", "나"], ["가", "나"]],
                 initial_symbols=["가", "나"],
             )
 
