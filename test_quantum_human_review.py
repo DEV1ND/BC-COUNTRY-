@@ -94,6 +94,20 @@ class QuantumHumanReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             summarize_reviews(template)
 
+    def test_null_question_or_reference_is_rejected(self):
+        report = self.sample_report()
+        report["strategies"]["greedy"]["samples"][0]["question"] = None
+        with self.assertRaises(ValueError):
+            build_review_template(report)
+        report = self.sample_report()
+        report["strategies"]["greedy"]["samples"][0]["reference_answer"] = None
+        with self.assertRaises(ValueError):
+            build_review_template(report)
+
+    def test_non_object_generation_report_is_rejected(self):
+        with self.assertRaises(ValueError):
+            build_review_template(["not-a-report"])
+
     def test_malformed_sample_is_rejected(self):
         report = self.sample_report()
         report["strategies"]["greedy"]["samples"] = ["not-an-object"]
