@@ -132,6 +132,8 @@ def main():
         "training_release_eligible": report["training_release_eligible"],
         "source_dataset_modified": False,
         "human_review_truth_independently_verified": False,
+        "reviewer_identity_verified": False,
+        "identity_verification_required": True,
     }, ensure_ascii=False, indent=2))
 
 
