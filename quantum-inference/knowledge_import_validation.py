@@ -45,4 +45,8 @@ def validate_import_documents(documents):
     """Validate a bounded batch before any database write begins."""
     if not isinstance(documents, list) or not 1 <= len(documents) <= 10:
         raise ValueError("documents는 1~10개여야 합니다.")
-    return [validate_import_document(document) for document in documents]
+    validated = [validate_import_document(document) for document in documents]
+    page_ids = [item["page_id"] for item in validated]
+    if len(page_ids) != len(set(page_ids)):
+        raise ValueError("한 번의 가져오기 batch 안에서 page_id는 중복될 수 없습니다.")
+    return validated
