@@ -95,7 +95,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "empty title"):
             evaluate_retrieval_cases(self.cases[:1], lambda q, k: [{"title": " "}])
 
-    def test_real_27_domain_dataset_is_unique_and_retrieval_only(self):
+    def test_real_32_domain_dataset_is_unique_and_retrieval_only(self):
         path = Path(__file__).resolve().parents[1] / "evaluation" / "knowledge_retrieval_cases.json"
         dataset = json.loads(path.read_text(encoding="utf-8"))
         cases = validate_retrieval_cases(dataset["cases"])
@@ -109,6 +109,33 @@ class RetrievalBenchmarkTests(unittest.TestCase):
              "fictional-science", "fictional-geography"},
         )
 
+
+    def test_answerable_case_counts_irrelevant_retrieval_noise(self):
+        report = evaluate_retrieval_cases(
+            [self.cases[0]],
+            lambda question, k: [
+                {"title": "인공지능"},
+                {"title": "무관한 문서"},
+            ],
+            k=5,
+        )
+        self.assertEqual(report["irrelevant_retrievals"], 1)
+        self.assertEqual(report["retrieved_documents"], 2)
+        self.assertEqual(report["retrieval_noise_rate"], 0.5)
+        self.assertEqual(report["results"][0]["relevant_retrieved"], 1)
+        self.assertEqual(report["results"][0]["irrelevant_retrieved"], 1)
+        self.assertEqual(report["results"][0]["precision_at_returned"], 0.5)
+        self.assertEqual(report["domain_metrics"]["과학"]["retrieval_noise_rate"], 0.5)
+
+    def test_retrieval_noise_rate_is_null_when_no_documents_returned(self):
+        report = evaluate_retrieval_cases(
+            [self.cases[2]],
+            lambda question, k: [],
+            k=5,
+        )
+        self.assertIsNone(report["retrieval_noise_rate"])
+        self.assertEqual(report["irrelevant_retrievals"], 0)
+        self.assertEqual(report["retrieved_documents"], 0)
 
     def test_unanswerable_case_penalizes_any_returned_document(self):
         report = evaluate_retrieval_cases(
