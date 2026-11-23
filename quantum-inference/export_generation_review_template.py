@@ -1,7 +1,20 @@
 """Export a blank, case-aligned human review template for a Candidate report."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
+
+
+def report_fingerprint(report):
+    """Hash a deterministic JSON representation of the exact report reviewed."""
+    try:
+        canonical = json.dumps(
+            report, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Generation report must contain only finite JSON values.") from exc
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def build_review_template(report):
@@ -38,6 +51,7 @@ def build_review_template(report):
         })
     return {
         "benchmark_id": report.get("benchmark_id"),
+        "report_sha256": report_fingerprint(report),
         "instructions": "사람이 직접 답변을 검토하고 각 항목을 1~5로 평가하세요. 환각 여부는 true/false로 기록하세요. 사실 확인 항목은 근거 URL 또는 문서 식별자를 evidence_refs에 넣으세요. 빈 값은 검토 완료로 인정되지 않습니다.",
         "rating_scale": {
             "1": "매우 부족",
