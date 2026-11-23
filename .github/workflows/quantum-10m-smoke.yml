@@ -24,6 +24,8 @@ on:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
+      - 'training_provenance.py'
+      - 'test_training_provenance.py'
       - 'test_bpe_candidate_pipeline.py'
       - 'quantum_human_review.py'
       - 'test_quantum_human_review.py'
