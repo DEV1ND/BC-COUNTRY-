@@ -21,6 +21,22 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertFalse(report["evaluation_answers_used_for_index"])
         self.assertNotIn("answer", report["results"][0])
 
+    def test_reports_coverage_by_question_intent(self):
+        training = [
+            {"question": "민주주의란 무엇인가요?", "answer": "국민 주권의 원리입니다.", "approved": True},
+            {"question": "기후와 날씨의 차이는 무엇인가요?", "answer": "서로 다릅니다.", "approved": True},
+        ]
+        evaluation = [
+            {"question": "민주주의의 뜻을 설명해줘."},
+            {"question": "기후와 날씨의 차이는?"},
+            {"question": "광합성의 정의는 무엇인가요?"},
+        ]
+        report = benchmark_rows(training, evaluation)
+        self.assertEqual(report["intent_breakdown"]["definition"]["questions"], 2)
+        self.assertEqual(report["intent_breakdown"]["definition"]["accepted"], 1)
+        self.assertEqual(report["intent_breakdown"]["comparison"]["accepted"], 1)
+        self.assertEqual(report["intent_breakdown"]["comparison"]["coverage"], 1.0)
+
     def test_empty_evaluation_is_reported_without_division_error(self):
         report = benchmark_rows([], [])
         self.assertEqual(report["coverage"], 0.0)
