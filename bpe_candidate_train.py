@@ -125,19 +125,45 @@ def augment_training_rows(rows):
     return augmented
 
 
+def answer_windows(seq, prompt_tokens, block=BLOCK):
+    """Yield non-overlapping next-token windows covering every answer token once.
+
+    Each window carries up to block previous tokens as context. The prompt
+    is masked only where prompt tokens occur; long answers are never truncated.
+    """
+    windows = []
+    if not isinstance(seq, (list, tuple)) or len(seq) < 2:
+        return windows
+    block = max(1, int(block))
+    prompt_tokens = max(0, min(int(prompt_tokens), len(seq)))
+    for offset in range(0, len(seq) - 1, block):
+        inputs = list(seq[offset:offset + block])
+        targets = list(seq[offset + 1:offset + block + 1])
+        if not inputs or not targets:
+            continue
+        masked_prompt_targets = max(0, min(len(targets), prompt_tokens - offset - 1))
+        if masked_prompt_targets >= len(targets):
+            continue
+        windows.append((inputs, targets, masked_prompt_targets))
+    return windows
+
+
 def make_batch(examples, batch_size=8):
-    # Keep the complete question as context; train loss only on answer tokens.
+    # Sample windows, not only the beginning of each row, so long answers train fully.
+    available = [
+        window
+        for seq, prompt_tokens in examples
+        for window in answer_windows(seq, prompt_tokens)
+    ]
+    if not available:
+        raise RuntimeError("학습 가능한 답변 토큰이 포함된 윈도우가 없습니다.")
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
     for bi in range(batch_size):
-        seq, prompt_tokens = examples[np.random.randint(0, len(examples))]
-        chunk = seq[:BLOCK + 1]
-        if len(chunk) < 2:
-            continue
-        inp, target = chunk[:-1], chunk[1:]
+        inp, target, masked_prompt_targets = available[np.random.randint(0, len(available))]
         x[bi, :len(inp)] = torch.tensor(inp, dtype=torch.long)
         y[bi, :len(target)] = torch.tensor(target, dtype=torch.long)
-        y[bi, :max(0, min(len(target), prompt_tokens - 1))] = -100
+        y[bi, :masked_prompt_targets] = -100
     return x.to(DEVICE), y.to(DEVICE)
 
 
@@ -146,18 +172,18 @@ def answer_bits_per_char(candidate, examples, tokenizer):
     candidate.eval()
     nll_sum, char_count = 0.0, 0
     for seq, prompt_tokens in examples:
-        chunk = seq[:BLOCK + 1]
-        if len(chunk) < 2:
-            continue
-        ids = torch.tensor(chunk[:-1], dtype=torch.long, device=DEVICE).unsqueeze(0)
-        targets = torch.tensor(chunk[1:], dtype=torch.long, device=DEVICE)
-        start = max(0, prompt_tokens - 1)
-        if start >= len(targets):
-            continue
-        losses = F.cross_entropy(candidate(ids)[0, start:], targets[start:], reduction="none")
-        token_chars = [max(1, len(tokenizer.itos.get(int(t), ""))) for t in targets[start:]]
-        nll_sum += float(losses.sum().item())
-        char_count += sum(token_chars)
+        for inputs, targets, masked_prompt_targets in answer_windows(seq, prompt_tokens):
+            ids = torch.tensor(inputs, dtype=torch.long, device=DEVICE).unsqueeze(0)
+            target_tensor = torch.tensor(targets, dtype=torch.long, device=DEVICE)
+            losses = F.cross_entropy(
+                candidate(ids)[0, masked_prompt_targets:],
+                target_tensor[masked_prompt_targets:],
+                reduction="none",
+            )
+            scored_targets = targets[masked_prompt_targets:]
+            token_chars = [max(1, len(tokenizer.itos.get(int(t), ""))) for t in scored_targets]
+            nll_sum += float(losses.sum().item())
+            char_count += sum(token_chars)
     return nll_sum / max(1, char_count) / math.log(2)
 
 
