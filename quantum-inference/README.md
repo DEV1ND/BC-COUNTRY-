@@ -151,3 +151,8 @@ The benchmark rejects non-string case identity/question/domain fields, invalid i
 The authenticated `POST /admin/knowledge/search` diagnostic now returns a source trace for every eligible retrieval result: the Wikipedia page ID, revision ID, stored UTF-8 content SHA-256, canonical page URL, license and attribution, lexical relevance score, and a short excerpt. This makes it possible to identify the exact imported page revision and verify whether its stored text still matches the recorded digest.
 
 The trace endpoint is retrieval-only: it does not invoke Quantum, change model weights, or prove that a retrieved passage supports a generated claim. The relevance score is a lexical ranking signal, not a probability or factual-confidence score. The SHA-256 digest detects content changes relative to the stored revision record; it does not establish upstream truth or reviewer identity. The endpoint remains protected by Candidate admin authentication.
+
+
+### Citation suppression when the model context is truncated
+
+Candidate generation suppresses Wikipedia citations when the retrieved knowledge context is truncated to fit the model's token window. The current token-budget helper keeps the tail of the serialized context; without per-passage token-span accounting, the API cannot prove which complete source passages remain. In that case the response returns an empty `knowledge_sources` list, preserves the original `retrieved_source_count`, sets the effective `source_count` to zero, and reports `citations_suppressed_reason: "context_truncated"`. This is intentionally conservative: it avoids presenting retrieved-but-not-provably-included documents as citations. It does not establish that any untruncated source semantically supports the generated answer.
