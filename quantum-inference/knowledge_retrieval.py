@@ -19,7 +19,9 @@ _SUFFIXES = (
 
 
 def _norm(value):
-    value = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    if not isinstance(value, str):
+        raise TypeError("검색 텍스트는 문자열이어야 합니다.")
+    value = unicodedata.normalize("NFKC", value).casefold()
     return re.sub(r"\s+", " ", value).strip()
 
 
@@ -61,7 +63,9 @@ def query_terms(value):
 
 def build_fts_query(question, max_terms=10):
     """Build safe FTS5 prefix-OR query so attached Korean particles/endings match."""
-    terms = query_terms(question)[:max(1, min(int(max_terms), 20))]
+    if isinstance(max_terms, bool) or not isinstance(max_terms, int) or not 1 <= max_terms <= 20:
+        raise ValueError("max_terms는 1~20 사이의 정수여야 합니다.")
+    terms = query_terms(question)[:max_terms]
     if not terms:
         return ""
     return " OR ".join('"' + term.replace('"', '""') + '"*' for term in terms)
@@ -98,6 +102,14 @@ def score_document(question, title, body):
 
 def rank_documents(question, rows, limit=3, min_score=0.18):
     """Rank candidates conservatively, filtering accidental single body-word matches."""
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
+        raise ValueError("limit는 1~10 사이의 정수여야 합니다.")
+    if isinstance(min_score, bool) or not isinstance(min_score, (int, float)):
+        raise ValueError("min_score는 0과 1 사이의 유한한 숫자여야 합니다.")
+    if not math.isfinite(float(min_score)) or not 0.0 <= float(min_score) <= 1.0:
+        raise ValueError("min_score는 0과 1 사이의 유한한 숫자여야 합니다.")
+    if not isinstance(rows, (list, tuple)):
+        raise ValueError("rows는 list 또는 tuple이어야 합니다.")
     ranked = []
     seen = set()
     terms = query_terms(question)
@@ -105,10 +117,16 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         return []
 
     for row in rows:
-        item = dict(row)
-        title = str(item.get("title", ""))
-        body = str(item.get("text", ""))
-        key = (title.casefold(), str(item.get("url", "")))
+        try:
+            item = dict(row)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("검색 문서는 객체 형태여야 합니다.") from exc
+        title = item.get("title", "")
+        body = item.get("text", "")
+        url = item.get("url", "")
+        if not isinstance(title, str) or not isinstance(body, str) or not isinstance(url, str):
+            raise ValueError("검색 문서의 title, text, url은 문자열이어야 합니다.")
+        key = (title.casefold(), url)
         if key in seen:
             continue
         seen.add(key)
@@ -133,4 +151,4 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         ),
         reverse=True,
     )
-    return ranked[:max(1, min(int(limit), 10))]
+    return ranked[:limit]
