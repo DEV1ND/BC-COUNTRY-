@@ -220,6 +220,19 @@ class RetrievalBenchmarkTests(unittest.TestCase):
                 dict(self.cases[0], expected_titles=["기후 변화", "기후변화"])
             ])
 
+    def test_rejects_oversized_benchmark_fields(self):
+        oversized = [
+            dict(self.cases[0], id="x" * 129),
+            dict(self.cases[0], domain="x" * 81),
+            dict(self.cases[0], question="x" * 2001),
+            dict(self.cases[0], expected_titles=["x"] * 21),
+            dict(self.cases[0], expected_titles=["x" * 257]),
+        ]
+        for case in oversized:
+            with self.subTest(case=case):
+                with self.assertRaises(ValueError):
+                    validate_retrieval_cases([case])
+
     def test_rejects_coerced_case_fields_and_invalid_limits(self):
         invalid_cases = (
             dict(self.cases[0], id=123),
