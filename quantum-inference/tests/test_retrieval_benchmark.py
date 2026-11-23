@@ -132,6 +132,18 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(report["correct_abstentions"], 1)
         self.assertEqual(report["safe_abstention_rate"], 1.0)
 
+
+    def test_case_ids_and_expected_titles_are_deduplicated_after_normalization(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate evaluation case id"):
+            validate_retrieval_cases([
+                dict(self.cases[0], id=" case "),
+                dict(self.cases[1], id="case"),
+            ])
+        with self.assertRaisesRegex(ValueError, "duplicate expected titles"):
+            validate_retrieval_cases([
+                dict(self.cases[0], expected_titles=["기후 변화", "기후변화"])
+            ])
+
     def test_rejects_coerced_case_fields_and_invalid_limits(self):
         invalid_cases = (
             dict(self.cases[0], id=123),
