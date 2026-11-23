@@ -1,5 +1,5 @@
 """Isolated Quantum BPE inference API. Does not import or modify production JUCKEX."""
-import os, json, re, sqlite3, hashlib, io, logging, time
+import os, json, re, sqlite3, hashlib, io, logging, time, math
 from threading import Thread
 from knowledge_provenance import has_valid_wikipedia_attribution
 from seed_quality import summarize_seed_outcome, canonical_seed_title, should_skip_wikipedia_seed
@@ -300,6 +300,14 @@ class GenerateRequest(BaseModel):
     def validate_prompt_text(cls, value):
         return normalize_prompt(value)
 
+    @validator("temperature", "repetition_penalty", pre=True)
+    def validate_finite_sampling_values(cls, value):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("샘플링 설정은 유한한 숫자여야 합니다.")
+        if not math.isfinite(float(value)):
+            raise ValueError("샘플링 설정은 유한한 숫자여야 합니다.")
+        return float(value)
+
 @app.get("/")
 def root_status():
     """Human-readable status endpoint; does not claim a model is loaded."""
@@ -529,14 +537,17 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         banned = banned_ngram_tokens(generated, 3)
         if banned:
             logits[list(banned)] = -float("inf")
+        try:
+            keep_indices = select_top_k_indices(
+                logits.tolist(), req.top_k if req.temperature > 0 else 1
+            )
+        except ValueError:
+            raise HTTPException(503, "Quantum 후보 모델이 유효한 다음 토큰 점수를 생성하지 못했습니다.")
         if req.temperature <= 0:
-            next_id = int(torch.argmax(logits).item())
+            # The shared validator also rejects NaN and all-masked logits on greedy decoding.
+            next_id = keep_indices[0]
         else:
             logits = logits / req.temperature
-            try:
-                keep_indices = select_top_k_indices(logits.tolist(), req.top_k)
-            except ValueError:
-                raise HTTPException(503, "Quantum 후보 모델이 유효한 다음 토큰 점수를 생성하지 못했습니다.")
             if req.top_k > 0 and req.top_k < logits.numel():
                 keep_mask = torch.ones_like(logits, dtype=torch.bool)
                 keep_mask[keep_indices] = False
