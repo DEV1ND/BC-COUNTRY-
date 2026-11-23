@@ -262,7 +262,11 @@ def require_admin(authorization):
 
 def retrieve_knowledge_diagnostic(question, limit=3):
     """Return documents plus an explicit status; retrieval faults never masquerade as matches."""
-    conn = knowledge_db()
+    try:
+        conn = knowledge_db()
+    except sqlite3.Error:
+        logger.warning("Knowledge retrieval degraded: status=search_unavailable")
+        return {"documents": [], "status": "search_unavailable", "used_fallback": False}
     try:
         result = search_knowledge_index(conn, question, limit=limit, min_score=0.18)
     finally:
