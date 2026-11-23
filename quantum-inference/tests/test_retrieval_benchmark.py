@@ -110,6 +110,36 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         )
 
 
+    def test_recall_at_k_measures_coverage_of_multiple_expected_titles(self):
+        cases = [{
+            "id": "multi-source",
+            "domain": "과학",
+            "question": "복합 과학 질문",
+            "expected_titles": ["물리학", "화학", "생물학"],
+        }]
+        report = evaluate_retrieval_cases(
+            cases,
+            lambda question, k: [{"title": "물리학"}, {"title": "생물학"}, {"title": "무관 문서"}],
+            k=5,
+        )
+        self.assertEqual(report["answerable_cases"], 1)
+        self.assertEqual(report["mean_recall_at_k"], 0.6667)
+        self.assertEqual(report["results"][0]["expected_title_count"], 3)
+        self.assertEqual(report["results"][0]["relevant_retrieved"], 2)
+        self.assertEqual(report["results"][0]["recall_at_k"], 0.6667)
+        self.assertEqual(report["domain_metrics"]["과학"]["mean_recall_at_k"], 0.6667)
+
+    def test_recall_is_not_applicable_for_unanswerable_cases(self):
+        report = evaluate_retrieval_cases(
+            [self.cases[2]],
+            lambda question, k: [],
+            k=5,
+        )
+        self.assertEqual(report["answerable_cases"], 0)
+        self.assertIsNone(report["mean_recall_at_k"])
+        self.assertIsNone(report["results"][0]["recall_at_k"])
+        self.assertIsNone(report["domain_metrics"]["미확인"]["mean_recall_at_k"])
+
     def test_answerable_case_counts_irrelevant_retrieval_noise(self):
         report = evaluate_retrieval_cases(
             [self.cases[0]],
