@@ -574,8 +574,9 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     knowledge_context = build_knowledge_context(knowledge)
     knowledge_sources = serialize_knowledge_sources(knowledge)
     try:
-        prompt_ids, context_truncated = build_generation_context(
-            tokenizer, knowledge_context, req.prompt, block_size=BLOCK
+        prompt_ids, context_truncated, context_diagnostics = build_generation_context(
+            tokenizer, knowledge_context, req.prompt, block_size=BLOCK,
+            return_diagnostics=True,
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc))
@@ -664,6 +665,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 "rejected_integrity_rows": knowledge_retrieval.get("rejected_integrity_rows", 0),
             },
             "input_tokens": len(prompt_ids),
+            "context_diagnostics": context_diagnostics,
             "generated_tokens": len(generated),
             "generation_stop_reason": generation_stop_reason,
             "context_truncated": context_truncated,
