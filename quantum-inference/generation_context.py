@@ -14,7 +14,7 @@ def _validate_token_ids(token_ids, label, tokenizer):
     return list(token_ids)
 
 
-def build_generation_context(tokenizer, knowledge_context, question, block_size=256):
+def build_generation_context(tokenizer, knowledge_context, question, block_size=256, return_diagnostics=False):
     if isinstance(block_size, bool) or not isinstance(block_size, int) or block_size < 2:
         raise ValueError("block_size는 2 이상의 정수여야 합니다.")
     if not isinstance(knowledge_context, str) or not isinstance(question, str):
@@ -35,9 +35,24 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
         "검색 문맥", tokenizer,
     )
     budget = block_size - len(question_ids)
-    truncated = len(context_ids) > budget
+    retrieved_context_tokens = len(context_ids)
+    truncated = retrieved_context_tokens > budget
     if budget:
         context_ids = context_ids[-budget:]
     else:
         context_ids = []
-    return context_ids + question_ids, truncated
+    prompt_ids = context_ids + question_ids
+    if not return_diagnostics:
+        return prompt_ids, truncated
+    diagnostics = {
+        "block_size": block_size,
+        "question_tokens": len(question_ids),
+        "retrieved_context_tokens": retrieved_context_tokens,
+        "included_context_tokens": len(context_ids),
+        "dropped_context_tokens": retrieved_context_tokens - len(context_ids),
+        "prompt_tokens": len(prompt_ids),
+        "remaining_generation_capacity": max(0, block_size - len(prompt_ids)),
+        "context_truncated": truncated,
+        "context_policy": "keep_tail",
+    }
+    return prompt_ids, truncated, diagnostics
