@@ -5,6 +5,8 @@ network access, checkpoint, training, or Production service is required.
 """
 import unittest
 import sqlite3
+import asyncio
+import hashlib
 from unittest.mock import patch
 
 import torch
@@ -391,6 +393,84 @@ class InferenceContractTests(unittest.TestCase):
             "used_fallback": False,
             "source_count": 0,
         })
+
+
+    def _valid_import_document(self):
+        body = ("검증된 위키백과 문서의 본문 예시입니다. " * 12).strip()
+        title = "인공지능"
+        url = "https://ko.wikipedia.org/wiki/인공지능"
+        return {
+            "page_id": "12345",
+            "title": title,
+            "url": url,
+            "text": body,
+            "license": "CC BY-SA 4.0",
+            "attribution": (
+                f"Wikipedia contributors, {title}, {url}; licensed under "
+                "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)."
+            ),
+            "revision_id": "987654",
+            "content_hash": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        }
+
+    def test_knowledge_import_rejects_malformed_batch_before_opening_database(self):
+        class FakeRequest:
+            async def json(self):
+                document = self._document.copy()
+                document["page_id"] = 12345
+                return {"documents": [document]}
+
+        request = FakeRequest()
+        request._document = self._valid_import_document()
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(quantum_app, "knowledge_db") as open_db:
+                with self.assertRaises(HTTPException) as raised:
+                    asyncio.run(quantum_app.import_knowledge(
+                        request, authorization="Bearer candidate-test-token"
+                    ))
+        self.assertEqual(raised.exception.status_code, 422)
+        open_db.assert_not_called()
+
+    def test_knowledge_import_rolls_back_all_writes_when_fts_insert_fails(self):
+        class FakeRequest:
+            async def json(self):
+                return {"documents": [self._document]}
+
+        class FakeConnection:
+            def __init__(self):
+                self.calls = []
+                self.rolled_back = False
+                self.committed = False
+                self.closed = False
+
+            def execute(self, statement, params=()):
+                self.calls.append(statement)
+                if "INSERT INTO knowledge_fts" in statement:
+                    raise sqlite3.OperationalError("simulated FTS write failure")
+                return self
+
+            def rollback(self):
+                self.rolled_back = True
+
+            def commit(self):
+                self.committed = True
+
+            def close(self):
+                self.closed = True
+
+        request = FakeRequest()
+        request._document = self._valid_import_document()
+        connection = FakeConnection()
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(quantum_app, "knowledge_db", return_value=connection):
+                with self.assertRaises(HTTPException) as raised:
+                    asyncio.run(quantum_app.import_knowledge(
+                        request, authorization="Bearer candidate-test-token"
+                    ))
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertTrue(connection.rolled_back)
+        self.assertFalse(connection.committed)
+        self.assertTrue(connection.closed)
 
 
 if __name__ == "__main__":
