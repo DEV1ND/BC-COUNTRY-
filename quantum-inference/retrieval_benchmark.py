@@ -90,6 +90,7 @@ def evaluate_retrieval_cases(
     reciprocal_ranks = []
     precision_at_k_sum = 0.0
     precision_returned_sum = 0.0
+    recall_at_k_values = []
     abstention_correct = 0
     domain_rows = defaultdict(lambda: {
         "cases": 0, "hits": 0, "reciprocal_rank_sum": 0.0,
@@ -157,6 +158,7 @@ def evaluate_retrieval_cases(
         bucket["irrelevant_retrievals"] += irrelevant_count
         bucket["retrieved_documents"] += len(titles)
         if recall_at_k is not None:
+            recall_at_k_values.append(recall_at_k)
             bucket["recall_at_k_sum"] += recall_at_k
             bucket["answerable_cases"] += 1
             bucket["relevant_retrieved_total"] += relevant_count
@@ -237,11 +239,8 @@ def evaluate_retrieval_cases(
         ),
         "answerable_cases": sum(1 for case in rows if case["expected_titles"]),
         "mean_recall_at_k": (
-            round(
-                sum(result["recall_at_k"] for result in results if result["recall_at_k"] is not None)
-                / sum(1 for result in results if result["recall_at_k"] is not None), 4
-            )
-            if any(result["recall_at_k"] is not None for result in results) else None
+            round(sum(recall_at_k_values) / len(recall_at_k_values), 4)
+            if recall_at_k_values else None
         ),
         "micro_recall_at_k": (
             round(
