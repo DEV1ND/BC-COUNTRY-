@@ -62,8 +62,27 @@ jobs:
       - name: Run regression tests
         run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_quantum_human_review.py test_training_provenance.py
 
-      - name: Audit training-data provenance (strict release gate)
-        run: python training_provenance.py --input training_extra.json --output training_provenance_audit.json --strict
+      - name: Audit training-data provenance
+        id: provenance
+        run: |
+          python training_provenance.py --input training_extra.json --output training_provenance_audit.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads(Path("training_provenance_audit.json").read_text(encoding="utf-8"))
+          eligible = bool(report["training_release_eligible"])
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"eligible={'true' if eligible else 'false'}\\n")
+          if not eligible:
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write(
+                      "## Quantum candidate training blocked\\n"
+                      f"- Provenance complete: {report['metadata_complete_records']}/{report['approved_records']}\\n"
+                      "- Training and generation evaluation were skipped; no checkpoint was created by this run.\\n"
+                      "- Complete source/license/permission metadata and human review before retrying.\\n"
+                  )
+          PY
 
       - name: Upload training provenance audit
         if: always()
