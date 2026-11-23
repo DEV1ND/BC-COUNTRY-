@@ -4,13 +4,57 @@ The admin token is read only from JUCKEX_WIKI_ADMIN_TOKEN. It is never written t
 or printed. The JSONL output is created with owner-only permissions and atomically renamed.
 """
 import argparse
+import hashlib
 import json
+import re
 import os
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+from knowledge_provenance import is_valid_wikipedia_url
+
+
+LICENSE = "CC BY-SA 4.0"
+STRING_FIELDS = (
+    "page_id", "title", "url", "text", "license", "attribution",
+    "revision_id", "content_hash", "status", "reviewer_note",
+)
+
+
+def validate_export_document(row, corpus):
+    """Reject malformed Worker records before writing any private corpus output."""
+    if not isinstance(row, dict):
+        raise RuntimeError("Worker returned a non-object document")
+    if any(not isinstance(row.get(field), str) for field in STRING_FIELDS):
+        raise RuntimeError("Worker returned a document with missing or non-string metadata")
+    if not row["page_id"].strip() or not row["title"].strip():
+        raise RuntimeError("Worker returned a document without a page ID or title")
+    if not is_valid_wikipedia_url(row["url"]):
+        raise RuntimeError("Worker returned a document with an invalid Korean Wikipedia URL")
+    if row["license"].strip() != LICENSE or not row["attribution"].strip():
+        raise RuntimeError("Worker returned missing or unsupported license attribution metadata")
+    if not re.fullmatch(r"[0-9]+", row["revision_id"].strip()):
+        raise RuntimeError("Worker returned an invalid revision ID")
+    text = row["text"].strip()
+    if len(text) < 200:
+        raise RuntimeError("Worker returned a document shorter than 200 characters")
+    digest = row["content_hash"].strip().lower()
+    if not re.fullmatch(r"[a-f0-9]{64}", digest):
+        raise RuntimeError("Worker returned an invalid content hash")
+    if hashlib.sha256(text.encode("utf-8")).hexdigest() != digest:
+        raise RuntimeError("Worker returned a content hash that does not match its text")
+    expected_status = "approved" if corpus == "manual" else "pending_review"
+    if row["status"] != expected_status:
+        raise RuntimeError("Worker returned a document outside the selected trust class")
+    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL:")
+    if corpus == "manual" and not is_manual:
+        raise RuntimeError("Manual corpus contains a row without human approval metadata")
+    if corpus == "unverified" and is_manual:
+        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
+    return row["page_id"].strip()
 
 
 def fetch_page(api_base, token, corpus, after, limit, access_client_id="", access_client_secret=""):
@@ -48,6 +92,8 @@ def fetch_page(api_base, token, corpus, after, limit, access_client_id="", acces
         ) from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Worker export request failed: {type(exc).__name__}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("Worker response must be a JSON object")
     if payload.get("corpus") != corpus:
         raise RuntimeError("Worker returned a mismatched corpus label")
     if not isinstance(payload.get("documents"), list):
@@ -75,25 +121,21 @@ def export_corpus(api_base, token, corpus, destination, limit=10,
                                   access_client_id, access_client_secret)
                 rows = page["documents"]
                 for row in rows:
-                    expected_status = "approved" if corpus == "manual" else "pending_review"
-                    if row.get("status") != expected_status:
-                        raise RuntimeError("Worker returned a document outside the selected trust class")
-                    if corpus == "manual" and not str(row.get("reviewer_note", "")).startswith("MANUAL_APPROVAL:"):
-                        raise RuntimeError("Manual corpus contains a row without human approval metadata")
-                    if corpus == "unverified" and str(row.get("reviewer_note", "")).startswith("MANUAL_APPROVAL:"):
-                        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
-                    page_id = str(row.get("page_id", ""))
+                    page_id = validate_export_document(row, corpus)
                     if not page_id or page_id in seen:
                         raise RuntimeError("Missing or duplicate page ID in export")
                     seen.add(page_id)
                     output.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
                     count += 1
-                if not page.get("has_more"):
+                has_more = page.get("has_more")
+                if not isinstance(has_more, bool):
+                    raise RuntimeError("Worker pagination has_more flag must be boolean")
+                if not has_more:
                     break
                 next_after = page.get("next_after")
-                if not next_after or str(next_after) == after:
+                if not isinstance(next_after, str) or not next_after.strip() or next_after == after:
                     raise RuntimeError("Pagination cursor did not advance")
-                after = str(next_after)
+                after = next_after
             output.flush()
             os.fsync(output.fileno())
         os.replace(temp_path, destination)
