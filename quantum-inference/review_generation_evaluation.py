@@ -8,6 +8,8 @@ from datetime import datetime
 import json
 from pathlib import Path
 
+from export_generation_review_template import report_fingerprint
+
 
 RATING_FIELDS = (
     "correctness",
@@ -61,6 +63,10 @@ def summarize_human_reviews(report, review_document):
         raise ValueError("Human review document must be a JSON object.")
     if review_document.get("benchmark_id") != report.get("benchmark_id"):
         raise ValueError("Human review benchmark_id does not match the report.")
+    expected_fingerprint = report_fingerprint(report)
+    supplied_fingerprint = review_document.get("report_sha256")
+    if not isinstance(supplied_fingerprint, str) or supplied_fingerprint != expected_fingerprint:
+        raise ValueError("Human review report_sha256 does not match the exact generation report.")
     reviews = review_document.get("reviews")
     if not isinstance(reviews, list):
         raise ValueError("reviews must be an array.")
@@ -127,6 +133,7 @@ def summarize_human_reviews(report, review_document):
     return {
         "schema": "juckex-quantum-human-review-summary-v1",
         "benchmark_id": report.get("benchmark_id"),
+        "report_sha256": expected_fingerprint,
         "benchmark_version": report.get("benchmark_version"),
         "candidate_report_started_at": report.get("started_at"),
         "reviewed_cases": len(normalized_reviews),
