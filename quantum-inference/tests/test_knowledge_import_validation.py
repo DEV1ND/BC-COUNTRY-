@@ -78,6 +78,19 @@ class KnowledgeImportValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_import_documents([valid, invalid])
 
+    def test_batch_rejects_duplicate_page_ids_before_database_work(self):
+        first = valid_document(page_id="same")
+        second = valid_document(page_id="same", title="기계 학습",
+            url="https://ko.wikipedia.org/wiki/기계_학습",
+            attribution=(
+                "Wikipedia contributors, 기계 학습, "
+                "https://ko.wikipedia.org/wiki/기계_학습; "
+                "licensed under CC BY-SA 4.0 "
+                "(https://creativecommons.org/licenses/by-sa/4.0/)."
+            ))
+        with self.assertRaisesRegex(ValueError, "page_id는 중복"):
+            validate_import_documents([first, second])
+
     def test_valid_batch_preserves_order_and_identity(self):
         first = valid_document(page_id="1")
         second = valid_document(page_id="2", title="기계 학습",
