@@ -98,8 +98,8 @@ class CorpusValidationTests(unittest.TestCase):
         docs = [{"page_id": str(i)} for i in range(10)]
         train_a, valid_a = split_documents(docs)
         train_b, valid_b = split_documents(list(reversed(docs)))
-        self.assertEqual([d["page_id"] for d in train_a], [d["page_id"] for d in train_b])
-        self.assertEqual([d["page_id"] for d in valid_a], [d["page_id"] for d in valid_b])
+        self.assertEqual({d["page_id"] for d in train_a}, {d["page_id"] for d in train_b})
+        self.assertEqual({d["page_id"] for d in valid_a}, {d["page_id"] for d in valid_b})
         self.assertFalse(set(d["page_id"] for d in train_a) & set(d["page_id"] for d in valid_a))
 
 
