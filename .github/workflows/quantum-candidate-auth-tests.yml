@@ -27,5 +27,5 @@ jobs:
           python-version: "3.12"
       - name: Compile candidate Python sources
         run: python -m compileall -q .
-      - name: Run auth policy tests
-        run: python -m unittest -v test_auth_policy.py
+      - name: Run auth and generation sampling tests
+        run: python -m unittest -v test_auth_policy.py test_generation_sampling.py
