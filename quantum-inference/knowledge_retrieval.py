@@ -4,6 +4,7 @@ This is retrieval-only: it never changes Quantum model weights or training data.
 """
 import math
 import re
+import sqlite3
 import unicodedata
 
 _STOP = {
@@ -153,3 +154,70 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         reverse=True,
     )
     return ranked[:limit]
+
+
+def search_knowledge_index(conn, question, limit=3, min_score=0.18):
+    """Search the canonical SQLite index and report safe, explicit failure states.
+
+    FTS5 is preferred. A LIKE scan is used only when FTS is unavailable or
+    malformed; source documents are never modified by this function.
+    """
+    terms = query_terms(question)
+    match = build_fts_query(question, max_terms=10)
+    if not terms or not match:
+        return {"documents": [], "status": "empty_query", "used_fallback": False}
+
+    rows = []
+    used_fallback = False
+    try:
+        try:
+            rows = conn.execute(
+                """SELECT d.title,d.url,d.text,d.attribution,d.license
+                   FROM knowledge_fts f
+                   JOIN knowledge_docs d ON d.page_id=f.page_id
+                   WHERE knowledge_fts MATCH ?
+                   ORDER BY bm25(knowledge_fts) LIMIT 50""",
+                (match,),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # A missing or incompatible FTS table may use the canonical table.
+            used_fallback = True
+
+        if not rows:
+            used_fallback = True
+            clauses = " OR ".join("title LIKE ? OR text LIKE ?" for _ in terms)
+            args = []
+            for term in terms:
+                args.extend(["%" + term + "%", "%" + term + "%"])
+            rows = conn.execute(
+                "SELECT title,url,text,attribution,license FROM knowledge_docs WHERE "
+                + clauses + " LIMIT 100",
+                args,
+            ).fetchall()
+    except sqlite3.Error:
+        return {
+            "documents": [],
+            "status": "search_unavailable",
+            "used_fallback": used_fallback,
+        }
+
+    try:
+        documents = rank_documents(
+            question, rows, limit=limit, min_score=min_score
+        )
+    except ValueError:
+        # Malformed indexed rows are not coerced into trusted documents.
+        return {
+            "documents": [],
+            "status": "index_invalid",
+            "used_fallback": used_fallback,
+        }
+
+    return {
+        "documents": documents,
+        "status": (
+            "fts_fallback" if used_fallback else
+            ("ok" if documents else "no_match")
+        ),
+        "used_fallback": used_fallback,
+    }
