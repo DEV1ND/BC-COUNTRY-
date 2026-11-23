@@ -611,6 +611,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         generated.append(next_id)
         decoded = tokenizer.decode(generated)
         if step >= 5 and "\n\n" in decoded:
+            generation_stop_reason = "separator"
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     if not answer:
