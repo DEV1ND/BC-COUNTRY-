@@ -77,3 +77,37 @@
 `python training_provenance.py --input training_extra.json --output training_provenance_audit.json`
 
 학습 스크립트는 동일한 검사를 자체 수행하고, 검토가 끝나지 않은 데이터가 있으면 후보 학습을 중단합니다. 자동 감사 통과는 출처 주장의 진실성이나 라이선스 적법성을 보증하지 않습니다.
+
+
+## 사람 검토 템플릿 적용 절차
+
+`export_training_provenance_template.py`는 원본 Q&A를 바꾸지 않는 빈 검토 양식을 생성합니다. 사람이 실제 출처를 확인해 모든 필드를 작성하고 명시적으로 승인한 뒤에만 다음 가져오기 도구를 사용합니다.
+
+```bash
+python export_training_provenance_template.py --input training_extra.json --output training_provenance_review_template.json
+```
+
+검토 템플릿에서 각 항목의 다음 값을 실제 증거에 따라 작성합니다.
+
+- `source.kind`: 사용자 직접 작성, 공개 데이터 등 실제 출처 유형
+- `source.reference`: 원본 URL 또는 추적 가능한 내부 기록
+- `source.license`: 확인된 라이선스
+- `source.attribution`: 필요한 저작자·출처 표시
+- `source.permission_basis`: 학습·재배포 등 목적에 대한 사용 권한 근거
+- `provenance_review`: 검토자가 확인한 승인 여부, 검토자, ISO 8601 검토 시각
+
+출처나 권한을 확인할 수 없는 항목은 승인하지 않습니다. 해당 항목을 학습에서 제외하려면 별도 Candidate 데이터 사본에서만 `approved`를 `false`로 변경한 뒤, 그 사본을 기준으로 검토 템플릿을 다시 생성합니다. 원본 데이터 파일은 직접 덮어쓰지 않습니다.
+
+작성한 템플릿은 원본과 질문·답변 해시·위치를 대조해 적용합니다.
+
+```bash
+python apply_training_provenance_review.py \\
+  --input training_extra_candidate.json \\
+  --template training_provenance_review_template.json \\
+  --output training_extra_reviewed_candidate.json
+python training_provenance.py \\
+  --input training_extra_reviewed_candidate.json \\
+  --output training_provenance_audit.json --strict
+```
+
+가져오기 도구는 새 출력 파일만 생성하며 기존 파일을 덮어쓰지 않습니다. 누락·중복·변경된 질문/답변·빈 메타데이터·미승인 검토·잘못된 날짜가 있으면 실패합니다. 구조 검증 통과는 출처 주장의 진실성을 독립적으로 증명하지 않습니다. 따라서 실제 증거 검토 책임은 사람에게 있으며, 이 절차만으로 Production 승격이나 배포는 수행되지 않습니다.
