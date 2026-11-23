@@ -325,7 +325,7 @@ class InferenceContractTests(unittest.TestCase):
                 return [1]
 
             def decode(self, _ids):
-                return "답변입니다.\\n\\n"
+                return "답변입니다.\n\n"
 
         class FakeModel:
             def __call__(self, input_ids):
