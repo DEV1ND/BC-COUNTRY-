@@ -114,7 +114,7 @@ class CandidateDataPipelineTests(unittest.TestCase):
         ])
         self.assertEqual(
             cleaned[0]["text"],
-            "질문:정상 질문\\n답변:충분히 긴 답변입니다.\\n\\n",
+            "질문:정상 질문\n답변:충분히 긴 답변입니다.\n\n",
         )
 
     def test_clean_pairs_requires_array_input(self):
