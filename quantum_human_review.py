@@ -31,6 +31,8 @@ def _valid_timestamp(value):
 
 
 def build_review_template(generation_report):
+    if not isinstance(generation_report, dict):
+        raise ValueError("생성 평가 보고서는 JSON 객체여야 합니다.")
     strategies = generation_report.get("strategies")
     if not isinstance(strategies, dict) or not strategies:
         raise ValueError("전략별 생성 결과가 없습니다.")
@@ -42,11 +44,18 @@ def build_review_template(generation_report):
         for index, sample in enumerate(samples):
             if not isinstance(sample, dict):
                 raise ValueError(f"{strategy}[{index}]: sample은 객체여야 합니다.")
-            question = str(sample.get("question", "")).strip()
-            reference = str(sample.get("reference_answer", "")).strip()
-            generated = str(sample.get("generated_answer", "")).strip()
-            if not question or not reference:
-                raise ValueError(f"{strategy}[{index}]: 질문 또는 기준 답변이 비어 있습니다.")
+            question = sample.get("question")
+            reference = sample.get("reference_answer")
+            generated = sample.get("generated_answer")
+            if not isinstance(question, str) or not question.strip():
+                raise ValueError(f"{strategy}[{index}]: 질문은 비어 있지 않은 문자열이어야 합니다.")
+            if not isinstance(reference, str) or not reference.strip():
+                raise ValueError(f"{strategy}[{index}]: 기준 답변은 비어 있지 않은 문자열이어야 합니다.")
+            if not isinstance(generated, str):
+                raise ValueError(f"{strategy}[{index}]: 생성 답변은 문자열이어야 합니다.")
+            question = question.strip()
+            reference = reference.strip()
+            generated = generated.strip()
             records.append({
                 "record_id": f"{strategy}:{index}",
                 "strategy": strategy,
