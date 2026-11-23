@@ -211,7 +211,7 @@ test("real Worker HTTP routes enforce auth, cursor validation, stable D1 paginat
 
 test("automated review never approves a structurally complete document", async () => {
   const content = Array.from({ length: 60 }, (_, index) =>
-    `인공지능은 컴퓨터 과학의 한 분야이다. 검토용 설명 문장 번호 ${index}은 서로 다른 예시와 개념을 설명합니다.`
+    `개념 번호 ${index}은 인공지능 분야의 서로 다른 원리와 적용 사례를 설명하는 검토용 문장입니다.`
   ).join("\n\n");
   const hash = createHash("sha256").update(content).digest("hex");
   await db.prepare(`
