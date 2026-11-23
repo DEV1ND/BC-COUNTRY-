@@ -7,6 +7,7 @@ on:
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
       - 'quantum_retrieval_benchmark.py'
+      - 'test_quantum_retrieval_benchmark.py'
       - 'training_extra.json'
       - 'bpe_independent_eval.json'
       - '.github/workflows/quantum-retrieval-tests.yml'
@@ -35,6 +36,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Run retrieval and dataset integrity tests
-        run: python -m unittest test_quantum_retrieval.py test_training_data_quality.py
+        run: python -m unittest test_quantum_retrieval.py test_quantum_retrieval_benchmark.py test_training_data_quality.py
       - name: Evaluate independent retrieval coverage
         run: python quantum_retrieval_benchmark.py
