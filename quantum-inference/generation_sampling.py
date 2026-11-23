@@ -1,4 +1,5 @@
 """Input normalization and deterministic top-k selection for Quantum inference."""
+import math
 
 
 def normalize_prompt(value):
@@ -39,3 +40,20 @@ def select_top_k_indices(logit_values, top_k):
     if top_k == 0 or top_k >= len(normalized):
         return list(range(len(normalized)))
     return sorted(range(len(normalized)), key=lambda index: (-normalized[index], index))[:top_k]
+
+
+def validate_sampling_probabilities(probability_values):
+    """Reject invalid distributions instead of silently switching to greedy decoding."""
+    if not isinstance(probability_values, (list, tuple)) or not probability_values:
+        raise ValueError("확률 분포는 비어 있지 않은 목록이어야 합니다.")
+    total = 0.0
+    for value in probability_values:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError("확률 값은 숫자여야 합니다.")
+        probability = float(value)
+        if not math.isfinite(probability) or probability < 0:
+            raise ValueError("확률 값은 유한한 0 이상의 숫자여야 합니다.")
+        total += probability
+    if not math.isfinite(total) or total <= 0:
+        raise ValueError("확률 분포의 합은 0보다 커야 합니다.")
+    return total
