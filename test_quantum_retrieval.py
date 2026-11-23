@@ -87,6 +87,14 @@ class QuantumRetrievalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             retrieve("질문", self.rows, min_margin=-0.1)
 
+    def test_non_finite_or_non_numeric_thresholds_are_rejected(self):
+        for value in (float("nan"), float("inf"), "-inf", "not-a-number"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    retrieve("질문", self.rows, threshold=value)
+        with self.assertRaises(ValueError):
+            retrieve("질문", self.rows, min_margin=float("nan"))
+
     def test_empty_index_rejects(self):
         self.assertFalse(retrieve("질문", [])["matched"])
 
