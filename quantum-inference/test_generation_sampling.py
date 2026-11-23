@@ -64,7 +64,7 @@ class GenerationSamplingTests(unittest.TestCase):
         self.assertEqual(safe_ngram_bans([0.1, 0.2, 0.3, 0.4], [1, 2, 3, 1, 2]), {3})
 
     def test_ngram_guard_relaxes_when_it_would_mask_every_valid_token(self):
-        self.assertEqual(safe_ngram_bans([0.1, 0.2, -float("inf")], [1, 2, 3, 1, 2]), set())
+        self.assertEqual(safe_ngram_bans([0.1, 0.2, -float("inf")], [1, 2, 0, 1, 2, 1]), set())
 
     def test_ngram_guard_ignores_short_histories(self):
         self.assertEqual(safe_ngram_bans([0.1, 0.2], [1]), set())
