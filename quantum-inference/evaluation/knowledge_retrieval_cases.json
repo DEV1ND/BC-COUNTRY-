@@ -1,7 +1,7 @@
 {
   "version": 1,
   "scope": "retrieval_only",
-  "description": "27개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
+  "description": "32개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
   "cases": [
     {
       "id": "daily-life",
@@ -217,6 +217,36 @@
       "expected_titles": [
         "인권"
       ]
+    },
+    {
+      "id": "fictional-person",
+      "domain": "가상 인물 검증",
+      "question": "가상의 아르카디아 왕국의 918번째 왕 이름",
+      "expected_titles": []
+    },
+    {
+      "id": "fictional-invention",
+      "domain": "가상 발명 검증",
+      "question": "존재하지 않는 청색 중력 엔진의 최초 특허 번호",
+      "expected_titles": []
+    },
+    {
+      "id": "fictional-history",
+      "domain": "가상 역사 검증",
+      "question": "실제로 일어나지 않은 1897년 제3차 달 전쟁의 승전국",
+      "expected_titles": []
+    },
+    {
+      "id": "fictional-science",
+      "domain": "가상 과학 검증",
+      "question": "가상의 루멘 역설 정리의 공식 증명",
+      "expected_titles": []
+    },
+    {
+      "id": "fictional-geography",
+      "domain": "가상 지리 검증",
+      "question": "가상의 제타쿼크 왕국 수도 인구와 행정구역",
+      "expected_titles": []
     }
   ]
 }
