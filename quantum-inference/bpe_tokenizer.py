@@ -44,6 +44,8 @@ class BPETokenizer:
             raise ValueError("BPE 학습 텍스트는 문자열 배열이어야 합니다.")
         if any(not isinstance(text, str) for text in texts):
             raise ValueError("BPE 학습 텍스트는 모두 문자열이어야 합니다.")
+        if not texts or not any(text.strip() for text in texts):
+            raise ValueError("BPE 학습 텍스트에 비어 있지 않은 문장이 필요합니다.")
         if isinstance(vocab_size, bool) or not isinstance(vocab_size, int) or vocab_size < 2:
             raise ValueError("vocab_size는 2 이상의 정수여야 합니다.")
         if (isinstance(min_pair_frequency, bool) or
