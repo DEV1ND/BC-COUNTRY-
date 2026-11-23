@@ -4,10 +4,30 @@ This module never infers semantic correctness from lexical metrics. A human revi
 must score each generated answer before the candidate can pass this quality gate.
 """
 import argparse
+import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 
 DIMENSIONS = ("factuality", "relevance", "completeness", "korean_naturalness")
+
+
+def _sample_fingerprint(question, reference, generated):
+    payload = json.dumps(
+        {"question": question, "reference_answer": reference, "generated_answer": generated},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _valid_timestamp(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return True
+    except ValueError:
+        return False
 
 
 def build_review_template(generation_report):
@@ -33,6 +53,7 @@ def build_review_template(generation_report):
                 "question": question,
                 "reference_answer": reference,
                 "generated_answer": generated,
+                "sample_sha256": _sample_fingerprint(question, reference, generated),
                 "ratings": {dimension: None for dimension in DIMENSIONS},
                 "reviewer_notes": "",
             })
@@ -45,11 +66,23 @@ def build_review_template(generation_report):
         "rating_scale": "1=매우 나쁨, 2=나쁨, 3=보통, 4=좋음, 5=매우 좋음",
         "dimensions": list(DIMENSIONS),
         "human_review_required": True,
+        "reviewer": "",
+        "reviewed_at": "",
         "records": records,
     }
 
 
 def summarize_reviews(review_payload):
+    if not isinstance(review_payload, dict):
+        raise ValueError("검토 파일은 JSON 객체여야 합니다.")
+    if review_payload.get("schema") != "juckex-quantum-human-review-v1":
+        raise ValueError("지원하지 않는 Quantum 사람 검토 양식입니다.")
+    reviewer = review_payload.get("reviewer")
+    reviewed_at = review_payload.get("reviewed_at")
+    if not isinstance(reviewer, str) or not reviewer.strip():
+        raise ValueError("사람 검토자 이름 또는 식별 정보가 필요합니다.")
+    if not _valid_timestamp(reviewed_at):
+        raise ValueError("reviewed_at은 ISO 8601 날짜·시간이어야 합니다.")
     records = review_payload.get("records")
     if not isinstance(records, list) or not records:
         raise ValueError("검토 기록이 비어 있습니다.")
@@ -58,11 +91,22 @@ def summarize_reviews(review_payload):
     incomplete = []
     factuality_below_three = 0
     empty_generated = 0
+    seen_record_ids = set()
     for index, record in enumerate(records):
         if not isinstance(record, dict):
             raise ValueError(f"records[{index}]는 객체여야 합니다.")
-        if not str(record.get("generated_answer", "")).strip():
-            empty_generated += 1
+        record_id = record.get("record_id")
+        if not isinstance(record_id, str) or not record_id.strip() or record_id in seen_record_ids:
+            raise ValueError(f"records[{index}].record_id가 비어 있거나 중복되었습니다.")
+        seen_record_ids.add(record_id)
+        question = record.get("question")
+        reference = record.get("reference_answer")
+        generated = record.get("generated_answer")
+        if not all(isinstance(value, str) and value.strip() for value in (question, reference, generated)):
+            raise ValueError(f"records[{index}] 질문·기준 답변·생성 답변은 비어 있으면 안 됩니다.")
+        expected_fingerprint = _sample_fingerprint(question, reference, generated)
+        if record.get("sample_sha256") != expected_fingerprint:
+            raise ValueError(f"records[{index}]의 평가 원본 내용이 변경되었거나 fingerprint가 없습니다.")
         ratings = record.get("ratings")
         missing = []
         for dimension in DIMENSIONS:
@@ -93,6 +137,8 @@ def summarize_reviews(review_payload):
     return {
         "schema": "juckex-quantum-human-review-summary-v1",
         "records_total": len(records),
+        "reviewer": reviewer.strip(),
+        "reviewed_at": reviewed_at.strip(),
         "records_incomplete": len(incomplete),
         "incomplete_records": incomplete,
         "average_ratings": averages,
