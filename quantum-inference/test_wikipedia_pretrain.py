@@ -62,6 +62,38 @@ class CorpusValidationTests(unittest.TestCase):
         self.assertEqual(len(docs), 2)
         self.assertEqual(rejected["invalid_metadata"], 1)
 
+    def test_provenance_fields_are_not_coerced_from_non_strings(self):
+        for field, value in (
+            ("page_id", 123),
+            ("title", True),
+            ("url", 456),
+            ("revision_id", 12345),
+            ("content_hash", 123),
+            ("attribution", ["contributors"]),
+            ("text", {"body": "문서"}),
+            ("status", True),
+            ("reviewer_note", 99),
+        ):
+            with self.subTest(field=field):
+                bad = row("bad-" + field)
+                bad[field] = value
+                docs, rejected = load_corpus(
+                    self.write_rows([bad, row("good-a"), row("good-b")]), False
+                )
+                self.assertEqual(len(docs), 2)
+                self.assertEqual(rejected["invalid_metadata"], 1)
+
+    def test_license_must_match_exactly_without_type_coercion(self):
+        for license_value in (None, 123, ["CC BY-SA 4.0"], "cc by-sa 4.0"):
+            with self.subTest(license_value=license_value):
+                bad = row("bad-license")
+                bad["license"] = license_value
+                docs, rejected = load_corpus(
+                    self.write_rows([bad, row("good-a"), row("good-b")]), False
+                )
+                self.assertEqual(len(docs), 2)
+                self.assertEqual(rejected["invalid_metadata"], 1)
+
 
     def test_validation_fraction_and_minimum_documents_are_checked(self):
         docs = [{"page_id": "a"}, {"page_id": "b"}]
@@ -73,6 +105,8 @@ class CorpusValidationTests(unittest.TestCase):
             split_documents([{"page_id": "only-one"}])
         with self.assertRaises(ValueError):
             split_documents([{"page_id": ""}, {"page_id": "b"}])
+        with self.assertRaisesRegex(ValueError, "page_id"):
+            split_documents([{"page_id": 123}, {"page_id": "b"}])
 
     def test_revisions_of_one_page_never_cross_train_validation_boundary(self):
         docs = [
