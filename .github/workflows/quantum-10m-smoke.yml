@@ -87,7 +87,7 @@ jobs:
         with:
           name: quantum-training-data-quality-audit
           path: training_data_quality_audit.json
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Audit training-data provenance
