@@ -137,6 +137,7 @@ def audit_dataset(rows):
         "malformed_rows": malformed_rows,
         "rows_with_blocking_issues": len(blocking_indices),
         "approved_rows_with_blocking_issues": approved_blocking,
+        "quality_gate_passed": malformed_rows == 0 and approved_blocking == 0,
         "issue_counts": dict(sorted(issue_counts.items())),
         "duplicate_exact_pairs": duplicate_pairs,
         "duplicate_normalized_questions": duplicate_questions,
@@ -168,7 +169,7 @@ def main():
                               "duplicate_normalized_questions",
                               "duplicate_normalized_answers")}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
-    if args.strict and report["approved_rows_with_blocking_issues"]:
+    if args.strict and not report["quality_gate_passed"]:
         raise SystemExit("학습 중단: 승인 데이터에 구조 또는 문자 수준의 차단 문제가 있습니다.")
 
 
