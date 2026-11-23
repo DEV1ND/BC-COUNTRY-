@@ -30,11 +30,15 @@ def select_top_k_indices(logit_values, top_k):
     for value in logit_values:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError("logit 값은 숫자여야 합니다.")
-        if value != value or value == float("inf"):
+        try:
+            number = float(value)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("logit 값이 표현 가능한 숫자 범위를 벗어났습니다.") from exc
+        if math.isnan(number) or number == float("inf"):
             raise ValueError("logit에 NaN 또는 양의 무한대가 포함되어 있습니다.")
-        if value != -float("inf"):
+        if number != -float("inf"):
             has_finite = True
-        normalized.append(float(value))
+        normalized.append(number)
     if not has_finite:
         raise ValueError("logit에 유효한 후보가 없습니다.")
     if top_k == 0 or top_k >= len(normalized):
@@ -50,7 +54,10 @@ def validate_sampling_probabilities(probability_values):
     for value in probability_values:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError("확률 값은 숫자여야 합니다.")
-        probability = float(value)
+        try:
+            probability = float(value)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("확률 값이 표현 가능한 숫자 범위를 벗어났습니다.") from exc
         if not math.isfinite(probability) or probability < 0:
             raise ValueError("확률 값은 유한한 0 이상의 숫자여야 합니다.")
         total += probability
@@ -79,7 +86,10 @@ def safe_ngram_bans(logit_values, generated_tokens, n=3):
     for index, value in enumerate(logit_values):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError("logit 값은 숫자여야 합니다.")
-        number = float(value)
+        try:
+            number = float(value)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("logit 값이 표현 가능한 숫자 범위를 벗어났습니다.") from exc
         if math.isnan(number) or number == float("inf"):
             raise ValueError("logit에 NaN 또는 양의 무한대가 포함되어 있습니다.")
         if number != -float("inf"):
