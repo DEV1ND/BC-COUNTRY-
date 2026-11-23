@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   push:
-    branches: [main, quantum-generation-quality]
+    branches: [main, quantum-generation-quality, quantum-candidate-security-hardening]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
