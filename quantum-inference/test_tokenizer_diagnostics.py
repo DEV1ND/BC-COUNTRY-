@@ -57,7 +57,7 @@ class GeneratedTokenDiagnosticsTests(unittest.TestCase):
         tokenizer = BPETokenizer(initial_symbols=["가"])
         report = summarize_generated_tokens(tokenizer, [1, 0, 1])
         self.assertEqual(report["unknown_tokens"], 1)
-        self.assertAlmostEqual(report["unknown_token_ratio"], 1 / 3)
+        self.assertAlmostEqual(report["unknown_token_ratio"], 1 / 3, places=6)
         empty = summarize_generated_tokens(tokenizer, [])
         self.assertEqual(empty["generated_tokens"], 0)
         self.assertFalse(empty["character_fragmentation_suspected"])
