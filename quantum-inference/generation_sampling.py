@@ -67,6 +67,14 @@ def safe_ngram_bans(logit_values, generated_tokens, n=3):
         raise ValueError("generated_tokens는 목록이어야 합니다.")
     if isinstance(n, bool) or not isinstance(n, int) or n < 2:
         raise ValueError("n은 2 이상의 정수여야 합니다.")
+    # Token history must be valid vocabulary indices; otherwise set membership and
+    # masking can fail unpredictably or silently target an impossible token.
+    for token_id in generated_tokens:
+        if isinstance(token_id, bool) or not isinstance(token_id, int):
+            raise ValueError("generated token IDs must be integers")
+        if token_id < 0 or token_id >= len(logit_values):
+            raise ValueError("generated token ID is outside the logit vocabulary")
+
     finite_indices = []
     for index, value in enumerate(logit_values):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
