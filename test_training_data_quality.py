@@ -80,15 +80,15 @@ class TrainingDataQualityTests(unittest.TestCase):
     def test_replacement_and_null_characters_are_reported(self):
         from training_data_quality import audit_dataset
         report = audit_dataset([
-            self.row(answer="잘못된\\ufffd문자 포함 답변"),
-            self.row(question="질문\\x00문자"),
+            self.row(answer="잘못된�문자 포함 답변"),
+            self.row(question="질문" + chr(0) + "문자"),
         ])
         self.assertIn("answer_replacement_character", report["issue_counts"])
         self.assertIn("question_null_character", report["issue_counts"])
 
     def test_newlines_are_not_misclassified_as_control_characters(self):
         from training_data_quality import audit_dataset
-        report = audit_dataset([self.row(answer="첫 문장\\n둘째 문장입니다.")])
+        report = audit_dataset([self.row(answer="첫 문장" + chr(10) + "둘째 문장입니다.")])
         self.assertNotIn("answer_control_character", report["issue_counts"])
 
     def test_low_information_answer_is_reported_as_nonblocking_warning(self):
