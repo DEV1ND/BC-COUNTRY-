@@ -116,7 +116,7 @@ class QuantumRetrievalTests(unittest.TestCase):
     def test_rejection_reason_explains_ambiguous_top_match(self):
         rows = [
             {"question": "민주주의란 무엇인가요?", "answer": "첫 번째 답변입니다.", "approved": True},
-            {"question": "민주주의란 무엇인가요", "answer": "두 번째 답변입니다.", "approved": True},
+            {"question": "민주주의는 무엇인가요?", "answer": "두 번째 답변입니다.", "approved": True},
         ]
         result = retrieve("민주주의란 무엇인가요?", rows)
         self.assertFalse(result["matched"])
