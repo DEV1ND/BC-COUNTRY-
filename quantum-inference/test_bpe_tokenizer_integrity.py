@@ -119,5 +119,12 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
                 load_approved_texts(path)
 
 
+    def test_training_rejects_empty_corpora(self):
+        for texts in ([], ["", "  "]):
+            with self.subTest(texts=texts):
+                with self.assertRaisesRegex(ValueError, "비어 있지 않은 문장"):
+                    BPETokenizer.train(texts)
+
+
 if __name__ == "__main__":
     unittest.main()
