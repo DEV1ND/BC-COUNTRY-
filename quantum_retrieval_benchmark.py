@@ -3,7 +3,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from quantum_retrieval import retrieve
+from quantum_retrieval import intent_signature, retrieve
 
 
 def benchmark_rows(training, evaluation):
@@ -17,6 +17,8 @@ def benchmark_rows(training, evaluation):
     ]
     results = []
     rejection_counts = Counter()
+    intent_totals = Counter()
+    intent_accepted = Counter()
     for index, item in enumerate(evaluation):
         if not isinstance(item, dict):
             raise ValueError(f"평가 항목 {index}는 객체여야 합니다.")
@@ -24,10 +26,15 @@ def benchmark_rows(training, evaluation):
         if not isinstance(question, str) or not question.strip():
             raise ValueError(f"평가 항목 {index}의 question은 비어 있지 않은 문자열이어야 합니다.")
         result = retrieve(question, approved)
-        if not result["matched"]:
+        intent = intent_signature(question)
+        intent_totals[intent] += 1
+        if result["matched"]:
+            intent_accepted[intent] += 1
+        else:
             rejection_counts[result["rejection_reason"]] += 1
         results.append({
             "question": question,
+            "intent": intent,
             "matched": result["matched"],
             "matched_training_question": result["question"],
             "score": result["score"],
@@ -35,6 +42,15 @@ def benchmark_rows(training, evaluation):
             "rejection_reason": result["rejection_reason"],
         })
     accepted = sum(1 for row in results if row["matched"])
+    intent_breakdown = {
+        intent: {
+            "questions": count,
+            "accepted": intent_accepted[intent],
+            "rejected": count - intent_accepted[intent],
+            "coverage": round(intent_accepted[intent] / count, 4) if count else 0.0,
+        }
+        for intent, count in sorted(intent_totals.items())
+    }
     return {
         "status": "coverage_only_human_quality_review_required",
         "approved_training_rows": len(approved),
@@ -43,6 +59,7 @@ def benchmark_rows(training, evaluation):
         "rejected_questions": len(results) - accepted,
         "coverage": round(accepted / len(results), 4) if results else 0.0,
         "rejection_reason_counts": dict(sorted(rejection_counts.items())),
+        "intent_breakdown": intent_breakdown,
         "semantic_correctness_claimed": False,
         "evaluation_answers_used_for_index": False,
         "results": results,
