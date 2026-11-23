@@ -1,0 +1,138 @@
+"""Apply a completed human provenance review to a separate dataset copy.
+
+This utility never invents provenance or approves records automatically.
+The reviewer must provide source evidence and explicit approval in the template.
+"""
+import argparse
+import copy
+import hashlib
+import json
+from datetime import datetime
+from pathlib import Path
+
+from export_training_provenance_template import SOURCE_FIELDS
+from training_provenance import audit_rows
+
+
+TEMPLATE_SCHEMA = "juckex-training-provenance-review-template-v1"
+
+
+def _record_id(question, answer):
+    return hashlib.sha256((question + "\\0" + answer).encode("utf-8")).hexdigest()
+
+
+def _valid_timestamp(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return True
+    except ValueError:
+        return False
+
+
+def apply_review(source_rows, template):
+    """Return a new dataset with verified-by-structure review metadata attached."""
+    if not isinstance(source_rows, list):
+        raise ValueError("원본 학습 데이터는 JSON 배열이어야 합니다.")
+    if not isinstance(template, dict) or template.get("schema") != TEMPLATE_SCHEMA:
+        raise ValueError("지원하지 않는 provenance review template 형식입니다.")
+    records = template.get("records")
+    if not isinstance(records, list) or template.get("records_total") != len(records):
+        raise ValueError("검토 템플릿 records 또는 records_total 값이 올바르지 않습니다.")
+
+    expected = {}
+    for index, row in enumerate(source_rows):
+        if not isinstance(row, dict) or row.get("approved") is not True:
+            continue
+        question = str(row.get("question", ""))
+        answer = str(row.get("answer", ""))
+        expected[_record_id(question, answer)] = (index, row)
+
+    reviewed = {}
+    for record in records:
+        if not isinstance(record, dict):
+            raise ValueError("검토 레코드는 객체여야 합니다.")
+        record_id = record.get("record_id")
+        if not isinstance(record_id, str) or record_id not in expected:
+            raise ValueError("원본과 일치하지 않는 record_id가 있습니다.")
+        if record_id in reviewed:
+            raise ValueError("중복 record_id가 있습니다.")
+        original_index, original = expected[record_id]
+        if record.get("original_index") != original_index:
+            raise ValueError("원본 레코드 위치가 변경되었습니다.")
+        if record.get("question") != str(original.get("question", "")):
+            raise ValueError("질문 내용이 원본과 일치하지 않습니다.")
+        if record.get("answer") != str(original.get("answer", "")):
+            raise ValueError("답변 내용이 원본과 일치하지 않습니다.")
+
+        source = record.get("source")
+        if not isinstance(source, dict):
+            raise ValueError("source 메타데이터는 객체여야 합니다.")
+        for field in SOURCE_FIELDS:
+            value = source.get(field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"source.{field} 값이 비어 있습니다.")
+
+        review = record.get("provenance_review")
+        if not isinstance(review, dict) or review.get("approved") is not True:
+            raise ValueError("사람 검토 승인되지 않은 레코드가 있습니다.")
+        reviewer = review.get("reviewer")
+        reviewed_at = review.get("reviewed_at")
+        if not isinstance(reviewer, str) or not reviewer.strip():
+            raise ValueError("검토자 정보가 비어 있습니다.")
+        if not _valid_timestamp(reviewed_at):
+            raise ValueError("reviewed_at은 ISO 8601 날짜·시간이어야 합니다.")
+        reviewed[record_id] = (source, {
+            "approved": True,
+            "reviewer": reviewer.strip(),
+            "reviewed_at": reviewed_at.strip(),
+        })
+
+    if set(reviewed) != set(expected):
+        missing = len(set(expected) - set(reviewed))
+        extra = len(set(reviewed) - set(expected))
+        raise ValueError(f"검토 누락 또는 불일치: 누락 {missing}개, 추가 {extra}개")
+
+    output = copy.deepcopy(source_rows)
+    for record_id, (index, original) in expected.items():
+        source, review = reviewed[record_id]
+        legacy_source = original.get("source")
+        output[index]["source_legacy_label"] = legacy_source
+        output[index]["source"] = {field: source[field].strip() for field in SOURCE_FIELDS}
+        output[index]["provenance_review"] = review
+
+    audit = audit_rows(output)
+    if not audit["training_release_eligible"]:
+        raise ValueError("적용 후 provenance audit가 학습 적격 판정을 내리지 않았습니다.")
+    return output
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True, help="원본 training_extra.json")
+    parser.add_argument("--template", required=True, help="사람이 직접 작성한 검토 템플릿")
+    parser.add_argument("--output", required=True, help="별도 출력 파일 경로")
+    args = parser.parse_args()
+
+    source_rows = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    template = json.loads(Path(args.template).read_text(encoding="utf-8"))
+    reviewed_rows = apply_review(source_rows, template)
+    output_path = Path(args.output)
+    if output_path.resolve() == Path(args.input).resolve():
+        raise SystemExit("원본 데이터 덮어쓰기는 허용되지 않습니다.")
+    output_path.write_text(json.dumps(reviewed_rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    report = audit_rows(reviewed_rows)
+    print(json.dumps({
+        "status": "reviewed_copy_created",
+        "output": str(output_path),
+        "approved_records": report["approved_records"],
+        "metadata_complete_records": report["metadata_complete_records"],
+        "training_release_eligible": report["training_release_eligible"],
+        "source_dataset_modified": False,
+        "human_review_truth_independently_verified": False,
+    }, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
