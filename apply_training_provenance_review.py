@@ -122,6 +122,9 @@ def main():
     output_path = Path(args.output)
     if output_path.resolve() == Path(args.input).resolve():
         raise SystemExit("원본 데이터 덮어쓰기는 허용되지 않습니다.")
+    if output_path.exists():
+        raise SystemExit("기존 파일 보호를 위해 이미 존재하는 출력 파일은 덮어쓰지 않습니다.")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(reviewed_rows, ensure_ascii=False, indent=2), encoding="utf-8")
     report = audit_rows(reviewed_rows)
     print(json.dumps({
