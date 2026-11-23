@@ -73,7 +73,7 @@ def clean_pairs(rows):
         cleaned.append({
             "question": q,
             "answer": a,
-            "text": "질문:" + q + "\\n답변:" + a + "\\n\\n",
+            "text": "질문:" + q + "\n답변:" + a + "\n\n",
         })
     return cleaned
 
