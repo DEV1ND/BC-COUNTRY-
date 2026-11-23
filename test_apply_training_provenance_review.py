@@ -85,6 +85,14 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_review(rows, template)
 
+    def test_duplicate_question_answer_pairs_are_reviewed_by_original_index(self):
+        rows = self.source_rows()
+        rows.append(copy.deepcopy(rows[0]))
+        template = self.completed_template(rows)
+        reviewed = apply_review(rows, template)
+        self.assertEqual(reviewed[0]["source"], reviewed[2]["source"])
+        self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
+
     def test_record_id_is_stable_for_question_and_answer_pair(self):
         self.assertEqual(_record_id("Q", "A"), _record_id("Q", "A"))
         self.assertNotEqual(_record_id("Q", "A"), _record_id("Q", "B"))
