@@ -73,7 +73,7 @@ jobs:
           cache: pip
 
       - name: Install CPU training dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt cryptography==46.0.3
 
       - name: Run regression tests
         run: cd quantum-inference && python -m unittest test_generation_context.py test_inference_contract.py && cd .. && python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_bpe_tokenizer_integrity.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py test_apply_training_provenance_review.py test_training_data_quality.py
