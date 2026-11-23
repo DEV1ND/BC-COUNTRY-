@@ -71,6 +71,21 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_review(rows, template)
 
+    def test_placeholder_provenance_values_are_rejected(self):
+        for field, value in (
+            ("kind", "unknown"),
+            ("reference", "pending"),
+            ("license", "n/a"),
+            ("attribution", "TBD"),
+            ("permission_basis", "curated-v1"),
+        ):
+            with self.subTest(field=field):
+                rows = self.source_rows()
+                template = self.completed_template(rows)
+                template["records"][0]["source"][field] = value
+                with self.assertRaises(ValueError):
+                    apply_review(rows, template)
+
     def test_unapproved_human_review_is_rejected(self):
         rows = self.source_rows()
         template = self.completed_template(rows)
@@ -78,10 +93,26 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             apply_review(rows, template)
 
-    def test_invalid_review_timestamp_is_rejected(self):
+    def test_invalid_or_timezone_naive_review_timestamp_is_rejected(self):
+        for timestamp in ("yesterday", "2026-11-23T08:00:00", "pending"):
+            with self.subTest(timestamp=timestamp):
+                rows = self.source_rows()
+                template = self.completed_template(rows)
+                template["records"][0]["provenance_review"]["reviewed_at"] = timestamp
+                with self.assertRaises(ValueError):
+                    apply_review(rows, template)
+
+    def test_placeholder_reviewer_is_rejected(self):
         rows = self.source_rows()
         template = self.completed_template(rows)
-        template["records"][0]["provenance_review"]["reviewed_at"] = "yesterday"
+        template["records"][0]["provenance_review"]["reviewer"] = "TBD"
+        with self.assertRaises(ValueError):
+            apply_review(rows, template)
+
+    def test_boolean_is_not_accepted_as_original_index(self):
+        rows = self.source_rows()
+        template = self.completed_template(rows)
+        template["records"][0]["original_index"] = True
         with self.assertRaises(ValueError):
             apply_review(rows, template)
 
