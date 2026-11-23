@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
 from generation_sampling import select_top_k_indices, normalize_prompt, validate_sampling_probabilities, safe_ngram_bans
+from tokenizer_diagnostics import summarize_generated_tokens
 from generation_context import build_generation_context
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
@@ -634,6 +635,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     if not answer:
         raise HTTPException(503, "Quantum 후보 모델이 빈 답변을 생성했습니다.")
+    generation_diagnostics = summarize_generated_tokens(tokenizer, generated)
     return {"answer": answer, "model": "quantum-bpe-candidate",
             "model_parameters": MODEL_PARAMETER_COUNT,
             "is_live_inference": True,
@@ -650,4 +652,10 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "generated_tokens": len(generated),
             "generation_stop_reason": generation_stop_reason,
             "context_truncated": context_truncated,
-            "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
+            "generation_diagnostics": generation_diagnostics,
+            "quality_warning": (
+                "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다. "
+                + ("출력 토큰이 지나치게 잘게 분리되는 현상이 감지되었습니다. "
+                   if generation_diagnostics["character_fragmentation_suspected"] else "")
+                + "토큰 진단은 문장 품질 평가가 아닙니다."
+            )}
