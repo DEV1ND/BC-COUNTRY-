@@ -65,7 +65,10 @@ class InferenceContractTests(unittest.TestCase):
             )
         self.assertEqual(result["answer"], match["answer"])
         self.assertEqual(result["response_mode"], "approved_qa_retrieval")
-        self.assertTrue(result["is_live_inference"])
+        self.assertFalse(result["is_live_inference"])
+        self.assertTrue(result["is_live_retrieval"])
+        self.assertFalse(result["is_model_generation"])
+        self.assertEqual(result["response_mode"], "approved_qa_retrieval")
 
     def test_no_checkpoint_and_no_retrieval_returns_503_not_fake_answer(self):
         with patch.object(
