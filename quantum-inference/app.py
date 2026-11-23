@@ -548,7 +548,13 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     # and non-empty attribution are passed into generation or exposed as citations.
     knowledge_context = build_knowledge_context(knowledge)
     knowledge_sources = serialize_knowledge_sources(knowledge)
-    prompt_ids = tokenizer.encode(knowledge_context + "질문:" + req.prompt.strip() + "\n답변:")
+    from generation_context import build_generation_context
+    try:
+        prompt_ids, context_truncated = build_generation_context(
+            tokenizer, knowledge_context, req.prompt, block_size=BLOCK
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
     generated = []
     for step in range(req.max_new_tokens):
         context = (prompt_ids + generated)[-BLOCK:]
@@ -594,4 +600,6 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "is_model_generation": True,
             "response_mode": "model_generation",
             "knowledge_sources": knowledge_sources,
+            "input_tokens": len(prompt_ids),
+            "context_truncated": context_truncated,
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
