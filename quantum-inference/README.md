@@ -76,3 +76,18 @@ python -m unittest discover -s . -p 'test_*.py' -v
 - 위키백과 자료를 사용할 때 CC BY-SA 4.0의 저작자 표시 및 적용되는 동일조건변경허락 조건을 보존해야 합니다.
 - 체크포인트 연결, 추론 테스트, 독립 평가가 모두 확인되기 전에는 배포 성공이나 모델 준비 완료로 보고하지 않습니다.
 - 평가 사례와 모델 답변은 명시적 승인과 별도 검토 없이 학습 코퍼스에 편입하지 않습니다.
+
+
+## Wikipedia Candidate export contract
+
+`export_wikipedia_corpus.py` downloads the private Candidate corpus from the isolated Worker API. It accepts only the `manual` and `unverified` trust classes and validates every document before atomically replacing the destination file.
+
+- Require string page identity, title, body, revision ID, hash, status, and attribution metadata.
+- Accept only canonical HTTPS URLs on `ko.wikipedia.org`.
+- Verify the CC BY-SA 4.0 attribution contains the page title, exact page URL, license name, and license URL.
+- Recompute SHA-256 from the normalized document body and reject mismatches.
+- Require a timezone-aware ISO-8601 `reviewed_at` timestamp for the manual corpus; unverified records must not carry a review timestamp.
+- Keep manual approvals separate from pending-review records. An approval marker and timestamp do **not** establish a named reviewer's identity or independently prove factual correctness.
+- Create owner-only output files and preserve an existing destination if any page or pagination response fails validation.
+
+The crawler generates page-specific attribution when collecting or refreshing a Wikipedia page. Export validation is not a substitute for legal review, factual verification, or the separate training-data provenance gate. Wikipedia retrieval updates do not change Quantum model weights.
