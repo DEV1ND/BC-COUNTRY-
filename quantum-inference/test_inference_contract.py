@@ -413,6 +413,49 @@ class InferenceContractTests(unittest.TestCase):
             "content_hash": hashlib.sha256(body.encode("utf-8")).hexdigest(),
         }
 
+    def test_knowledge_import_commits_canonical_and_fts_rows_together(self):
+        class FakeRequest:
+            async def json(self):
+                return {"documents": [self._document]}
+
+        request = FakeRequest()
+        request._document = self._valid_import_document()
+        connection = sqlite3.connect(":memory:")
+        connection.execute("""
+            CREATE TABLE knowledge_docs(
+                page_id TEXT PRIMARY KEY, title TEXT, url TEXT, text TEXT,
+                license TEXT, attribution TEXT, revision_id TEXT, content_hash TEXT
+            )
+        """)
+        connection.execute("""
+            CREATE TABLE knowledge_fts(
+                page_id TEXT, title TEXT, text TEXT
+            )
+        """)
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(quantum_app, "knowledge_db", return_value=connection):
+                result = asyncio.run(quantum_app.import_knowledge(
+                    request, authorization="Bearer candidate-test-token"
+                ))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["imported"], 1)
+        canonical = connection.execute(
+            "SELECT page_id,title,revision_id,content_hash FROM knowledge_docs"
+        ).fetchone()
+        indexed = connection.execute(
+            "SELECT page_id,title,text FROM knowledge_fts"
+        ).fetchone()
+        self.assertEqual(canonical[0], request._document["page_id"])
+        self.assertEqual(canonical[1], request._document["title"])
+        self.assertEqual(canonical[2], request._document["revision_id"])
+        self.assertEqual(canonical[3], request._document["content_hash"])
+        self.assertEqual(indexed[0], canonical[0])
+        self.assertEqual(indexed[1], canonical[1])
+        self.assertEqual(indexed[2], request._document["text"].strip())
+        self.assertEqual(connection.in_transaction, False)
+        connection.close()
+
     def test_knowledge_import_rejects_malformed_batch_before_opening_database(self):
         class FakeRequest:
             async def json(self):
