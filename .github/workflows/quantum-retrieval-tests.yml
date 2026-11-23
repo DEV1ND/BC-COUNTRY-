@@ -17,6 +17,7 @@ on:
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
       - 'quantum_retrieval_benchmark.py'
+      - 'test_quantum_retrieval_benchmark.py'
       - 'training_extra.json'
       - 'bpe_independent_eval.json'
       - '.github/workflows/quantum-retrieval-tests.yml'
