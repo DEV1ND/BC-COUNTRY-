@@ -70,6 +70,25 @@ class QuantumRetrievalTests(unittest.TestCase):
         self.assertIsNone(result["answer"])
         self.assertEqual(result["rejection_reason"], "conflicting_answers")
 
+    def test_punctuation_and_spacing_variants_share_duplicate_key(self):
+        rows = [
+            {"question": "민주주의란 무엇인가요?", "answer": "동일 답변", "approved": True},
+            {"question": "민주주의란, 무엇인가요", "answer": "동일 답변", "approved": True},
+        ]
+        result = retrieve("민주주의란 무엇인가요?", rows)
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["answer"], "동일 답변")
+
+    def test_punctuation_variant_with_conflicting_answer_is_rejected(self):
+        rows = [
+            {"question": "민주주의란 무엇인가요?", "answer": "답변 A", "approved": True},
+            {"question": "민주주의란, 무엇인가요", "answer": "답변 B", "approved": True},
+        ]
+        result = retrieve("민주주의란 무엇인가요?", rows, threshold=0.0, min_margin=0.0)
+        self.assertFalse(result["matched"])
+        self.assertIsNone(result["answer"])
+        self.assertEqual(result["rejection_reason"], "conflicting_answers")
+
     def test_identical_duplicate_answers_are_deduplicated(self):
         rows = [
             {"question": "민주주의란 무엇인가요?", "answer": "같은 답변", "approved": True},
