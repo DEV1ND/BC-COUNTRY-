@@ -155,6 +155,18 @@ def make_windows(documents, tokenizer):
 
 
 def batch_windows(windows, batch_size, device):
+    if not isinstance(windows, (list, tuple)) or not windows:
+        raise ValueError("배치 생성을 위해 비어 있지 않은 윈도우 목록이 필요합니다.")
+    if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+        raise ValueError("batch_size는 1 이상의 정수여야 합니다.")
+    for index, window in enumerate(windows):
+        if not isinstance(window, (list, tuple)) or len(window) < 2:
+            raise ValueError(f"윈도우 {index}에는 최소 2개 토큰이 필요합니다.")
+        if any(isinstance(token, bool) or not isinstance(token, int) or token < 0
+               for token in window):
+            raise ValueError(f"윈도우 {index}에 잘못된 토큰 ID가 있습니다.")
+        if len(window) > BLOCK + 1:
+            raise ValueError(f"윈도우 {index}가 BLOCK 크기를 초과합니다.")
     selected = [random.choice(windows) for _ in range(batch_size)]
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
