@@ -167,11 +167,16 @@ class InferenceContractTests(unittest.TestCase):
 
         connection = Mock()
         connection.execute.return_value.fetchone.return_value = [0]
-        with patch.object(quantum_app, "knowledge_db", return_value=connection), \\
-             patch.object(
-                 quantum_app, "CHECKPOINT_LOAD_ERROR",
-                 "OSError: /private/runtime/path/secret-checkpoint.pt",
-             ):
+        from contextlib import ExitStack
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(
+                quantum_app, "knowledge_db", return_value=connection
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "CHECKPOINT_LOAD_ERROR",
+                "OSError: /private/runtime/path/secret-checkpoint.pt",
+            ))
             result = quantum_app.health()
         self.assertEqual(result["checkpoint_load_error"], "OSError")
         self.assertNotIn("private", str(result))
