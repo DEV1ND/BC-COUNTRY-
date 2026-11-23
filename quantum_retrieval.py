@@ -42,6 +42,11 @@ def content_tokens(text):
     return result
 
 
+def _question_key(question):
+    """Normalize harmless spacing and punctuation differences for duplicate detection."""
+    return re.sub(r"[\\W_]+", "", str(question).casefold(), flags=re.UNICODE)
+
+
 def intent_signature(question):
     q = str(question).lower()
     if re.search(r"차이|비교|공통점|다른 점", q):
@@ -111,7 +116,9 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
         answer = str(row.get("answer", "")).strip()
         if not candidate_q or not answer or intent_signature(candidate_q) != query_intent:
             continue
-        key = " ".join(candidate_q.casefold().split())
+        key = _question_key(candidate_q)
+        if not key:
+            continue
         previous = candidates.get(key)
         if previous is None:
             candidates[key] = (candidate_q, answer)
