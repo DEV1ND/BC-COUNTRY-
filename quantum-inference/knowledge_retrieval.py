@@ -7,6 +7,8 @@ import re
 import sqlite3
 import unicodedata
 
+from knowledge_provenance import has_valid_wikipedia_attribution
+
 _STOP = {
     "무엇", "무엇인가요", "무엇인가", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
     "뜻", "의미", "정의", "설명", "알려줘", "해주세요", "인가", "이란",
@@ -213,11 +215,31 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
             "used_fallback": used_fallback,
         }
 
+    # Retrieval must not surface rows whose source/license attribution is
+    # missing or malformed, even if their lexical relevance is high.
+    eligible = []
+    rejected_source_rows = 0
+    for document in documents:
+        if has_valid_wikipedia_attribution(
+            document.get("title"),
+            document.get("url"),
+            document.get("license"),
+            document.get("attribution"),
+        ):
+            eligible.append(document)
+        else:
+            rejected_source_rows += 1
+
+    if rejected_source_rows and not eligible:
+        status = "source_metadata_invalid"
+    elif eligible:
+        status = "fts_fallback" if used_fallback else "ok"
+    else:
+        status = "no_match"
+
     return {
-        "documents": documents,
-        "status": (
-            "fts_fallback" if used_fallback else
-            ("ok" if documents else "no_match")
-        ),
+        "documents": eligible,
+        "status": status,
         "used_fallback": used_fallback,
+        "rejected_source_rows": rejected_source_rows,
     }
