@@ -129,11 +129,16 @@ def split_documents(docs, validation_fraction=0.1):
         raise ValueError("validation_fraction은 0과 1 사이의 유한한 숫자여야 합니다.")
     if not isinstance(docs, (list, tuple)) or len(docs) < 2:
         raise ValueError("학습/검증 분리를 위해 문서가 최소 2개 필요합니다.")
-    if any(not isinstance(doc, dict) or not str(doc.get("page_id", "")).strip() for doc in docs):
-        raise ValueError("모든 문서에는 비어 있지 않은 page_id가 필요합니다.")
+    if any(
+        not isinstance(doc, dict)
+        or not isinstance(doc.get("page_id"), str)
+        or not doc["page_id"].strip()
+        for doc in docs
+    ):
+        raise ValueError("모든 문서에는 문자열 형식의 비어 있지 않은 page_id가 필요합니다.")
     groups = {}
     for doc in docs:
-        groups.setdefault(str(doc["page_id"]), []).append(doc)
+        groups.setdefault(doc["page_id"], []).append(doc)
     page_ids = sorted(
         groups,
         key=lambda page_id: hashlib.sha256(page_id.encode("utf-8")).hexdigest()
