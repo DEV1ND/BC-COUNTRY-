@@ -115,6 +115,12 @@ Wikipedia seed completion summaries also require non-negative integer counters (
 The Wikipedia seed reuse shortcut applies the same strictness to cached index metadata: document counts and required thresholds must be actual integers (not booleans or floats), and requested/available title collections must be lists or tuples of strings. Malformed metadata causes a fresh seed path instead of incorrectly treating an index as reusable.
 
 
+## Retrieval source-attribution enforcement
+
+The SQLite knowledge retrieval path validates the source metadata again at read time before returning any document. A row is eligible only when its URL is a canonical HTTPS Korean Wikipedia page and its attribution includes the exact title, exact URL, CC BY-SA 4.0 name, and canonical license URL. Rows that fail this check are excluded even if their lexical relevance score is high.
+
+The response reports `rejected_source_rows`. If every otherwise relevant row fails source validation, the status is `source_metadata_invalid`; a valid subset can still be returned with the normal FTS/fallback status. This read-time check is defense in depth and does not replace import-time validation, license review, or factual review.
+
 ## Retrieval benchmark: safe abstention and anti-inflation checks
 
 The retrieval-only benchmark now reports answerability separately from ordinary title hits. Cases with an empty `expected_titles` list are explicitly unanswerable cases: returning any document is counted as a false-positive retrieval, while returning no documents is a correct abstention. Reports include `unanswerable_cases`, `false_positive_retrievals`, and `safe_abstention_rate`, with per-domain equivalents.
