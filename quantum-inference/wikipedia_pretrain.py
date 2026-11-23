@@ -154,7 +154,7 @@ def make_windows(documents, tokenizer):
     return windows, token_count
 
 
-def batch_windows(windows, batch_size, device):
+def batch_windows(windows, batch_size, device, vocab_size=None):
     if not isinstance(windows, (list, tuple)) or not windows:
         raise ValueError("배치 생성을 위해 비어 있지 않은 윈도우 목록이 필요합니다.")
     if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
@@ -167,6 +167,11 @@ def batch_windows(windows, batch_size, device):
             raise ValueError(f"윈도우 {index}에 잘못된 토큰 ID가 있습니다.")
         if len(window) > BLOCK + 1:
             raise ValueError(f"윈도우 {index}가 BLOCK 크기를 초과합니다.")
+        if vocab_size is not None:
+            if isinstance(vocab_size, bool) or not isinstance(vocab_size, int) or vocab_size < 1:
+                raise ValueError("vocab_size는 1 이상의 정수여야 합니다.")
+            if any(token >= vocab_size for token in window):
+                raise ValueError(f"윈도우 {index}에 vocab_size 범위를 벗어난 토큰 ID가 있습니다.")
     selected = [random.choice(windows) for _ in range(batch_size)]
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
@@ -178,11 +183,11 @@ def batch_windows(windows, batch_size, device):
 
 
 @torch.no_grad()
-def evaluate(model, windows, batch_size, device, batches=20):
+def evaluate(model, windows, batch_size, device, batches=20, vocab_size=None):
     model.eval()
     values = []
     for _ in range(min(batches, max(1, len(windows)))):
-        x, y = batch_windows(windows, batch_size, device)
+        x, y = batch_windows(windows, batch_size, device, vocab_size=vocab_size)
         logits = model(x)
         loss = F.cross_entropy(
             logits.reshape(-1, logits.size(-1)), y.reshape(-1), ignore_index=-100
@@ -257,7 +262,7 @@ def main():
     history = []
     model.train()
     for step in range(1, args.steps + 1):
-        x, y = batch_windows(train_windows, args.batch_size, device)
+        x, y = batch_windows(train_windows, args.batch_size, device, vocab_size=len(tokenizer.vocab))
         optimizer.zero_grad(set_to_none=True)
         logits = model(x)
         loss = F.cross_entropy(
@@ -269,7 +274,7 @@ def main():
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         if step == 1 or step % 25 == 0 or step == args.steps:
-            valid_loss = evaluate(model, valid_windows, args.batch_size, device)
+            valid_loss = evaluate(model, valid_windows, args.batch_size, device, vocab_size=len(tokenizer.vocab))
             history.append({"step": step, "train_loss": float(loss.item()),
                             "validation_loss": valid_loss})
             if math.isfinite(valid_loss) and valid_loss < best_loss:
