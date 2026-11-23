@@ -88,6 +88,9 @@ def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
         raise ValueError("min_margin은 0과 1 사이의 유한한 숫자여야 합니다.")
     ranked = []
     seen = set()
+    if not content_tokens(question):
+        return {"matched": False, "score": 0.0, "margin": 0.0,
+                "question": None, "answer": None, "rejection_reason": "invalid_query"}
     query_intent = intent_signature(question)
     for row in approved_rows:
         if not isinstance(row, dict) or row.get("approved") is not True:
