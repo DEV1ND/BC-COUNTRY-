@@ -12,7 +12,7 @@ from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
-from generation_sampling import select_top_k_indices, normalize_prompt, validate_sampling_probabilities
+from generation_sampling import select_top_k_indices, normalize_prompt, validate_sampling_probabilities, safe_ngram_bans
 from generation_context import build_generation_context
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
@@ -563,7 +563,10 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         if generated and req.repetition_penalty > 1:
             for token_id in set(generated):
                 logits[token_id] = logits[token_id] * req.repetition_penalty if logits[token_id] < 0 else logits[token_id] / req.repetition_penalty
-        banned = banned_ngram_tokens(generated, 3)
+        try:
+            banned = safe_ngram_bans(logits.tolist(), generated, 3)
+        except ValueError:
+            raise HTTPException(503, "Quantum 후보 모델이 유효한 다음 토큰 점수를 생성하지 못했습니다.")
         if banned:
             logits[list(banned)] = -float("inf")
         try:
