@@ -62,5 +62,62 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
         )
 
 
+    def test_training_rejects_coercible_or_invalid_inputs(self):
+        invalid_calls = (
+            (["정상", 123], {}),
+            (["정상"], {"vocab_size": True}),
+            (["정상"], {"vocab_size": 1.5}),
+            (["정상"], {"vocab_size": 1}),
+            (["정상"], {"min_pair_frequency": False}),
+            (["정상"], {"min_pair_frequency": 0}),
+            (["정상"], {"extra_alphabet_texts": ["정상", 123]}),
+            (["정상"], {"extra_alphabet_texts": "문자열"}),
+        )
+        for texts, kwargs in invalid_calls:
+            with self.subTest(texts=texts, kwargs=kwargs):
+                with self.assertRaises(ValueError):
+                    BPETokenizer.train(texts, **kwargs)
+
+    def test_training_requires_explicit_text_sequence(self):
+        for texts in ("문자열", 123, None):
+            with self.subTest(texts=texts):
+                with self.assertRaises(ValueError):
+                    BPETokenizer.train(texts)
+
+    def test_constructor_rejects_string_as_symbol_or_merge_collection(self):
+        with self.assertRaisesRegex(ValueError, "초기 토큰은 배열"):
+            BPETokenizer(initial_symbols="한글")
+        with self.assertRaisesRegex(ValueError, "병합 목록은 배열"):
+            BPETokenizer(merges="잘못된 형식")
+
+    def test_approved_text_loader_does_not_coerce_malformed_fields(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from bpe_tokenizer import load_approved_texts
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "approved.json"
+            path.write_text(json.dumps([
+                {"approved": True, "question": 123, "answer": "충분히 긴 답변입니다."}
+            ]), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "문자열"):
+                load_approved_texts(path)
+
+    def test_approved_text_loader_rejects_too_short_approved_rows(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from bpe_tokenizer import load_approved_texts
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "approved.json"
+            path.write_text(json.dumps([
+                {"approved": True, "question": "질문", "answer": "짧음"}
+            ]), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "너무 짧습니다"):
+                load_approved_texts(path)
+
+
 if __name__ == "__main__":
     unittest.main()
