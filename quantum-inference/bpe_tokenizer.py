@@ -5,6 +5,10 @@ from pathlib import Path
 
 class BPETokenizer:
     def __init__(self, merges=None, initial_symbols=None):
+        if initial_symbols is not None and not isinstance(initial_symbols, (list, tuple)):
+            raise ValueError("초기 토큰은 배열이어야 합니다.")
+        if merges is not None and not isinstance(merges, (list, tuple)):
+            raise ValueError("BPE 병합 목록은 배열이어야 합니다.")
         raw_symbols = list(initial_symbols or [])
         if any(not isinstance(symbol, str) or len(symbol) != 1 for symbol in raw_symbols):
             raise ValueError("초기 토큰은 각각 정확히 한 글자여야 합니다.")
@@ -36,19 +40,34 @@ class BPETokenizer:
 
     @classmethod
     def train(cls, texts, vocab_size=1024, min_pair_frequency=2, extra_alphabet_texts=None):
+        if not isinstance(texts, (list, tuple)):
+            raise ValueError("BPE 학습 텍스트는 문자열 배열이어야 합니다.")
+        if any(not isinstance(text, str) for text in texts):
+            raise ValueError("BPE 학습 텍스트는 모두 문자열이어야 합니다.")
+        if isinstance(vocab_size, bool) or not isinstance(vocab_size, int) or vocab_size < 2:
+            raise ValueError("vocab_size는 2 이상의 정수여야 합니다.")
+        if (isinstance(min_pair_frequency, bool) or
+                not isinstance(min_pair_frequency, int) or min_pair_frequency < 1):
+            raise ValueError("min_pair_frequency는 1 이상의 정수여야 합니다.")
+        if extra_alphabet_texts is not None and not isinstance(extra_alphabet_texts, (list, tuple)):
+            raise ValueError("추가 문자 범위 데이터는 문자열 배열이어야 합니다.")
+        if extra_alphabet_texts is not None and any(
+            not isinstance(text, str) for text in extra_alphabet_texts
+        ):
+            raise ValueError("추가 문자 범위 데이터는 모두 문자열이어야 합니다.")
         words = []
         alphabet = set()
         for text in texts:
-            chars = list(str(text))
+            chars = list(text)
             alphabet.update(chars)
             if chars:
                 words.append(chars)
         # Validation text contributes only single-character coverage, never merge counts.
         # This prevents unseen Korean syllables from breaking tokenizer round-trip checks.
         for text in (extra_alphabet_texts or ()):
-            alphabet.update(list(str(text)))
+            alphabet.update(list(text))
         merges = []
-        target = max(len(alphabet) + 1, int(vocab_size))
+        target = max(len(alphabet) + 1, vocab_size)
         while len(alphabet) + len(merges) + 1 < target:
             counts = Counter()
             for word in words:
@@ -130,13 +149,17 @@ def load_approved_texts(path):
     if not isinstance(rows, list):
         raise ValueError("검수 데이터는 배열이어야 합니다.")
     texts = []
-    for row in rows:
+    for index, row in enumerate(rows):
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
-        question = str(row.get("question", "")).strip()
-        answer = str(row.get("answer", "")).strip()
-        if len(question) >= 2 and len(answer) >= 8:
-            texts.extend([question, answer])
+        question = row.get("question")
+        answer = row.get("answer")
+        if not isinstance(question, str) or not isinstance(answer, str):
+            raise ValueError(f"승인 데이터 {index}의 질문과 답변은 문자열이어야 합니다.")
+        question, answer = question.strip(), answer.strip()
+        if len(question) < 2 or len(answer) < 8:
+            raise ValueError(f"승인 데이터 {index}의 질문 또는 답변이 너무 짧습니다.")
+        texts.extend([question, answer])
     if not texts:
         raise ValueError("사용 가능한 승인 데이터가 없습니다.")
     return texts
