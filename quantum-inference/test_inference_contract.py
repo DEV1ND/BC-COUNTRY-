@@ -4,6 +4,7 @@ These tests call the FastAPI endpoint function directly: no server, live secrets
 network access, checkpoint, training, or Production service is required.
 """
 import unittest
+import sqlite3
 from unittest.mock import patch
 
 import torch
@@ -152,7 +153,7 @@ class InferenceContractTests(unittest.TestCase):
                     stack.enter_context(patch.object(
                         quantum_app, "retrieve_approved_qa", return_value={"matched": False}
                     ))
-                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value={"documents": [], "status": "no_match", "used_fallback": False}))
                     stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
                     stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
                     with self.assertRaises(HTTPException) as raised:
@@ -204,7 +205,7 @@ class InferenceContractTests(unittest.TestCase):
             stack.enter_context(patch.object(
                 quantum_app, "retrieve_approved_qa", return_value={"matched": False}
             ))
-            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value={"documents": [], "status": "no_match", "used_fallback": False}))
             stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
             stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
             result = quantum_app.generate(
@@ -270,7 +271,7 @@ class InferenceContractTests(unittest.TestCase):
                     stack.enter_context(patch.object(
                         quantum_app, "retrieve_approved_qa", return_value={"matched": False}
                     ))
-                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+                    stack.enter_context(patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value={"documents": [], "status": "no_match", "used_fallback": False}))
                     stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
                     stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
                     with self.assertRaises(HTTPException) as raised:
@@ -305,7 +306,7 @@ class InferenceContractTests(unittest.TestCase):
             stack.enter_context(patch.object(
                 quantum_app, "retrieve_approved_qa", return_value={"matched": False}
             ))
-            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value={"documents": [], "status": "no_match", "used_fallback": False}))
             stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
             stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
             with self.assertRaises(HTTPException) as raised:
@@ -340,7 +341,7 @@ class InferenceContractTests(unittest.TestCase):
             stack.enter_context(patch.object(
                 quantum_app, "retrieve_approved_qa", return_value={"matched": False}
             ))
-            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge", return_value=[]))
+            stack.enter_context(patch.object(quantum_app, "retrieve_knowledge_diagnostic", return_value={"documents": [], "status": "no_match", "used_fallback": False}))
             stack.enter_context(patch.object(quantum_app, "build_knowledge_context", return_value=""))
             stack.enter_context(patch.object(quantum_app, "serialize_knowledge_sources", return_value=[]))
             result = quantum_app.generate(
@@ -350,6 +351,46 @@ class InferenceContractTests(unittest.TestCase):
         self.assertEqual(result["answer"], "답변입니다.")
         self.assertEqual(result["generated_tokens"], 6)
         self.assertEqual(result["generation_stop_reason"], "separator")
+
+
+    def test_sqlite_connection_failure_is_reported_and_model_generation_continues(self):
+        class FakeTokenizer:
+            vocab = ["<unk>", "가", "나"]
+
+            def encode(self, _text):
+                return [1]
+
+            def decode(self, _ids):
+                return "검색 장애와 무관한 후보 답변입니다."
+
+        class FakeModel:
+            def __call__(self, input_ids):
+                logits = torch.zeros((1, input_ids.shape[1], 3))
+                logits[:, :, 2] = 5.0
+                return logits
+
+        from contextlib import ExitStack
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(quantum_app, "model", FakeModel()))
+            stack.enter_context(patch.object(quantum_app, "tokenizer", FakeTokenizer()))
+            stack.enter_context(patch.object(
+                quantum_app, "retrieve_approved_qa", return_value={"matched": False}
+            ))
+            stack.enter_context(patch.object(
+                quantum_app, "knowledge_db", side_effect=sqlite3.OperationalError("private db path")
+            ))
+            result = quantum_app.generate(
+                quantum_app.GenerateRequest(prompt="새 질문", max_new_tokens=8),
+                authorization="Bearer candidate-test-token",
+            )
+
+        self.assertEqual(result["response_mode"], "model_generation")
+        self.assertEqual(result["answer"], "검색 장애와 무관한 후보 답변입니다.")
+        self.assertEqual(result["knowledge_retrieval"], {
+            "status": "search_unavailable",
+            "used_fallback": False,
+            "source_count": 0,
+        })
 
 
 if __name__ == "__main__":
