@@ -148,6 +148,42 @@ class QuantumRetrievalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             retrieve("질문", self.rows, min_margin=False)
 
+    def test_query_must_be_a_string_without_implicit_coercion(self):
+        for query in (None, 123, True, ["민주주의"]):
+            with self.subTest(query=query):
+                with self.assertRaisesRegex(ValueError, "문자열"):
+                    retrieve(query, self.rows)
+
+    def test_approved_index_must_be_a_list_or_tuple(self):
+        for rows in ("문자열", {"question": "민주주의란 무엇인가요?"}, iter(self.rows)):
+            with self.subTest(rows_type=type(rows).__name__):
+                with self.assertRaisesRegex(ValueError, "list 또는 tuple"):
+                    retrieve("민주주의란 무엇인가요?", rows)
+
+    def test_malformed_approved_rows_are_rejected_instead_of_coerced(self):
+        invalid_rows = [
+            {"question": 123, "answer": "충분히 긴 답변입니다.", "approved": True},
+            {"question": "민주주의란 무엇인가요?", "answer": 456, "approved": True},
+        ]
+        for row in invalid_rows:
+            with self.subTest(row=row):
+                with self.assertRaisesRegex(ValueError, "문자열"):
+                    retrieve("민주주의란 무엇인가요?", [row])
+
+    def test_malformed_unapproved_rows_remain_ignored(self):
+        result = retrieve(
+            "민주주의란 무엇인가요?",
+            [{"question": 123, "answer": None, "approved": False}],
+        )
+        self.assertFalse(result["matched"])
+        self.assertEqual(result["rejection_reason"], "no_candidate")
+
+    def test_content_tokenizer_rejects_non_string_input(self):
+        for value in (None, 123, True):
+            with self.subTest(value=value):
+                with self.assertRaises(TypeError):
+                    token_similarity(value, "정상적인 문자열")
+
     def test_empty_index_rejects(self):
         self.assertFalse(retrieve("질문", [])["matched"])
 
