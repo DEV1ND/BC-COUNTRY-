@@ -188,6 +188,8 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             self.assertEqual(result["status"], "ok")
             self.assertFalse(result["used_fallback"])
             self.assertEqual(result["documents"][0]["title"], "태양계")
+            self.assertEqual(result["documents"][0]["page_id"], "1")
+            self.assertEqual(result["documents"][0]["revision_id"], "12345")
         finally:
             conn.close()
 
