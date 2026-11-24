@@ -290,6 +290,7 @@ async function approvePage(request,env,identity){
   const note=String(body.note||"").trim().slice(0,1000);
   const referenceUrl=String(body.reference_url||"").trim().slice(0,2000);
   if(!id)return json({error:"id_required"},400);
+  if(note.length<20)return json({error:"review_summary_too_short"},400);
   let reference;
   try{reference=new URL(referenceUrl);}catch{return json({error:"independent_reference_required"},400);}
   if(reference.protocol!=="https:"||reference.hostname==="ko.wikipedia.org"||reference.hostname.endsWith(".wikipedia.org"))
