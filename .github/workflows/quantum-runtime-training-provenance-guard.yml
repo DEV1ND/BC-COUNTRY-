@@ -11,6 +11,8 @@ on:
       - "QUANTUM_CANDIDATE_CHECKPOINT_CONTRACT.md"
       - "runtime_training_provenance_guard.py"
       - "startup_model_restore_guard.py"
+      - "inference_readiness_guard.py"
+      - "test_inference_readiness_guard.py"
       - "test_startup_model_restore_safety.py"
       - "test_runtime_training_provenance_guard.py"
       - "test_training_provenance.py"
@@ -41,6 +43,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile runtime guard
-        run: python -m py_compile app.py runtime_training_provenance_guard.py startup_model_restore_guard.py test_startup_model_restore_safety.py test_runtime_training_provenance_guard.py training_provenance.py test_training_provenance.py test_training_data_quality.py candidate_checkpoint_contract.py test_candidate_checkpoint_contract.py test_quantum_benchmark_integrity.py
+        run: python -m py_compile app.py runtime_training_provenance_guard.py startup_model_restore_guard.py inference_readiness_guard.py test_inference_readiness_guard.py test_startup_model_restore_safety.py test_runtime_training_provenance_guard.py training_provenance.py test_training_provenance.py test_training_data_quality.py candidate_checkpoint_contract.py test_candidate_checkpoint_contract.py test_quantum_benchmark_integrity.py
       - name: Run guard tests
-        run: python -m unittest -v test_startup_model_restore_safety.py test_runtime_training_provenance_guard.py test_training_provenance.py test_training_data_quality.py test_candidate_checkpoint_contract.py test_quantum_benchmark_integrity.py
+        run: python -m unittest -v test_startup_model_restore_safety.py test_inference_readiness_guard.py test_runtime_training_provenance_guard.py test_training_provenance.py test_training_data_quality.py test_candidate_checkpoint_contract.py test_quantum_benchmark_integrity.py

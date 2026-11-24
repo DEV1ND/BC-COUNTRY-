@@ -3,11 +3,12 @@ from pathlib import Path
 from typing import Optional
 from runtime_training_provenance_guard import audit_runtime_training_provenance
 from startup_model_restore_guard import should_bootstrap_remote_model
+from inference_readiness_guard import resolve_inference_readiness
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Header, BackgroundTasks, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import httpx
@@ -100,7 +101,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False,
 
 model_lock = threading.RLock()
 train_start_lock = threading.Lock()
-training_state = {"status": "idle", "step": 0, "trained_pairs": 0, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 3, "progress": 0, "architecture": ARCH_ID}
+training_state = {"status": "idle", "step": 0, "trained_pairs": 0, "last_error": None, "last_loss": None, "validation_loss": None, "updated_at": None, "model_version": 3, "progress": 0, "architecture": ARCH_ID, "inference_ready": False, "local_weights_loaded": False}
 if STATE_PATH.exists():
     try:
         saved_state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
@@ -245,6 +246,8 @@ async def _restore_remote_model(model: JuckexModel):
     raw = base64.b64decode(body["model"])
     _load_npz(model, raw)
     LOCAL_MODEL.write_bytes(raw)
+    training_state["local_weights_loaded"] = True
+    training_state["loaded_weights_from"] = "remote-worker"
     training_state["step"] = int(body.get("step", 2000))
     training_state["model_version"] = int(body.get("version", 1))
     return True
@@ -252,10 +255,13 @@ async def _restore_remote_model(model: JuckexModel):
 
 def _initial_model():
     m = JuckexModel().to(DEVICE)
+    training_state["local_weights_loaded"] = False
+    training_state["inference_ready"] = False
     source = LOCAL_MODEL if LOCAL_MODEL.exists() else BASE_WEIGHTS
     try:
         _load_npz(m, source.read_bytes())
         training_state["loaded_weights_from"] = str(source.name)
+        training_state["local_weights_loaded"] = True
     except Exception as exc:
         # 구조가 바뀐 구형 가중치는 새 모델에 억지로 끼우지 않고 새로 초기화합니다.
         training_state["legacy_weights_detected"] = str(exc)[:240]
@@ -264,33 +270,64 @@ def _initial_model():
 model = _initial_model()
 @app.on_event("startup")
 async def startup_restore():
+    restore_failed = False
+    local_weights_loaded = bool(training_state.get("local_weights_loaded"))
+    training_state.pop("remote_model_restore_blocked", None)
+    training_state.pop("remote_model_restore_error", None)
+    training_state.pop("model_bootstrap_blocked", None)
+    ok = False
     try:
-        restore_failed = False
         try:
             with model_lock:
                 ok = await _restore_remote_model(model)
         except Exception as restore_error:
             # A failed or incompatible remote restore is NOT proof that no model exists.
-            # Preserve the remote production object and fail closed instead of bootstrapping over it.
+            # Do not serve a stale local fallback or overwrite the remote production object.
             training_state["remote_model_restore_blocked"] = True
             training_state["remote_model_restore_error"] = str(restore_error)[:240]
             training_state["legacy_remote_model_detected"] = str(restore_error)[:240]
             restore_failed = True
             ok = False
-        if should_bootstrap_remote_model(ok, restore_failed) and WORKER_URL and SYNC_TOKEN:
-            # Bootstrap only when the Worker explicitly returned "no model" (404).
+
+        if should_bootstrap_remote_model(ok, restore_failed, local_weights_loaded) and WORKER_URL and SYNC_TOKEN:
+            # Bootstrap only from a validated local checkpoint after an explicit remote 404.
             raw = _save_local(model, int(training_state.get("step", 0)))
             ok = await _persist_model(raw, int(training_state.get("step", 0)))
+        elif not ok and not restore_failed and not local_weights_loaded:
+            # Never persist randomly initialized parameters as the first production model.
+            training_state["model_bootstrap_blocked"] = "no_valid_local_weights"
+
         training_state["remote_storage"] = bool(ok)
+        training_state["inference_ready"] = resolve_inference_readiness(
+            ok, restore_failed, local_weights_loaded
+        )
         training_state["architecture"] = ARCH_ID
         training_state["parameter_count"] = sum(p.numel() for p in model.parameters())
-        if os.getenv("JUCKEX_BOOTSTRAP_TRAIN", "0") == "1" and not training_state.get("bootstrap_train_done"):
+        if not training_state["inference_ready"]:
+            training_state["inference_block_reason"] = (
+                "remote_model_restore_failed" if restore_failed else "no_valid_model_weights"
+            )
+        else:
+            training_state.pop("inference_block_reason", None)
+
+        if (
+            training_state["inference_ready"]
+            and os.getenv("JUCKEX_BOOTSTRAP_TRAIN", "0") == "1"
+            and not training_state.get("bootstrap_train_done")
+        ):
             training_state["bootstrap_train_done"] = True
             training_state.update({"status": "queued", "progress": 0, "last_error": None, "bootstrap_train_started_at": int(time.time())})
             save_training_state()
             asyncio.create_task(_train_background(250))
     except Exception as e:
         training_state["remote_storage_error"] = str(e)[:300]
+        training_state["inference_ready"] = resolve_inference_readiness(
+            False,
+            bool(training_state.get("remote_model_restore_blocked")),
+            bool(training_state.get("local_weights_loaded")),
+        )
+        if not training_state["inference_ready"]:
+            training_state["inference_block_reason"] = "startup_restore_incomplete"
 
 
 def encode_text(text: str):
@@ -950,17 +987,50 @@ def generate(prompt, max_new_tokens=180, temperature=0.8, top_k=35, question=Non
 
 @app.get("/")
 def root():
-    return {"service": "juckex", "status": "ready", "model": "from-scratch-char-transformer", "training_step": training_state["step"], "training": training_state["status"]}
+    ready = bool(training_state.get("inference_ready", False))
+    return {
+        "service": "juckex",
+        "status": "ready" if ready else "degraded",
+        "inference_ready": ready,
+        "model": "from-scratch-char-transformer",
+        "training_step": training_state["step"],
+        "training": training_state["status"],
+    }
+
 
 @app.get("/health")
-def health():
-    return {"ok": True, "vocab_size": VOCAB, "layers": LAYERS, "heads": HEADS, "embedding": EMBD, "context_length": BLOCK, "parameter_count": sum(p.numel() for p in model.parameters()), "architecture": ARCH_ID, "training": training_state["status"], "remote_storage_configured": bool(WORKER_URL and SYNC_TOKEN)}
+def health(response: Response):
+    ready = bool(training_state.get("inference_ready", False))
+    response.status_code = 200 if ready else 503
+    return {
+        "ok": ready,
+        "inference_ready": ready,
+        "local_weights_loaded": bool(training_state.get("local_weights_loaded")),
+        "remote_model_restore_blocked": bool(training_state.get("remote_model_restore_blocked")),
+        "inference_block_reason": training_state.get("inference_block_reason"),
+        "vocab_size": VOCAB,
+        "layers": LAYERS,
+        "heads": HEADS,
+        "embedding": EMBD,
+        "context_length": BLOCK,
+        "parameter_count": sum(p.numel() for p in model.parameters()),
+        "architecture": ARCH_ID,
+        "training": training_state["status"],
+        "remote_storage_configured": bool(WORKER_URL and SYNC_TOKEN),
+    }
+
 
 @app.post("/generate")
 def generate_api(req: GenerateRequest, x_juckex_token: Optional[str] = Header(default=None)):
     auth(x_juckex_token)
+    if not training_state.get("inference_ready", False):
+        raise HTTPException(
+            status_code=503,
+            detail="유효한 Quantum 모델 가중치를 확인하지 못해 추론을 일시 중단했습니다.",
+        )
     result = generate(req.prompt, req.max_new_tokens, req.temperature, req.top_k, req.question)
     return {"text": result, "training_step": training_state["step"], "model": "juckex", "output_length": len(result)}
+
 
 @app.get("/model/benchmark")
 def model_benchmark():
