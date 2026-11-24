@@ -89,7 +89,7 @@ test("manual Wikipedia exports include a timezone-aware review timestamp", () =>
 test("manual approval requires a verified Cloudflare Access identity in addition to ADMIN_TOKEN", () => {
   assert.match(worker, /verifyCloudflareAccessIdentity\(request,env\)/);
   assert.match(worker, /makeVerifiedReviewNote\(note,referenceUrl,identity\)/);
-  assert.match(worker, /reviewer_identity_verified:true/);
+  assert.match(worker, /parseVerifiedReviewNote\(row\.reviewer_note,row\.reviewed_at\)/);
   const route = worker.slice(worker.indexOf('url.pathname==="/approve"'));
   assert.match(route, /verification\.ok/);
   assert.match(route, /approvePage\(request,env,verification\.identity\)/);
