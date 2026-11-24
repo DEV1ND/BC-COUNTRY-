@@ -18,18 +18,41 @@ def summarize_tokenizer_usage(tokenizer, texts, label="corpus"):
     unknown_tokens = 0
     merged_tokens = 0
     empty_texts = 0
+    hangul_syllable_codepoints = 0
+    hangul_jamo_codepoints = 0
+    hangul_tokens = 0
+    single_hangul_syllable_tokens = 0
+    total_hangul_syllables_in_tokens = 0
 
     for text in texts:
         total_codepoints += len(text)
+        hangul_syllable_codepoints += sum(
+            1 for char in text if 0xAC00 <= ord(char) <= 0xD7A3
+        )
+        hangul_jamo_codepoints += sum(
+            1 for char in text
+            if 0x1100 <= ord(char) <= 0x11FF
+            or 0x3130 <= ord(char) <= 0x318F
+            or 0xA960 <= ord(char) <= 0xA97F
+            or 0xD7B0 <= ord(char) <= 0xD7FF
+        )
         if not text:
             empty_texts += 1
         ids = tokenizer.encode(text)
         total_tokens += len(ids)
         unknown_tokens += sum(1 for token_id in ids if token_id == 0)
-        merged_tokens += sum(
-            1 for token_id in ids
-            if token_id != 0 and len(tokenizer.itos.get(token_id, "")) > 1
-        )
+        for token_id in ids:
+            if token_id == 0:
+                continue
+            piece = tokenizer.itos.get(token_id, "")
+            merged_tokens += int(len(piece) > 1)
+            piece_hangul_syllables = sum(
+                1 for char in piece if 0xAC00 <= ord(char) <= 0xD7A3
+            )
+            if piece_hangul_syllables:
+                hangul_tokens += 1
+                total_hangul_syllables_in_tokens += piece_hangul_syllables
+                single_hangul_syllable_tokens += int(piece_hangul_syllables == 1)
         if tokenizer.decode(ids) != text:
             raise ValueError("tokenizer round-trip failed during diagnostics")
 
@@ -61,6 +84,15 @@ def summarize_tokenizer_usage(tokenizer, texts, label="corpus"):
         ),
         "vocab_size": len(tokenizer.vocab),
         "multi_codepoint_vocab_entries": merge_vocab_size,
+        "hangul_syllable_codepoints": hangul_syllable_codepoints,
+        "hangul_jamo_codepoints": hangul_jamo_codepoints,
+        "hangul_tokens": hangul_tokens,
+        "single_hangul_syllable_token_ratio": round(
+            single_hangul_syllable_tokens / hangul_tokens if hangul_tokens else 0.0, 6
+        ),
+        "average_hangul_syllables_per_token": round(
+            total_hangul_syllables_in_tokens / hangul_tokens if hangul_tokens else 0.0, 4
+        ),
         "round_trip_verified": True,
         "interpretation_limit": (
             "Tokenization coverage and compression only; not a language-quality score."
