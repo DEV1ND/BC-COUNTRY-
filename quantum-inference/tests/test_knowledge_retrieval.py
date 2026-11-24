@@ -281,6 +281,29 @@ class KnowledgeRetrievalTests(unittest.TestCase):
                 with self.assertRaises(TypeError):
                     build_fts_query(value)
 
+    def test_query_length_is_bounded_before_tokenization(self):
+        oversized = "태양계 " * 1001
+        with self.assertRaisesRegex(ValueError, "2000자를 초과"):
+            query_terms(oversized)
+        with self.assertRaisesRegex(ValueError, "2000자를 초과"):
+            build_fts_query(oversized)
+
+    def test_query_terms_are_bounded_to_sixty_four_unique_terms(self):
+        question = " ".join(f"term{index}" for index in range(100))
+        terms = query_terms(question)
+        self.assertEqual(len(terms), 64)
+        self.assertEqual(terms[0], "term0")
+        self.assertEqual(terms[-1], "term63")
+        self.assertEqual(len(set(terms)), 64)
+
+    def test_query_term_bound_keeps_first_occurrence_order(self):
+        question = "태양계 행성 태양계 달 " + " ".join(
+            f"topic{index}" for index in range(70)
+        )
+        terms = query_terms(question)
+        self.assertEqual(terms[:4], ["태양계", "행성", "달", "topic0"])
+        self.assertEqual(len(terms), 64)
+
     def test_fts_term_limit_requires_bounded_integer(self):
         for value in (True, 1.5, "5", 0, 21):
             with self.subTest(value=value):
