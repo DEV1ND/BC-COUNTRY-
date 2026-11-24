@@ -43,7 +43,7 @@ Validation loss only measures next-token prediction on the held-out text. It is 
 
 The Worker exposes an admin-authenticated, paginated `/export-candidate` endpoint. It has two explicit trust classes:
 
-- `--corpus manual`: only `approved` rows with a `MANUAL_APPROVAL:` review record.
+- `--corpus manual`: only `approved` rows with a `MANUAL_APPROVAL_V2:` review record.
 - `--corpus unverified`: only `pending_review` rows, labeled `unverified_experimental` by the training pipeline.
 
 Legacy `AUTO_REVIEW` approvals are excluded from both. The endpoint returns at most 10 documents per request and does not change D1 state. Export locally with Python's standard library:
