@@ -165,3 +165,8 @@ Candidate generation suppresses Wikipedia citations when the retrieved knowledge
 ### Candidate generation context-window diagnostics
 
 The model-generation response includes a `context_diagnostics` object calculated from the active tokenizer output and the configured model block size. It reports the block size, raw question-text tokens, formatted question-prompt tokens (including the prompt markers), retrieved context tokens before truncation, context tokens actually included, dropped context tokens, total prompt tokens, remaining generation capacity, truncation state, and the current `keep_tail` context policy. These values are token-budget accounting, not a measure of semantic coverage, factual support, or answer quality. The remaining generation capacity describes unused input-window positions at prompt construction time; the request's separate `max_new_tokens` limit and generation loop determine actual output length.
+
+
+### Candidate runtime output-shape diagnostics
+
+The generation response also includes `output_shape_diagnostics` from `generation_output_diagnostics.py`. It reports visible whitespace-token fragmentation and repeated three-token sequence patterns. A repetition warning requires at least 12 lexical tokens, at least two repeated trigram occurrences, and a repeated-occurrence ratio of at least 0.20. These conservative thresholds are anomaly flags only; they do not automatically reject an answer or measure fluency, factuality, correctness, or overall quality. The same helper is used by the held-out benchmark and runtime API so both paths report the same diagnostic definitions.
