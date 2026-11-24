@@ -4,22 +4,28 @@ on:
   push:
     branches:
       - quantum-candidate-review-attestation-verifier
+      - quantum-candidate-review-attestation-issuer
     paths:
       - "quantum_review_attestation.py"
       - "test_quantum_review_attestation.py"
       - "quantum_human_review.py"
       - "test_quantum_human_review.py"
+      - "cloudflare-workers/review_attestation.mjs"
+      - "cloudflare-workers/tests/review-attestation.test.mjs"
       - ".github/workflows/quantum-review-attestation.yml"
   pull_request:
     branches:
       - quantum-candidate-human-review-identity-gate
       - quantum-candidate-review-attestation-verifier
+      - quantum-candidate-review-attestation-issuer
     paths:
       - "quantum_review_attestation.py"
       - "test_quantum_review_attestation.py"
       - "quantum_human_review.py"
       - "test_quantum_human_review.py"
       - "QUANTUM_REVIEW_ATTESTATION.md"
+      - "cloudflare-workers/review_attestation.mjs"
+      - "cloudflare-workers/tests/review-attestation.test.mjs"
       - ".github/workflows/quantum-review-attestation.yml"
 
 permissions:
@@ -37,3 +43,8 @@ jobs:
         run: python -m py_compile quantum_review_attestation.py quantum_human_review.py
       - name: Run signed-attestation and human-review tests
         run: python -m unittest -v test_quantum_review_attestation test_quantum_human_review
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test Cloudflare Worker attestation signer
+        run: node --test cloudflare-workers/tests/review-attestation.test.mjs
