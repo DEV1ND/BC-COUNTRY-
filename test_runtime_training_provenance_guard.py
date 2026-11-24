@@ -70,6 +70,67 @@ class RuntimeTrainingProvenanceGuardTests(unittest.TestCase):
                 "source": "curated",
             }])
 
+    def test_runtime_training_function_invokes_provenance_gate(self):
+        import ast
+        from pathlib import Path
+
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        train_fn = next(
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_train_background"
+        )
+        calls = [
+            node for node in ast.walk(train_fn)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "audit_runtime_training_provenance"
+        ]
+        self.assertEqual(len(calls), 1)
+
+    def test_runtime_gate_occurs_before_optimizer_step(self):
+        import ast
+        from pathlib import Path
+
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        train_fn = next(
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_train_background"
+        )
+        gate_lines = [
+            node.lineno for node in ast.walk(train_fn)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "audit_runtime_training_provenance"
+        ]
+        optimizer_lines = [
+            node.lineno for node in ast.walk(train_fn)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "step"
+        ]
+        self.assertEqual(len(gate_lines), 1)
+        self.assertTrue(optimizer_lines)
+        self.assertLess(gate_lines[0], min(optimizer_lines))
+
+    def test_runtime_audit_report_does_not_write_raw_questions(self):
+        import ast
+        from pathlib import Path
+
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        train_fn = next(
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_train_background"
+        )
+        source_text = ast.get_source_segment(source, train_fn)
+        self.assertIn("runtime_training_provenance_audit.json", source_text)
+        self.assertIn("audit_runtime_training_provenance(pairs)", source_text)
+
 
 if __name__ == "__main__":
     unittest.main()
