@@ -296,6 +296,34 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_index_search_distinguishes_mixed_source_and_integrity_rejections(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            conn.execute(
+                "UPDATE knowledge_docs SET attribution='잘못된 출처 정보'"
+            )
+            title = "태양계 행성"
+            url = "https://ko.wikipedia.org/wiki/태양계_행성"
+            body = "태양계 행성에 관한 추가 문서 내용입니다."
+            attribution = (
+                f"Wikipedia contributors, {title}, {url}; licensed under "
+                "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)."
+            )
+            conn.execute(
+                "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?,?,?)",
+                (
+                    "99", title, url, body, attribution, "CC BY-SA 4.0",
+                    "99999", "0" * 64,
+                ),
+            )
+            result = search_knowledge_index(conn, "태양계 행성")
+            self.assertEqual(result["status"], "document_metadata_invalid")
+            self.assertEqual(result["documents"], [])
+            self.assertEqual(result["rejected_source_rows"], 1)
+            self.assertEqual(result["rejected_integrity_rows"], 1)
+        finally:
+            conn.close()
+
     def test_index_search_reports_database_failure(self):
         conn = sqlite3.connect(":memory:")
         try:
