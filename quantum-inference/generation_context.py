@@ -43,7 +43,7 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
     retrieved_context_tokens = len(context_ids)
     truncated = retrieved_context_tokens > budget
     if budget:
-        context_ids = context_ids[-budget:]
+        context_ids = context_ids[:budget]
     else:
         context_ids = []
     prompt_ids = context_ids + question_ids
@@ -59,6 +59,6 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
         "prompt_tokens": len(prompt_ids),
         "remaining_generation_capacity": max(0, block_size - len(prompt_ids)),
         "context_truncated": truncated,
-        "context_policy": "keep_tail",
+        "context_policy": "keep_head",
     }
     return prompt_ids, truncated, diagnostics
