@@ -548,6 +548,24 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_domain_alias_expansion_cannot_exceed_query_term_limit(self):
+        from knowledge_retrieval import MAX_QUERY_TERMS
+
+        base_terms = [f"항목{chr(0xAC00 + index)}점" for index in range(MAX_QUERY_TERMS - 1)]
+        base_terms[0] = "화학자"
+        terms = query_terms(" ".join(base_terms))
+        self.assertLessEqual(len(terms), MAX_QUERY_TERMS)
+        self.assertIn("화학", terms)
+
+    def test_alias_expansion_respects_full_query_term_budget(self):
+        from knowledge_retrieval import MAX_QUERY_TERMS
+
+        base_terms = [f"항목{chr(0xAC00 + index)}점" for index in range(MAX_QUERY_TERMS)]
+        base_terms[0] = "화학자"
+        terms = query_terms(" ".join(base_terms))
+        self.assertEqual(len(terms), MAX_QUERY_TERMS)
+        self.assertNotIn("화학", terms)
+
 
 if __name__ == "__main__":
     unittest.main()
