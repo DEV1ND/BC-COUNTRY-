@@ -5,6 +5,7 @@ on:
     branches:
       - quantum-candidate-review-attestation-replay-guard
     paths:
+      - "test_review_nonce_migration.py"
       - "cloudflare-workers/review_nonce_store.mjs"
       - "cloudflare-workers/tests/review-nonce-store.test.mjs"
       - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
@@ -34,3 +35,8 @@ jobs:
           node-version: "22"
       - name: Test D1 nonce replay guard
         run: node --test cloudflare-workers/tests/review-nonce-store.test.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate migration and unique nonce behavior with SQLite
+        run: python -m unittest -v test_review_nonce_migration
