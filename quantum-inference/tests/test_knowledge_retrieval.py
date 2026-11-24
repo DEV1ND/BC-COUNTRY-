@@ -134,7 +134,7 @@ class KnowledgeRetrievalTests(unittest.TestCase):
 
     def test_rank_limit_requires_bounded_integer(self):
         rows = [{"title": "태양계", "text": "태양계 행성", "url": "x"}]
-        for value in (True, 1.5, "2", 0, 11):
+        for value in (True, 1.5, "2", 0, 101):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     rank_documents("태양계", rows, limit=value)
@@ -200,6 +200,39 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             self.assertEqual(result["status"], "fts_fallback")
             self.assertTrue(result["used_fallback"])
             self.assertEqual(result["documents"][0]["title"], "태양계")
+        finally:
+            conn.close()
+
+    def test_invalid_high_ranked_rows_do_not_hide_valid_rows_below_result_limit(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            for index in range(4):
+                title = "태양계 행성"
+                url = f"https://ko.wikipedia.org/wiki/태양계_행성_{index}"
+                body = "태양계 행성에 관한 문서 내용입니다."
+                conn.execute(
+                    "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?,?,?)",
+                    (
+                        str(index + 10), title, url, body,
+                        "불완전한 출처 표시", "CC BY-SA 4.0", str(20000 + index),
+                        hashlib.sha256(body.encode("utf-8")).hexdigest(),
+                    ),
+                )
+            result = search_knowledge_index(conn, "태양계 행성", limit=1)
+            self.assertEqual(result["status"], "fts_fallback")
+            self.assertEqual(len(result["documents"]), 1)
+            self.assertEqual(result["documents"][0]["page_id"], "1")
+            self.assertEqual(result["rejected_source_rows"], 4)
+        finally:
+            conn.close()
+
+    def test_search_limit_requires_bounded_integer(self):
+        conn = self._knowledge_connection(include_fts=False)
+        try:
+            for value in (True, 0, 11, 1.5, "3"):
+                with self.subTest(limit=value):
+                    with self.assertRaises(ValueError):
+                        search_knowledge_index(conn, "태양계", limit=value)
         finally:
             conn.close()
 
