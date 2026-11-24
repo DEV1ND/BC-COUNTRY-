@@ -192,7 +192,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             with patch("export_wikipedia_corpus.fetch_page", return_value={
                 "documents": [row], "has_more": False, "next_after": None
             }):
-                with self.assertRaisesRegex(RuntimeError, "verified reviewer identity"):
+                with self.assertRaisesRegex(RuntimeError, "structured human review record"):
                     export_corpus("https://example.workers.dev", "token", "manual", destination)
             self.assertFalse(destination.exists())
 
