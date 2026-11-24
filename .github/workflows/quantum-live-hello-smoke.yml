@@ -26,8 +26,7 @@ jobs:
           python - <<'PY'
           import json
           import os
-          import sys
-          import urllib.error
+                    import urllib.error
           import urllib.request
 
           base = "https://juckex-quantum-candidate.onrender.com"
@@ -128,7 +127,16 @@ jobs:
               "timing": direct_result.get("timing"),
               "quality_warning": direct_result.get("quality_warning"),
           }, ensure_ascii=False))
-          if direct_result.get("response_mode") != "model_generation" or direct_result.get("is_model_generation") is not True:
-              print("DIRECT_GENERATION_BLOCKED: prompt was answered by a non-Transformer path.")
+          # Older Candidate deployments identify this path by model name and
+          # is_live_inference; newer responses additionally expose response_mode.
+          direct_model_confirmed = (
+              direct_result.get("model") == "quantum-bpe-candidate"
+              and direct_result.get("is_live_inference") is True
+              and direct_result.get("answer") is not None
+          )
+          response_mode = direct_result.get("response_mode")
+          if not direct_model_confirmed or response_mode not in (None, "model_generation"):
+              print("DIRECT_GENERATION_BLOCKED: response did not identify the Candidate Transformer path.")
               raise SystemExit(1)
+          print("DIRECT_GENERATION_CONFIRMED: the Candidate Transformer produced this output; quality still requires human evaluation.")
           PY
