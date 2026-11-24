@@ -49,6 +49,17 @@ class BPECandidate(nn.Module):
         return self.output(self.norm(x))
 
 
+def _valid_timezone_aware_timestamp(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        from datetime import datetime
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
+
+
 def load_corpus(path, allow_unverified):
     docs, seen = [], set()
     rejected = {"invalid_json": 0, "invalid_metadata": 0, "duplicate": 0,
