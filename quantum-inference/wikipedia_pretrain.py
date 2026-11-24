@@ -13,6 +13,7 @@ import random
 import re
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import torch
 import torch.nn as nn
@@ -47,6 +48,22 @@ class BPECandidate(nn.Module):
         x = self.token(ids) + self.position(torch.arange(length, device=ids.device))
         x = self.encoder(x, mask=self.causal[:length, :length])
         return self.output(self.norm(x))
+
+
+def _is_independent_https_reference(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = urlparse(value.strip())
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").lower()
+    return (
+        parsed.scheme == "https"
+        and bool(host)
+        and host != "wikipedia.org"
+        and not host.endswith(".wikipedia.org")
+    )
 
 
 def _valid_timezone_aware_timestamp(value):
@@ -101,13 +118,12 @@ def load_corpus(path, allow_unverified):
                 and review.get("identity_provider") == "cloudflare_access"
                 and isinstance(review.get("reviewer"), str)
                 and bool(review["reviewer"].strip())
+                and "@" in review["reviewer"]
                 and isinstance(review.get("reviewer_subject"), str)
                 and bool(review["reviewer_subject"].strip())
                 and isinstance(review.get("review_note"), str)
                 and len(review["review_note"].strip()) >= 20
-                and isinstance(review.get("reference_url"), str)
-                and review["reference_url"].startswith("https://")
-                and "wikipedia.org" not in review["reference_url"].lower().split("/")[2]
+                and _is_independent_https_reference(review.get("reference_url"))
                 and isinstance(reviewed_at, str)
                 and _valid_timezone_aware_timestamp(reviewed_at)
                 and review.get("reviewed_at") == reviewed_at
