@@ -347,6 +347,41 @@ def live_bits_per_char(sequences):
     return nll_sum / max(1, char_count) / math.log(2)
 
 
+def load_architecture_profile(path, args):
+    """Apply a reviewed, isolated model profile without touching Production."""
+    config = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(config, dict):
+        raise ValueError("모델 프로필은 JSON 객체여야 합니다.")
+    architecture = config.get("architecture")
+    if config.get("model_name") != "Quantum" or config.get("profile") != "10M":
+        raise ValueError("지원하지 않는 Quantum 모델 프로필입니다.")
+    if config.get("training_mode") != "isolated_smoke_test":
+        raise ValueError("10M 프로필은 격리된 smoke-test 학습만 허용합니다.")
+    if config.get("production_model_changes") is not False:
+        raise ValueError("프로필에서 Production 변경은 허용되지 않습니다.")
+    if config.get("promotion") != "manual_quality_review_required":
+        raise ValueError("모델 승격에는 사람의 품질 검토가 필요합니다.")
+    if not isinstance(architecture, dict) or architecture.get("type") != "causal_transformer":
+        raise ValueError("지원하지 않는 Transformer 구조입니다.")
+    width, heads, layers = architecture.get("width"), architecture.get("heads"), architecture.get("layers")
+    block_size, vocab_size = architecture.get("block_size"), architecture.get("vocab_size")
+    values = (width, heads, layers, block_size, vocab_size, config.get("target_parameters"))
+    if any(type(value) is not int or value <= 0 for value in values):
+        raise ValueError("모델 차원과 목표 파라미터는 양의 정수여야 합니다.")
+    if block_size != BLOCK:
+        raise ValueError(f"프로필 block_size({block_size})가 코드 BLOCK({BLOCK})과 다릅니다.")
+    if width % heads:
+        raise ValueError("Transformer width는 attention heads로 나누어져야 합니다.")
+    tolerance = config.get("parameter_tolerance")
+    if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or not 0 <= tolerance <= 0.05:
+        raise ValueError("parameter_tolerance는 0~0.05 범위여야 합니다.")
+    args.width, args.heads, args.layers = width, heads, layers
+    args.vocab_size = vocab_size
+    args.target_parameters = config["target_parameters"]
+    args.parameter_tolerance = float(tolerance)
+    return config
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--steps", type=int, default=1000)
@@ -356,8 +391,10 @@ def main():
     parser.add_argument("--heads", type=int, default=4)
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--target-parameters", type=int, default=0)
+    parser.add_argument("--profile-config", default=None, help="격리된 Quantum 아키텍처 프로필 JSON")
     parser.add_argument("--parameter-tolerance", type=float, default=0.02)
     args = parser.parse_args()
+    profile = load_architecture_profile(args.profile_config, args) if args.profile_config else None
     if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
         parser.error("width와 heads는 양수여야 하며 width는 heads로 나누어져야 합니다.")
     torch.set_num_threads(1)
@@ -518,6 +555,10 @@ def main():
     candidate_path = OUT
     torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
                 "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
+        "profile": profile.get("profile") if profile else "custom",
+        "profile_config": str(args.profile_config) if args.profile_config else None,
+        "target_parameters": args.target_parameters or None,
+        "parameter_tolerance": args.parameter_tolerance if args.target_parameters else None,
                 "steps": len(losses)}, candidate_path)
     report = {
         "created_at": int(time.time()),
