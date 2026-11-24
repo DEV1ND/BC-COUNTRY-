@@ -62,8 +62,20 @@ class BPETokenizer:
         for text in texts:
             chars = list(text)
             alphabet.update(chars)
-            if chars:
-                words.append(chars)
+            # Train merges inside non-whitespace runs only. Keep every whitespace
+            # codepoint as its own segment so BPE cannot learn across word,
+            # line, or indentation boundaries.
+            run = []
+            for char in chars:
+                if char.isspace():
+                    if run:
+                        words.append(run)
+                        run = []
+                    words.append([char])
+                else:
+                    run.append(char)
+            if run:
+                words.append(run)
         # Validation text contributes only single-character coverage, never merge counts.
         # This prevents unseen Korean syllables from breaking tokenizer round-trip checks.
         for text in (extra_alphabet_texts or ()):
