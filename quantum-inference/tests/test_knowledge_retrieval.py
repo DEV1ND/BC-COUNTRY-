@@ -55,6 +55,9 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             "영어를": "영어",
             "언어의": "언어",
             "회의에서": "회의",
+            "국가에서는": "국가",
+            "회의에서의": "회의",
+            "전문가에게는": "전문가",
         }
         for attached, expected in examples.items():
             with self.subTest(attached=attached):
