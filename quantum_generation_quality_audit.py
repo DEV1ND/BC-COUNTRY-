@@ -43,11 +43,17 @@ def _flatten_samples(payload):
                     samples.append(item)
     if not samples:
         raise ValueError("평가 보고서에서 samples를 찾을 수 없습니다.")
+    if any(not isinstance(sample, dict) for sample in samples):
+        raise ValueError("각 평가 sample은 JSON 객체여야 합니다.")
     return samples
 
 
 def audit_generation_report(payload, min_characters=12, low_overlap_threshold=0.12,
                             repetition_threshold=0.20):
+    if min_characters < 1:
+        raise ValueError("min_characters는 1 이상이어야 합니다.")
+    if not 0 <= low_overlap_threshold <= 1 or not 0 <= repetition_threshold <= 1:
+        raise ValueError("품질 경고 임계값은 0과 1 사이여야 합니다.")
     samples = _flatten_samples(payload)
     normalized_outputs = [
         normalize_answer(sample.get("generated_answer", sample.get("answer", "")))
@@ -71,7 +77,12 @@ def audit_generation_report(payload, min_characters=12, low_overlap_threshold=0.
             flags.append("internal_trigram_repetition")
 
         overlap = sample.get("reference_char_bigram_f1_proxy")
-        if isinstance(overlap, (int, float)) and overlap < low_overlap_threshold:
+        valid_overlap = (
+            isinstance(overlap, (int, float))
+            and not isinstance(overlap, bool)
+            and 0 <= overlap <= 1
+        )
+        if valid_overlap and overlap < low_overlap_threshold:
             flags.append("low_lexical_overlap_proxy")
         if output and output_counts[output] > 1:
             flags.append("duplicate_answer_across_samples")
@@ -90,9 +101,7 @@ def audit_generation_report(payload, min_characters=12, low_overlap_threshold=0.
             "reference_characters": reference_length,
             "generated_to_reference_length_ratio": round(length_ratio, 4),
             "character_trigram_repeat_ratio": round(repeat_ratio, 5),
-            "reference_char_bigram_f1_proxy": (
-                round(float(overlap), 5) if isinstance(overlap, (int, float)) else None
-            ),
+            "reference_char_bigram_f1_proxy": round(float(overlap), 5) if valid_overlap else None,
             "flags": flags,
             "requires_human_review": True,
         })
@@ -127,12 +136,9 @@ def main():
         raise SystemExit("--min-characters는 1 이상이어야 합니다.")
     payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
     report = audit_generation_report(payload, min_characters=args.min_characters)
-    Path(args.output).write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    print(json.dumps({
-        key: value for key, value in report.items() if key != "samples"
-    }, ensure_ascii=False, indent=2))
+    Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({key: value for key, value in report.items() if key != "samples"},
+                     ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
