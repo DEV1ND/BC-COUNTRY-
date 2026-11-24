@@ -18,6 +18,8 @@ on:
     paths:
       - "quantum_generation_quality_audit.py"
       - "test_quantum_generation_quality_audit.py"
+      - "quantum_human_review.py"
+      - "test_quantum_human_review.py"
       - "bpe_generation_seed_*.json"
       - "quantum_decoding_sweep.json"
       - ".github/workflows/quantum-generation-quality-audit.yml"
