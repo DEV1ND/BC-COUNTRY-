@@ -194,6 +194,10 @@ The lexical query normalizer preserves a conservative set of common Korean nouns
 
 The isolated inference-side BPE tokenizer rejects serialized merge rules when either input token contains whitespace. Training already keeps spaces, tabs, and line breaks as independent segments; constructor validation now enforces the same invariant when loading a tokenizer artifact, so a manually edited or malformed payload cannot reintroduce merges across word or line boundaries. This is a tokenizer-format integrity rule, not a Korean morphology feature or a language-quality improvement.
 
+## Retrieval benchmark iterable bounds
+
+The retrieval benchmark validates iterable inputs without first materializing the entire source. It consumes at most `max_cases + 1` items (default maximum: 500); the extra item is used only to detect an over-limit dataset. This also bounds generator inputs and prevents an unbounded iterator from being exhausted before the case-count check. Non-iterable inputs fail with a clear validation error. This is an input-resource safeguard and does not change retrieval metrics or model behavior.
+
 ## Retrieval query resource bounds
 
 The Korean retrieval query normalizer rejects questions longer than 2,000 Unicode characters before tokenization and retains at most 64 unique lexical terms in first-occurrence order. The FTS query builder applies its stricter caller-supplied term limit (10 by default). This bounds regex tokenization, ranking work, and fallback SQL parameter expansion for direct library callers as well as API callers. Oversized queries fail explicitly instead of being silently accepted; term-heavy queries retain their earliest distinct terms. This is an input/resource bound, not a relevance or answer-quality improvement.
