@@ -386,6 +386,10 @@ async def knowledge_search(request: Request, authorization: Optional[str] = Head
             "license": str(item.get("license", "")),
             "attribution": str(item.get("attribution", "")),
             "relevance_score": float(item.get("relevance_score", 0)),
+            "match_diagnostics": (
+                item.get("match_diagnostics")
+                if isinstance(item.get("match_diagnostics"), dict) else None
+            ),
             "excerpt": " ".join(str(item.get("text", "")).split())[:500],
         } for item in matches],
         "model_invoked": False,
