@@ -148,12 +148,15 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
             item["relevance_score"] = score
             ranked.append(item)
 
+    # Stable tie-breaking keeps identical candidate sets in the same order,
+    # regardless of SQLite/FTS row order or fallback query execution order.
     ranked.sort(
         key=lambda item: (
-            item["relevance_score"],
-            score_document(question, item.get("title", ""), item.get("title", "")),
-        ),
-        reverse=True,
+            -item["relevance_score"],
+            -score_document(question, item.get("title", ""), item.get("title", "")),
+            _norm(item.get("title", "")),
+            item.get("url", "").casefold(),
+        )
     )
     return ranked[:limit]
 
