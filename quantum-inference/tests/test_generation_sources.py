@@ -95,6 +95,33 @@ class GenerationSourcesTests(unittest.TestCase):
         self.assertIn("CC BY-SA 4.0", citations[0]["license"])
         self.assertTrue(citations[0]["attribution"])
 
+    def test_source_iterables_are_bounded_before_materialization(self):
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        rows = (source(title=f"문서 {index}") for index in range(MAX_KNOWLEDGE_SOURCES + 1))
+        with self.assertRaisesRegex(ValueError, "최대"):
+            serialize_knowledge_sources(rows)
+
+    def test_unbounded_source_generator_stops_after_limit_plus_one(self):
+        from itertools import count
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        consumed = []
+        def endless_rows():
+            for index in count():
+                consumed.append(index)
+                yield source(title=f"문서 {index}")
+
+        with self.assertRaisesRegex(ValueError, "최대"):
+            build_knowledge_context(endless_rows())
+        self.assertEqual(len(consumed), MAX_KNOWLEDGE_SOURCES + 1)
+
+    def test_exact_source_collection_limit_is_accepted(self):
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        rows = [source(title=f"문서 {index}") for index in range(MAX_KNOWLEDGE_SOURCES)]
+        self.assertEqual(len(serialize_knowledge_sources(rows)), MAX_KNOWLEDGE_SOURCES)
+
 
 if __name__ == "__main__":
     unittest.main()
