@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - quantum-candidate-review-attestation-replay-guard
+      - quantum-candidate-review-attestation-worker-routes
     paths:
       - "test_review_nonce_migration.py"
       - "cloudflare-workers/review_nonce_store.mjs"
+      - "cloudflare-workers/review_attestation.mjs"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/review-attestation-routes.test.mjs"
       - "cloudflare-workers/tests/review-nonce-store.test.mjs"
+      - "cloudflare-workers/tests/review-attestation.test.mjs"
+      - "cloudflare-workers/tests/review-attestation-routes.test.mjs"
       - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
       - "cloudflare-workers/REVIEW_NONCE_REPLAY_GUARD.md"
       - ".github/workflows/quantum-review-nonce-guard.yml"
@@ -15,6 +21,7 @@ on:
     branches:
       - quantum-candidate-review-attestation-issuer
       - quantum-candidate-review-attestation-replay-guard
+      - quantum-candidate-review-attestation-worker-routes
     paths:
       - "test_review_nonce_migration.py"
       - "cloudflare-workers/review_nonce_store.mjs"
@@ -34,8 +41,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Test D1 nonce replay guard
-        run: node --test cloudflare-workers/tests/review-nonce-store.test.mjs
+      - name: Test D1 nonce replay guard and Worker review routes
+        run: node --test cloudflare-workers/tests/review-nonce-store.test.mjs cloudflare-workers/tests/review-attestation.test.mjs cloudflare-workers/tests/review-attestation-routes.test.mjs
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
