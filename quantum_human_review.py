@@ -24,8 +24,8 @@ def _valid_timestamp(value):
     if not isinstance(value, str) or not value.strip():
         return False
     try:
-        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        return True
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return parsed.tzinfo is not None and parsed.utcoffset() is not None
     except ValueError:
         return False
 
@@ -81,9 +81,18 @@ def build_review_template(generation_report):
     }
 
 
-def summarize_reviews(review_payload):
+def summarize_reviews(review_payload, identity_verifier=None):
+    """Summarize ratings and verify reviewer identity through trusted application code.
+
+    A reviewer name or dataset boolean is not authentication. The optional verifier
+    must cryptographically validate a trusted attestation and return exactly True.
+    The CLI intentionally has no verifier configured and therefore cannot pass
+    the identity gate on its own.
+    """
     if not isinstance(review_payload, dict):
         raise ValueError("검토 파일은 JSON 객체여야 합니다.")
+    if identity_verifier is not None and not callable(identity_verifier):
+        raise ValueError("identity_verifier는 검증 함수여야 합니다.")
     if review_payload.get("schema") != "juckex-quantum-human-review-v1":
         raise ValueError("지원하지 않는 Quantum 사람 검토 양식입니다.")
     reviewer = review_payload.get("reviewer")
@@ -141,12 +150,27 @@ def summarize_reviews(review_payload):
         for dimension in DIMENSIONS
     }
     complete = not incomplete
-    quality_passed = (
+    ratings_quality_passed = (
         complete
         and all(averages[dimension] is not None and averages[dimension] >= 4.0 for dimension in DIMENSIONS)
         and factuality_below_three == 0
         and empty_generated == 0
     )
+    reviewer_identity_verified = False
+    if ratings_quality_passed and identity_verifier is not None:
+        try:
+            reviewer_identity_verified = identity_verifier(review_payload) is True
+        except Exception:
+            reviewer_identity_verified = False
+    human_review_passed = ratings_quality_passed and reviewer_identity_verified
+    if not complete:
+        status = "incomplete"
+    elif not ratings_quality_passed:
+        status = "not_passed"
+    elif not reviewer_identity_verified:
+        status = "identity_unverified"
+    else:
+        status = "passed"
     return {
         "schema": "juckex-quantum-human-review-summary-v1",
         "records_total": len(records),
@@ -157,8 +181,11 @@ def summarize_reviews(review_payload):
         "average_ratings": averages,
         "factuality_below_three_count": factuality_below_three,
         "empty_generated_answer_count": empty_generated,
-        "human_review_passed": quality_passed,
-        "status": "passed" if quality_passed else ("incomplete" if not complete else "not_passed"),
+        "ratings_quality_passed": ratings_quality_passed,
+        "reviewer_identity_verified": reviewer_identity_verified,
+        "identity_verifier_configured": identity_verifier is not None,
+        "human_review_passed": human_review_passed,
+        "status": status,
         "promotion": "사용자 승인 및 별도 배포 검증 전까지 운영 모델을 변경하지 않습니다.",
     }
 
