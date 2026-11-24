@@ -2,12 +2,49 @@ name: JUCKEX Quantum 10M extended training experiment
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, quantum-generation-quality]
+  pull_request:
+    branches: [quantum-data-repair]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
+      - 'training_data_quality.py'
+      - 'test_training_data_quality.py'
       - 'bpe_candidate_train.py'
+      - 'bpe_tokenizer.py'
+      - 'test_bpe_tokenizer_integrity.py'
+      - 'training_provenance.py'
+      - 'test_training_provenance.py'
+      - 'export_training_provenance_template.py'
+      - 'test_export_training_provenance_template.py'
+      - 'apply_training_provenance_review.py'
+      - 'test_apply_training_provenance_review.py'
+      - 'test_bpe_candidate_pipeline.py'
+      - 'quantum_human_review.py'
+      - 'test_quantum_human_review.py'
+      - 'test_quality_benchmark.py'
+      - 'quantum_retrieval.py'
+      - 'test_quantum_retrieval.py'
+      - 'quantum_generation_eval.py'
+      - '.github/workflows/quantum-10m-smoke.yml'
+  push:
+    branches: [main, quantum-generation-quality, quantum-candidate-security-hardening]
+    paths:
+      - 'quantum_10m_config.json'
+      - 'training_extra.json'
+      - 'training_data_quality.py'
+      - 'test_training_data_quality.py'
+      - 'bpe_candidate_train.py'
+      - 'bpe_tokenizer.py'
+      - 'test_bpe_tokenizer_integrity.py'
+      - 'training_provenance.py'
+      - 'test_training_provenance.py'
+      - 'export_training_provenance_template.py'
+      - 'test_export_training_provenance_template.py'
+      - 'apply_training_provenance_review.py'
+      - 'test_apply_training_provenance_review.py'
+      - 'test_bpe_candidate_pipeline.py'
+      - 'quantum_human_review.py'
+      - 'test_quantum_human_review.py'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
@@ -36,12 +73,59 @@ jobs:
           cache: pip
 
       - name: Install CPU training dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt cryptography==46.0.3
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py
+        run: cd quantum-inference && python -m unittest test_generation_context.py test_inference_contract.py && cd .. && python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_bpe_candidate_pipeline.py test_bpe_tokenizer_integrity.py test_quantum_human_review.py test_training_provenance.py test_export_training_provenance_template.py test_apply_training_provenance_review.py test_training_data_quality.py
+
+      - name: Audit candidate training-data quality
+        run: python training_data_quality.py --input training_extra.json --output training_data_quality_audit.json --strict
+
+      - name: Upload training-data quality audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-training-data-quality-audit
+          path: training_data_quality_audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Audit training-data provenance
+        id: provenance
+        run: |
+          python training_provenance.py --input training_extra.json --output training_provenance_audit.json
+          python export_training_provenance_template.py --input training_extra.json --output training_provenance_review_template.json --omit-content
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads(Path("training_provenance_audit.json").read_text(encoding="utf-8"))
+          eligible = bool(report["training_release_eligible"])
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"eligible={'true' if eligible else 'false'}\n")
+          if not eligible:
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write(
+                      "## Quantum candidate training blocked\n"
+                      f"- Provenance complete: {report['metadata_complete_records']}/{report['approved_records']}\n"
+                      "- Training and generation evaluation were skipped; no checkpoint was created by this run.\n"
+                      "- Complete source/license/permission metadata and human review before retrying.\n"
+                  )
+          PY
+
+      - name: Upload training provenance audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-training-provenance-audit
+          path: |
+            training_provenance_audit.json
+            training_provenance_review_template.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Verify and smoke-train Quantum 10M
+        if: steps.provenance.outputs.eligible == 'true'
         run: |
           python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
           python - <<'PY'
@@ -61,17 +145,23 @@ jobs:
           PY
 
       - name: Compare Quantum decoding strategies on independent questions
+        if: steps.provenance.outputs.eligible == 'true'
         run: python quantum_generation_eval.py --checkpoint bpe_candidate_checkpoint.pt --evaluation bpe_independent_eval.json --output quantum_decoding_sweep.json
 
+      - name: Create human answer-quality review template
+        if: steps.provenance.outputs.eligible == 'true'
+        run: python quantum_human_review.py --input quantum_decoding_sweep.json --template-output quantum_human_review_template.json
+
       - name: Upload 10M smoke-test artifacts
+        if: steps.provenance.outputs.eligible == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: juckex-quantum-10m-smoke
           path: |
             bpe_candidate_report.json
             bpe_candidate.json
-            bpe_candidate_checkpoint.pt
             bpe_generation_seed_20261123.json
             quantum_decoding_sweep.json
+            quantum_human_review_template.json
           if-no-files-found: error
           retention-days: 14

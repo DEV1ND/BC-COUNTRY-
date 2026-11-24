@@ -1,0 +1,77 @@
+name: Quantum Candidate held-out generation evaluation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/run_generation_benchmark.py"
+      - "quantum-inference/evaluation/benchmark_v1.json"
+      - ".github/workflows/quantum-candidate-generation-evaluation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantum-candidate-heldout-generation-evaluation
+  cancel-in-progress: false
+
+jobs:
+  heldout-generation-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      QUANTUM_CANDIDATE_URL: https://juckex-quantum-candidate.onrender.com
+      QUANTUM_API_TOKEN: ${{ secrets.QUANTUM_API_TOKEN }}
+    steps:
+      - name: Check out Candidate evaluation code
+        uses: actions/checkout@v4
+        with:
+          ref: quantum-candidate-security-hardening
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile held-out generation benchmark
+        run: python -m py_compile quantum-inference/run_generation_benchmark.py
+
+      - name: Run held-out benchmark against Quantum Candidate
+        run: |
+          python quantum-inference/run_generation_benchmark.py \
+            --url "$QUANTUM_CANDIDATE_URL" \
+            --output quantum-candidate-generation-evaluation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("quantum-candidate-generation-evaluation.json").read_text(encoding="utf-8")
+          )
+          assert report.get("training_eligible") is False
+          assert report.get("human_review_required") is True
+          assert report.get("automatic_quality_score") is None
+          assert report.get("model_training") is False
+          assert report.get("production_model_touched") is False
+          assert report.get("cases_completed") == report.get("cases_requested")
+          print(json.dumps({
+              "benchmark_id": report.get("benchmark_id"),
+              "cases_completed": report.get("cases_completed"),
+              "generation_invocations": report.get("generation_invocations"),
+              "approved_qa_retrieval_cases": report.get("approved_qa_retrieval_cases"),
+              "human_review_required": report.get("human_review_required"),
+              "automatic_quality_score": report.get("automatic_quality_score"),
+              "model_training": report.get("model_training"),
+              "production_model_touched": report.get("production_model_touched"),
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Upload human-review generation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-candidate-heldout-generation-evaluation
+          path: quantum-candidate-generation-evaluation.json
+          if-no-files-found: error
+          retention-days: 14

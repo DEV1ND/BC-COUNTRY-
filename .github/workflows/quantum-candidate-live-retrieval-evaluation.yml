@@ -1,0 +1,229 @@
+name: Quantum Candidate live retrieval evaluation
+
+on:
+  push:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - ".github/workflows/quantum-candidate-live-retrieval-evaluation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantum-candidate-live-retrieval-evaluation
+  cancel-in-progress: false
+
+jobs:
+  live-retrieval-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QUANTUM_CANDIDATE_URL: https://juckex-quantum-candidate.onrender.com
+      QUANTUM_API_TOKEN: ${{ secrets.QUANTUM_API_TOKEN }}
+    steps:
+      - name: Check out candidate evaluation code
+        uses: actions/checkout@v4
+        with:
+          ref: quantum-candidate-security-hardening
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify public health and run authenticated 27-domain retrieval benchmark
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          base = os.environ["QUANTUM_CANDIDATE_URL"].rstrip("/")
+          token = os.environ.get("QUANTUM_API_TOKEN", "")
+
+          def request_json(path, authenticated=False, timeout=90):
+              headers = {
+                  "Accept": "application/json",
+                  "User-Agent": "JUCKEX-Quantum-Candidate-Evaluator",
+              }
+              if authenticated:
+                  if not token:
+                      raise SystemExit(
+                          "Missing GitHub Actions secret QUANTUM_API_TOKEN. "
+                          "Set it to the same value as Candidate Render's QUANTUM_API_TOKEN; "
+                          "do not paste the secret into source code or chat."
+                      )
+                  headers["Authorization"] = "Bearer " + token
+              request = urllib.request.Request(
+                  base + path, headers=headers, method="GET"
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=timeout) as response:
+                      raw = response.read(2 * 1024 * 1024 + 1)
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(
+                      path + " returned HTTP " + str(exc.code)
+                      + ("; verify the Candidate API token in Render and GitHub Actions."
+                         if exc.code == 401 else "")
+                  )
+              except (urllib.error.URLError, TimeoutError):
+                  raise SystemExit(path + " could not be reached.")
+              if len(raw) > 2 * 1024 * 1024:
+                  raise SystemExit(path + " response exceeded the 2 MiB limit.")
+              try:
+                  value = json.loads(raw.decode("utf-8"))
+              except (UnicodeDecodeError, json.JSONDecodeError):
+                  raise SystemExit(path + " returned invalid JSON.")
+              if not isinstance(value, dict):
+                  raise SystemExit(path + " response must be a JSON object.")
+              return value
+
+          # /health is intentionally public and read-only; do not send a token.
+          # Candidate seeds Wikipedia asynchronously at startup. Wait for that
+          # background task instead of racing it and failing on a temporary count of 0.
+          deadline = time.monotonic() + 240
+          health = None
+          last_readiness = "health endpoint has not responded"
+          while time.monotonic() < deadline:
+              try:
+                  candidate_health = request_json("/health", timeout=15)
+              except SystemExit as exc:
+                  last_readiness = str(exc)
+                  print("Candidate is not ready yet: " + last_readiness)
+                  time.sleep(10)
+                  continue
+
+              seed_state = candidate_health.get("wikipedia_seed") or {}
+              documents = int(candidate_health.get("knowledge_documents") or 0)
+              smoke_passed = seed_state.get("retrieval_tests_passed")
+              smoke_total = seed_state.get("retrieval_tests_total")
+              smoke_ready = (
+                  smoke_passed is None
+                  or smoke_total is None
+                  or (int(smoke_passed) == 40 and int(smoke_total) == 40)
+              )
+              if (
+                  candidate_health.get("ok") is True
+                  and documents >= 40
+                  and smoke_ready
+              ):
+                  health = candidate_health
+                  break
+
+              last_readiness = (
+                  "ok=" + str(candidate_health.get("ok"))
+                  + ", knowledge_documents=" + str(documents)
+                  + ", retrieval_smoke=" + str(smoke_passed) + "/" + str(smoke_total)
+                  + ", seed_status=" + str(seed_state.get("status"))
+              )
+              print("Waiting for Candidate knowledge seed: " + last_readiness)
+              time.sleep(10)
+
+          if health is None:
+              raise SystemExit(
+                  "Candidate did not reach 40 indexed documents and a passing "
+                  "retrieval smoke check within 240 seconds. Last status: "
+                  + last_readiness
+              )
+
+          seed = health.get("wikipedia_seed") or {}
+          smoke_passed = seed.get("retrieval_tests_passed")
+          smoke_total = seed.get("retrieval_tests_total")
+
+          # Admin endpoint requires the Candidate's own QUANTUM_API_TOKEN.
+          evaluation = request_json("/admin/knowledge/evaluate", authenticated=True)
+          report = evaluation.get("report")
+          if not isinstance(report, dict):
+              raise SystemExit("Retrieval evaluation returned no report.")
+          if report.get("scope") != "retrieval_only":
+              raise SystemExit("Unexpected evaluation scope.")
+          if report.get("model_invoked") is not False or report.get("model_training") is not False:
+              raise SystemExit("Retrieval evaluation must not invoke or train the model.")
+          if evaluation.get("production_model_touched") is not False:
+              raise SystemExit("Production isolation assertion failed.")
+          if int(report.get("domains") or 0) != 27:
+              raise SystemExit(
+                  "Expected 27 evaluation domains; got " + str(report.get("domains"))
+              )
+
+          output = {
+              "candidate_url": base,
+              "model_loaded": health.get("model_loaded"),
+              "generation_ready": health.get("generation_ready"),
+              "checkpoint_status": health.get("checkpoint_status"),
+              "checkpoint_load_error": health.get("checkpoint_load_error"),
+              "checkpoint_release_tag": health.get("checkpoint_release_tag"),
+              "model_parameters": health.get("model_parameters"),
+              "knowledge_documents": health.get("knowledge_documents"),
+              "wikipedia_seed_status": seed.get("status"),
+              "wikipedia_retrieval_smoke_tests": {
+                  "passed": smoke_passed,
+                  "total": smoke_total,
+              },
+              "retrieval_benchmark": report,
+              "model_invoked": False,
+              "model_training": False,
+              "production_model_touched": False,
+          }
+          Path("quantum-candidate-retrieval-evaluation.json").write_text(
+              json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          summary = [
+              "## Quantum Candidate live retrieval evaluation",
+              "",
+              "- Model loaded: " + str(output["model_loaded"]),
+              "- Generation ready: " + str(output["generation_ready"]),
+              "- Checkpoint: " + str(output["checkpoint_status"]),
+              "- Checkpoint load diagnostic: " + str(output["checkpoint_load_error"]),
+              "- Checkpoint release tag: " + str(output["checkpoint_release_tag"]),
+              "- Model parameters: " + str(output["model_parameters"]),
+              "- Knowledge documents: " + str(output["knowledge_documents"]),
+              "- Wikipedia smoke tests: " + str(smoke_passed) + "/" + str(smoke_total),
+              "- Benchmark cases: " + str(report.get("cases")),
+              "- Domains: " + str(report.get("domains")),
+              "- Hit rate@5: " + str(report.get("hit_rate_at_k")),
+              "- Precision@5: " + str(report.get("precision_at_k")),
+              "- Mean reciprocal rank: " + str(report.get("mean_reciprocal_rank")),
+              "- Model invoked by retrieval benchmark: false",
+              "- Model training: false",
+              "- Production touched: false",
+              "",
+              "Retrieval-only metrics do not measure answer-generation quality.",
+          ]
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(
+              "\n".join(summary) + "\n", encoding="utf-8"
+          )
+          print(json.dumps({
+              "model_loaded": output["model_loaded"],
+              "generation_ready": output["generation_ready"],
+              "checkpoint_status": output["checkpoint_status"],
+              "checkpoint_load_error": output["checkpoint_load_error"],
+              "checkpoint_release_tag": output["checkpoint_release_tag"],
+              "model_parameters": output["model_parameters"],
+              "knowledge_documents": output["knowledge_documents"],
+              "smoke_tests": output["wikipedia_retrieval_smoke_tests"],
+              "cases": report.get("cases"),
+              "domains": report.get("domains"),
+              "hit_rate_at_k": report.get("hit_rate_at_k"),
+              "precision_at_k": report.get("precision_at_k"),
+              "mean_reciprocal_rank": report.get("mean_reciprocal_rank"),
+              "model_invoked": False,
+              "model_training": False,
+              "production_model_touched": False,
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Upload retrieval evaluation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-candidate-live-retrieval-evaluation
+          path: quantum-candidate-retrieval-evaluation.json
+          if-no-files-found: error
+          retention-days: 14

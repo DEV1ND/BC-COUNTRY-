@@ -1,0 +1,53 @@
+name: Quantum Candidate pretraining pipeline checks
+
+on:
+  pull_request:
+    branches:
+      - quantum-data-repair
+    paths:
+      - "quantum-inference/app.py"
+      - "quantum-inference/test_inference_contract.py"
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/test_bpe_tokenizer_integrity.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/QUANTUM_CANDIDATE_TRAINING.md"
+      - "quantum-inference/export_wikipedia_corpus.py"
+      - "quantum-inference/test_export_wikipedia_corpus.py"
+      - ".github/workflows/quantum-candidate-encrypted-training.yml"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/worker-safety.test.mjs"
+      - ".github/workflows/quantum-wikipedia-pretrain.yml"
+  push:
+    branches:
+      - quantum-candidate-wikipedia-pretrain
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/app.py"
+      - "quantum-inference/test_inference_contract.py"
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/test_bpe_tokenizer_integrity.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/QUANTUM_CANDIDATE_TRAINING.md"
+      - "quantum-inference/export_wikipedia_corpus.py"
+      - ".github/workflows/quantum-candidate-encrypted-training.yml"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/worker-safety.test.mjs"
+      - ".github/workflows/quantum-wikipedia-pretrain.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m py_compile quantum-inference/app.py quantum-inference/wikipedia_pretrain.py quantum-inference/export_wikipedia_corpus.py quantum-inference/bpe_tokenizer.py
+      - run: python -m pip install numpy==2.2.1 fastapi==0.115.6 cryptography==46.0.3 && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
+      - run: python -m unittest discover -s quantum-inference -p 'test_bpe_tokenizer_integrity.py'
+      - run: python -m unittest discover -s quantum-inference -p 'test_wikipedia_pretrain.py'
+      - run: python -m unittest discover -s quantum-inference -p 'test_export_wikipedia_corpus.py'
+      - run: python -m unittest discover -s quantum-inference -p 'test_inference_contract.py'
+      - run: node --test cloudflare-workers/tests/worker-safety.test.mjs

@@ -16,6 +16,7 @@ import torch.nn.functional as F
 
 import app as live
 from bpe_tokenizer import BPETokenizer, encode_prompt_answer
+from training_provenance import audit_rows
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
@@ -47,32 +48,100 @@ class BPECandidate(nn.Module):
 
 
 def clean_pairs(rows):
+    if not isinstance(rows, list):
+        raise ValueError("학습 Q&A 데이터는 JSON 배열이어야 합니다.")
     cleaned, seen = [], set()
-    for row in rows:
+    for index, row in enumerate(rows):
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
-        q = str(row.get("question", "")).strip()[:500]
-        a = str(row.get("answer", "")).strip()[:2000]
+        question = row.get("question")
+        answer = row.get("answer")
+        if not isinstance(question, str) or not isinstance(answer, str):
+            raise ValueError(f"승인 데이터 {index}의 질문과 답변은 문자열이어야 합니다.")
+        q, a = question.strip(), answer.strip()
+        if len(q) < 2 or len(a) < 4:
+            raise ValueError(f"승인 데이터 {index}의 질문 또는 답변이 너무 짧습니다.")
+        if len(q) > 500 or len(a) > 2000:
+            raise ValueError(
+                f"승인 데이터 {index}가 학습 길이 제한을 초과합니다. "
+                "자동 절단하지 말고 원본을 검토하세요."
+            )
         key = (q.casefold(), a.casefold())
-        if len(q) < 2 or len(a) < 4 or key in seen:
+        if key in seen:
             continue
         seen.add(key)
-        cleaned.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
+        cleaned.append({
+            "question": q,
+            "answer": a,
+            "text": "질문:" + q + "\n답변:" + a + "\n\n",
+        })
     return cleaned
 
 
 def split_pairs(rows):
+    """Split connected duplicate groups so exact questions or answers cannot leak."""
+    if not rows:
+        raise RuntimeError("분리할 학습 데이터가 없습니다.")
+    parent = list(range(len(rows)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left, right):
+        root_left, root_right = find(left), find(right)
+        if root_left != root_right:
+            parent[max(root_left, root_right)] = min(root_left, root_right)
+
+    seen_questions, seen_answers = {}, {}
+    for index, row in enumerate(rows):
+        question = str(row.get("question", "")).casefold()
+        answer = str(row.get("answer", "")).casefold()
+        if question in seen_questions:
+            union(index, seen_questions[question])
+        else:
+            seen_questions[question] = index
+        if answer in seen_answers:
+            union(index, seen_answers[answer])
+        else:
+            seen_answers[answer] = index
+
     groups = {}
-    for row in rows:
-        key = row["question"].casefold()
-        groups.setdefault(key, []).append(row)
-    keys = sorted(groups, key=lambda x: __import__("hashlib").sha256(x.encode("utf-8")).hexdigest())
-    if len(keys) < 2:
-        raise RuntimeError("독립 검증을 위해 서로 다른 질문이 최소 2개 필요합니다.")
-    cut = max(1, min(len(keys) - 1, int(len(keys) * 0.9)))
-    train = [item for key in keys[:cut] for item in groups[key]]
-    valid = [item for key in keys[cut:] for item in groups[key]]
+    for index, row in enumerate(rows):
+        groups.setdefault(find(index), []).append(row)
+
+    def stable_group_key(group):
+        pairs = sorted(
+            (str(item.get("question", "")).casefold(), str(item.get("answer", "")).casefold())
+            for item in group
+        )
+        serialized = json.dumps(pairs, ensure_ascii=False, separators=(",", ":"))
+        return __import__("hashlib").sha256(serialized.encode("utf-8")).hexdigest()
+
+    ordered_groups = sorted(groups.values(), key=stable_group_key)
+    if len(ordered_groups) < 2:
+        raise RuntimeError("독립 검증을 위해 서로 다른 질문·답변 그룹이 최소 2개 필요합니다.")
+    cut = max(1, min(len(ordered_groups) - 1, int(len(ordered_groups) * 0.9)))
+    train = [item for group in ordered_groups[:cut] for item in group]
+    valid = [item for group in ordered_groups[cut:] for item in group]
     return train, valid
+
+
+def build_candidate_tokenizer(train_rows, validation_rows, vocab_size=1024):
+    """Build BPE merges from training text only; validation adds character coverage only.
+
+    Independent evaluation rows are deliberately not accepted by this helper.
+    """
+    training_texts = [row["text"] for row in train_rows]
+    alphabet_texts = training_texts + [row["text"] for row in validation_rows]
+    return BPETokenizer.train(
+        training_texts,
+        vocab_size=vocab_size,
+        min_pair_frequency=2,
+        extra_alphabet_texts=alphabet_texts,
+    )
 
 
 def encode_rows(rows, tokenizer):
@@ -109,19 +178,45 @@ def augment_training_rows(rows):
     return augmented
 
 
+def answer_windows(seq, prompt_tokens, block=BLOCK):
+    """Yield non-overlapping next-token windows covering every answer token once.
+
+    Each window carries up to block previous tokens as context. The prompt
+    is masked only where prompt tokens occur; long answers are never truncated.
+    """
+    windows = []
+    if not isinstance(seq, (list, tuple)) or len(seq) < 2:
+        return windows
+    block = max(1, int(block))
+    prompt_tokens = max(0, min(int(prompt_tokens), len(seq)))
+    for offset in range(0, len(seq) - 1, block):
+        inputs = list(seq[offset:offset + block])
+        targets = list(seq[offset + 1:offset + block + 1])
+        if not inputs or not targets:
+            continue
+        masked_prompt_targets = max(0, min(len(targets), prompt_tokens - offset - 1))
+        if masked_prompt_targets >= len(targets):
+            continue
+        windows.append((inputs, targets, masked_prompt_targets))
+    return windows
+
+
 def make_batch(examples, batch_size=8):
-    # Keep the complete question as context; train loss only on answer tokens.
+    # Sample windows, not only the beginning of each row, so long answers train fully.
+    available = [
+        window
+        for seq, prompt_tokens in examples
+        for window in answer_windows(seq, prompt_tokens)
+    ]
+    if not available:
+        raise RuntimeError("학습 가능한 답변 토큰이 포함된 윈도우가 없습니다.")
     x = torch.zeros((batch_size, BLOCK), dtype=torch.long)
     y = torch.full((batch_size, BLOCK), -100, dtype=torch.long)
     for bi in range(batch_size):
-        seq, prompt_tokens = examples[np.random.randint(0, len(examples))]
-        chunk = seq[:BLOCK + 1]
-        if len(chunk) < 2:
-            continue
-        inp, target = chunk[:-1], chunk[1:]
+        inp, target, masked_prompt_targets = available[np.random.randint(0, len(available))]
         x[bi, :len(inp)] = torch.tensor(inp, dtype=torch.long)
         y[bi, :len(target)] = torch.tensor(target, dtype=torch.long)
-        y[bi, :max(0, min(len(target), prompt_tokens - 1))] = -100
+        y[bi, :masked_prompt_targets] = -100
     return x.to(DEVICE), y.to(DEVICE)
 
 
@@ -130,18 +225,18 @@ def answer_bits_per_char(candidate, examples, tokenizer):
     candidate.eval()
     nll_sum, char_count = 0.0, 0
     for seq, prompt_tokens in examples:
-        chunk = seq[:BLOCK + 1]
-        if len(chunk) < 2:
-            continue
-        ids = torch.tensor(chunk[:-1], dtype=torch.long, device=DEVICE).unsqueeze(0)
-        targets = torch.tensor(chunk[1:], dtype=torch.long, device=DEVICE)
-        start = max(0, prompt_tokens - 1)
-        if start >= len(targets):
-            continue
-        losses = F.cross_entropy(candidate(ids)[0, start:], targets[start:], reduction="none")
-        token_chars = [max(1, len(tokenizer.itos.get(int(t), ""))) for t in targets[start:]]
-        nll_sum += float(losses.sum().item())
-        char_count += sum(token_chars)
+        for inputs, targets, masked_prompt_targets in answer_windows(seq, prompt_tokens):
+            ids = torch.tensor(inputs, dtype=torch.long, device=DEVICE).unsqueeze(0)
+            target_tensor = torch.tensor(targets, dtype=torch.long, device=DEVICE)
+            losses = F.cross_entropy(
+                candidate(ids)[0, masked_prompt_targets:],
+                target_tensor[masked_prompt_targets:],
+                reduction="none",
+            )
+            scored_targets = targets[masked_prompt_targets:]
+            token_chars = [max(1, len(tokenizer.itos.get(int(t), ""))) for t in scored_targets]
+            nll_sum += float(losses.sum().item())
+            char_count += sum(token_chars)
     return nll_sum / max(1, char_count) / math.log(2)
 
 
@@ -155,20 +250,21 @@ def live_answer_bits_per_char(rows):
             ids_list, _ = live.encode_text(row["text"])
             prompt_text = "질문:" + row["question"] + "\n답변:"
             prompt_ids, _ = live.encode_text(prompt_text)
-            chunk = ids_list[:live.BLOCK + 1]
-            if len(chunk) < 2:
-                continue
-            ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
-            targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
-            # Character tokenizer: token count equals character count. Use the
-            # encoded prompt length so the first answer character is scored.
-            start = max(0, len(prompt_ids) - 1)
-            if start >= len(targets):
-                continue
-            logits, _ = live.model(ids)
-            losses = F.cross_entropy(logits[0, start:], targets[start:], reduction="none")
-            nll_sum += float(losses.sum().item())
-            char_count += len(targets[start:])
+            # Score the complete answer across context-sized windows, not just
+            # the first block. Prompt tokens remain excluded from the metric.
+            for offset in range(0, max(1, len(ids_list) - 1), live.BLOCK):
+                chunk = ids_list[offset:offset + live.BLOCK + 1]
+                if len(chunk) < 2:
+                    continue
+                ids = torch.tensor(chunk[:-1], dtype=torch.long, device=live.DEVICE).unsqueeze(0)
+                targets = torch.tensor(chunk[1:], dtype=torch.long, device=live.DEVICE)
+                start = max(0, min(len(targets), len(prompt_ids) - offset - 1))
+                if start >= len(targets):
+                    continue
+                logits, _ = live.model(ids)
+                losses = F.cross_entropy(logits[0, start:], targets[start:], reduction="none")
+                nll_sum += float(losses.sum().item())
+                char_count += len(targets[start:])
     finally:
         live.model.train(was_training)
     return nll_sum / max(1, char_count) / math.log(2)
@@ -271,6 +367,16 @@ def main():
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
+    provenance_report = audit_rows(source_rows)
+    (ROOT / "training_provenance_audit.json").write_text(
+        json.dumps(provenance_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    if not provenance_report["training_release_eligible"]:
+        raise RuntimeError(
+            "학습 중단: 출처·라이선스 메타데이터 및 사람 검토가 완료된 데이터만 후보 학습에 사용할 수 있습니다. "
+            f"메타데이터 완전 {provenance_report['metadata_complete_records']}/"
+            f"{provenance_report['approved_records']}개"
+        )
     rows = clean_pairs(source_rows)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
@@ -290,12 +396,9 @@ def main():
             independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
-    tokenizer = BPETokenizer.train(
-        [row["text"] for row in train_rows],
-        vocab_size=args.vocab_size,
-        min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
-    )
+    # Independent evaluation text must not influence tokenizer vocabulary or merge counts.
+    # Approved validation rows may contribute character coverage for deterministic round trips.
+    tokenizer = build_candidate_tokenizer(train_rows, valid_rows, vocab_size=args.vocab_size)
     train_sequences = encode_rows(train_rows, tokenizer)
     augmented_train_rows = augment_training_rows(train_rows)
     train_examples = encode_training_examples(augmented_train_rows, tokenizer)
@@ -323,7 +426,11 @@ def main():
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
-    parameter_count = sum(p.numel() for p in candidate.parameters())
+    parameter_count = sum(p.numel() for p in candidate.parameters() if p.requires_grad)
+    non_parameter_buffer_elements = sum(buffer.numel() for buffer in candidate.buffers())
+    checkpoint_tensor_elements = sum(tensor.numel() for tensor in candidate.state_dict().values())
+    if checkpoint_tensor_elements != parameter_count + non_parameter_buffer_elements:
+        raise RuntimeError("체크포인트 텐서 수와 학습 파라미터·버퍼 수가 일치하지 않습니다.")
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
@@ -332,6 +439,7 @@ def main():
     validation_curve = []
     best_bpc = float("inf")
     best_step = 0
+    best_training_batch_loss = None
     best_state = None
     stale_evaluations = 0
     total_steps = max(1, min(args.steps, 5000))
@@ -354,11 +462,12 @@ def main():
             if math.isfinite(score) and score < best_bpc:
                 best_bpc = score
                 best_step = step
+                best_training_batch_loss = losses[-1]
                 best_state = {k: v.detach().cpu().clone() for k, v in candidate.state_dict().items()}
                 stale_evaluations = 0
             else:
                 stale_evaluations += 1
-            if stale_evaluations >= 5:
+            if stale_evaluations >= 2:
                 break
 
     if best_state is None:
@@ -431,10 +540,16 @@ def main():
         "bpe_merge_count": len(tokenizer.merges),
         "steps": len(losses),
         "best_step": best_step,
+        "best_checkpoint_training_batch_loss": round(best_training_batch_loss, 5),
+        "early_stopping_patience_evaluations": 2,
         "seed": args.seed,
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
         "candidate_parameters": parameter_count,
+        "trainable_parameter_count": parameter_count,
+        "non_parameter_buffer_elements": non_parameter_buffer_elements,
+        "checkpoint_tensor_elements": checkpoint_tensor_elements,
+        "parameter_count_definition": "학습 가능한 파라미터만 포함하며 register_buffer 텐서는 별도 기록",
         "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
         "final_training_loss": round(losses[-1], 5),
         "live_char_model_bits_per_character": round(live_bpc, 5),

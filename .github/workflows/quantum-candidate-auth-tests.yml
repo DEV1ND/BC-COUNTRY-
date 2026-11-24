@@ -1,0 +1,31 @@
+name: Quantum Candidate Auth Tests
+
+on:
+  pull_request:
+    branches:
+      - quantum-data-repair
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-auth-tests.yml"
+  push:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-auth-tests.yml"
+
+jobs:
+  auth-policy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quantum-inference
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile candidate Python sources
+        run: python -m compileall -q .
+      - name: Run auth and generation sampling tests
+        run: python -m unittest -v test_auth_policy.py test_generation_sampling.py test_generation_context.py test_review_generation_evaluation.py test_export_generation_review_template.py test_generation_benchmark_dataset.py test_run_generation_benchmark.py test_generation_output_diagnostics.py test_tokenizer_diagnostics.py test_bpe_tokenizer_integrity.py

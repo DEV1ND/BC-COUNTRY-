@@ -1,0 +1,39 @@
+name: Quantum Candidate retrieval benchmark integrity
+
+on:
+  push:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/retrieval_benchmark.py"
+      - "quantum-inference/tests/test_retrieval_benchmark.py"
+      - "quantum-inference/evaluation/knowledge_retrieval_cases.json"
+      - ".github/workflows/quantum-candidate-retrieval-benchmark.yml"
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/retrieval_benchmark.py"
+      - "quantum-inference/tests/test_retrieval_benchmark.py"
+      - "quantum-inference/evaluation/knowledge_retrieval_cases.json"
+      - ".github/workflows/quantum-candidate-retrieval-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval-benchmark-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: quantum-candidate-security-hardening
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile retrieval benchmark
+        run: python -m py_compile quantum-inference/retrieval_benchmark.py quantum-inference/tests/test_retrieval_benchmark.py
+      - name: Run retrieval benchmark integrity tests
+        run: python -m unittest discover -s quantum-inference/tests -p "test_retrieval_benchmark.py" -v

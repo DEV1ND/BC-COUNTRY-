@@ -1,0 +1,51 @@
+name: Quantum Candidate inference contract and tokenizer tests
+
+on:
+  push:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-inference-contract.yml"
+  pull_request:
+    branches:
+      - quantum-data-repair
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-inference-contract.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantum-candidate-inference-contract
+  cancel-in-progress: false
+
+jobs:
+  inference-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: quantum-inference
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: quantum-inference/requirements.txt
+      - name: Install isolated inference dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile isolated inference sources
+        run: python -m compileall -q .
+      - name: Run inference, tokenizer, context, and sampling contracts
+        run: |
+          python -m unittest -v \
+            test_inference_contract.py \
+            test_bpe_tokenizer_integrity.py \
+            test_generation_context.py \
+            test_generation_output_diagnostics.py \
+            test_generation_sampling.py \
+            test_review_generation_evaluation.py \
+            test_export_generation_review_template.py

@@ -1,5 +1,6 @@
 import sys
 import unittest
+import hashlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -11,8 +12,10 @@ def source(**overrides):
         "title": "인공지능",
         "url": "https://ko.wikipedia.org/wiki/인공지능",
         "text": "인공지능은 기계가 지능적인 작업을 수행하도록 하는 기술 분야다. " * 12,
+        "revision_id": "987654",
+        "content_hash": hashlib.sha256(("인공지능은 기계가 지능적인 작업을 수행하도록 하는 기술 분야다. " * 12).encode("utf-8")).hexdigest(),
         "license": "CC BY-SA 4.0",
-        "attribution": "Wikipedia contributors; title and URL retained",
+        "attribution": "Wikipedia contributors, 인공지능, https://ko.wikipedia.org/wiki/인공지능; licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).",
     }
     row.update(overrides)
     return row
@@ -26,24 +29,60 @@ class GenerationSourcesTests(unittest.TestCase):
                 "title": "인공지능",
                 "url": "https://ko.wikipedia.org/wiki/인공지능",
                 "license": "CC BY-SA 4.0",
-                "attribution": "Wikipedia contributors; title and URL retained",
+                "attribution": source()["attribution"],
             }],
         )
 
     def test_invalid_url_license_or_attribution_is_not_cited(self):
         rows = [
             source(url="https://example.com/fake"),
+            source(url="https://ko.wikipedia.org.evil.example/wiki/인공지능"),
             source(license="CC BY 3.0"),
-            source(attribution=" "),
+            source(attribution="출처 표기만 있고 라이선스 정보 없음"),
             source(title=""),
             source(text=""),
         ]
         self.assertEqual(serialize_knowledge_sources(rows), [])
         self.assertEqual(build_knowledge_context(rows), "")
 
+    def test_attribution_must_include_title_url_and_license_terms(self):
+        self.assertEqual(
+            serialize_knowledge_sources([
+                source(attribution="Wikipedia contributors; source page")
+            ]),
+            [],
+        )
+
+    def test_tampered_text_or_missing_revision_is_not_citable(self):
+        original = source()
+        tampered = source(text=original["text"] + "변조")
+        missing_revision = source(revision_id="")
+        missing_hash = source(content_hash="")
+        self.assertEqual(serialize_knowledge_sources([
+            tampered, missing_revision, missing_hash
+        ]), [])
+        self.assertEqual(build_knowledge_context([
+            tampered, missing_revision, missing_hash
+        ]), "")
+
     def test_duplicate_sources_are_deduplicated(self):
         row = source()
         self.assertEqual(len(serialize_knowledge_sources([row, row])), 1)
+
+    def test_non_string_source_fields_are_not_coerced(self):
+        for field in ("title", "url", "license", "attribution", "text"):
+            with self.subTest(field=field):
+                self.assertEqual(serialize_knowledge_sources([
+                    source(**{field: 123})
+                ]), [])
+
+    def test_source_collection_and_excerpt_limits_are_validated(self):
+        with self.assertRaises(TypeError):
+            serialize_knowledge_sources("not a document list")
+        for value in (True, 0, -1, 2001, "80"):
+            with self.subTest(excerpt_chars=value):
+                with self.assertRaises(ValueError):
+                    build_knowledge_context([source()], excerpt_chars=value)
 
     def test_context_and_citations_use_the_same_validated_documents(self):
         valid = source()
@@ -55,6 +94,48 @@ class GenerationSourcesTests(unittest.TestCase):
         self.assertEqual([item["title"] for item in citations], ["인공지능"])
         self.assertIn("CC BY-SA 4.0", citations[0]["license"])
         self.assertTrue(citations[0]["attribution"])
+
+    def test_source_iterables_are_bounded_before_materialization(self):
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        rows = (source(title=f"문서 {index}") for index in range(MAX_KNOWLEDGE_SOURCES + 1))
+        with self.assertRaisesRegex(ValueError, "최대"):
+            serialize_knowledge_sources(rows)
+
+    def test_unbounded_source_generator_stops_after_limit_plus_one(self):
+        from itertools import count
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        consumed = []
+        def endless_rows():
+            for index in count():
+                consumed.append(index)
+                yield source(title=f"문서 {index}")
+
+        with self.assertRaisesRegex(ValueError, "최대"):
+            build_knowledge_context(endless_rows())
+        self.assertEqual(len(consumed), MAX_KNOWLEDGE_SOURCES + 1)
+
+    def test_exact_source_collection_limit_is_accepted(self):
+        from generation_sources import MAX_KNOWLEDGE_SOURCES
+
+        rows = []
+        for index in range(MAX_KNOWLEDGE_SOURCES):
+            title = f"문서 {index}"
+            url = f"https://ko.wikipedia.org/wiki/{title}"
+            text = f"{title}의 본문입니다."
+            attribution = (
+                f"Wikipedia contributors, {title}, {url}; licensed under "
+                "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)."
+            )
+            rows.append(source(
+                title=title,
+                url=url,
+                text=text,
+                content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                attribution=attribution,
+            ))
+        self.assertEqual(len(serialize_knowledge_sources(rows)), MAX_KNOWLEDGE_SOURCES)
 
 
 if __name__ == "__main__":

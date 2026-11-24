@@ -1,0 +1,44 @@
+name: Quantum Candidate Checkpoint Safety
+
+on:
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-checkpoint-safety.yml"
+  push:
+    branches:
+      - quantum-candidate-safe-checkpoint-load
+      - quantum-candidate-security-hardening
+    paths:
+      - "quantum-inference/**"
+      - ".github/workflows/quantum-candidate-checkpoint-safety.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  checkpoint-safety:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: quantum-inference
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU-only PyTorch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
+          python -m pip install cryptography==46.0.3
+      - name: Compile candidate sources
+        run: python -m compileall -q .
+      - name: Verify checkpoint deserialization restrictions
+        run: python -m unittest -v tests/test_checkpoint_safety.py
+      - name: Verify encrypted release checkpoint restore
+        run: python -m unittest -v tests/test_checkpoint_storage.py
+      - name: Verify truthful model metadata
+        run: python -m unittest -v tests/test_model_metadata.py

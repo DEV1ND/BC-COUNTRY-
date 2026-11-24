@@ -1,0 +1,31 @@
+name: Quantum Candidate Artifact Policy
+
+on:
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - ".github/workflows/quantum-10m-smoke.yml"
+      - "test_quantum_artifact_policy.py"
+      - ".github/workflows/quantum-artifact-policy.yml"
+  push:
+    branches:
+      - quantum-candidate-artifact-policy
+    paths:
+      - ".github/workflows/quantum-10m-smoke.yml"
+      - "test_quantum_artifact_policy.py"
+      - ".github/workflows/quantum-artifact-policy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify report-only public artifacts
+        run: python -m unittest -v test_quantum_artifact_policy.py

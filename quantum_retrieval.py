@@ -1,4 +1,5 @@
 """Conservative, local-only retrieval for approved Quantum examples."""
+import math
 import re
 
 _STOP_WORDS = {
@@ -29,7 +30,9 @@ def _token_variants(token):
 
 def content_tokens(text):
     """Keep original Korean terms while also considering one particle-stripped form."""
-    raw = re.findall(r"[0-9a-z]+|[가-힣]+", str(text).lower())
+    if not isinstance(text, str):
+        raise TypeError("검색 텍스트는 문자열이어야 합니다.")
+    raw = re.findall(r"[0-9a-z]+|[가-힣]+", text.lower())
     result = []
     for token in raw:
         if len(token) < 2 or token in _STOP_WORDS:
@@ -41,8 +44,15 @@ def content_tokens(text):
     return result
 
 
+def _question_key(question):
+    """Normalize harmless spacing and punctuation differences for duplicate detection."""
+    return re.sub(r"[\W_]+", "", str(question).casefold(), flags=re.UNICODE)
+
+
 def intent_signature(question):
-    q = str(question).lower()
+    if not isinstance(question, str):
+        raise TypeError("질문은 문자열이어야 합니다.")
+    q = question.lower()
     if re.search(r"차이|비교|공통점|다른 점", q):
         return "comparison"
     if re.search(r"어떻게|방법|과정|원리|왜", q):
@@ -76,34 +86,78 @@ def token_similarity(left, right):
 
 def retrieve(question, approved_rows, threshold=0.55, min_margin=0.15):
     """Return a stored answer only for a clear topic AND question-intent match."""
-    ranked = []
-    seen = set()
+    if not isinstance(question, str):
+        raise ValueError("question은 문자열이어야 합니다.")
+    if isinstance(threshold, bool) or isinstance(min_margin, bool):
+        raise ValueError("threshold와 min_margin은 불리언이 아닌 숫자여야 합니다.")
+    try:
+        threshold = float(threshold)
+        min_margin = float(min_margin)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("threshold와 min_margin은 유한한 숫자여야 합니다.") from exc
+    if not math.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
+        raise ValueError("threshold는 0과 1 사이의 유한한 숫자여야 합니다.")
+    if not math.isfinite(min_margin) or not 0.0 <= min_margin <= 1.0:
+        raise ValueError("min_margin은 0과 1 사이의 유한한 숫자여야 합니다.")
+    if approved_rows is None:
+        return {"matched": False, "score": 0.0, "margin": 0.0,
+                "question": None, "answer": None, "rejection_reason": "invalid_index"}
+    if not isinstance(approved_rows, (list, tuple)):
+        raise ValueError("approved_rows는 list 또는 tuple이어야 합니다.")
+    rows = iter(approved_rows)
+
+    candidates = {}
+    conflicting_questions = set()
+    if not content_tokens(question):
+        return {"matched": False, "score": 0.0, "margin": 0.0,
+                "question": None, "answer": None, "rejection_reason": "invalid_query"}
     query_intent = intent_signature(question)
-    for row in approved_rows:
+    for row in rows:
         if not isinstance(row, dict) or row.get("approved") is not True:
             continue
-        candidate_q = str(row.get("question", "")).strip()
-        answer = str(row.get("answer", "")).strip()
-        key = candidate_q.casefold()
-        if not candidate_q or not answer or key in seen:
+        raw_question = row.get("question")
+        raw_answer = row.get("answer")
+        if not isinstance(raw_question, str) or not isinstance(raw_answer, str):
+            raise ValueError("승인된 Q&A의 question과 answer는 문자열이어야 합니다.")
+        candidate_q = raw_question.strip()
+        answer = raw_answer.strip()
+        if not candidate_q or not answer or intent_signature(candidate_q) != query_intent:
             continue
-        seen.add(key)
-        if intent_signature(candidate_q) != query_intent:
+        key = _question_key(candidate_q)
+        if not key:
+            continue
+        previous = candidates.get(key)
+        if previous is None:
+            candidates[key] = (candidate_q, answer)
+        elif previous[1] != answer:
+            conflicting_questions.add(key)
+
+    ranked = []
+    for key, (candidate_q, answer) in candidates.items():
+        if key in conflicting_questions:
             continue
         score = token_similarity(question, candidate_q)
         ranked.append((score, candidate_q, answer))
     ranked.sort(key=lambda item: item[0], reverse=True)
     if not ranked:
+        reason = "conflicting_answers" if conflicting_questions else "no_candidate"
         return {"matched": False, "score": 0.0, "margin": 0.0,
-                "question": None, "answer": None}
+                "question": None, "answer": None, "rejection_reason": reason}
     score, matched_q, answer = ranked[0]
     second = ranked[1][0] if len(ranked) > 1 else 0.0
     margin = score - second
     accepted = score >= threshold and margin >= min_margin
+    if accepted:
+        reason = "accepted"
+    elif score < threshold:
+        reason = "score_below_threshold"
+    else:
+        reason = "ambiguous_margin"
     return {
         "matched": accepted,
         "score": round(score, 6),
         "margin": round(margin, 6),
         "question": matched_q,
         "answer": answer if accepted else None,
+        "rejection_reason": reason,
     }

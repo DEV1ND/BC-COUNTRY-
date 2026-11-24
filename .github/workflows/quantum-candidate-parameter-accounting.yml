@@ -1,0 +1,33 @@
+name: Quantum Candidate Parameter Accounting
+
+on:
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "bpe_candidate_train.py"
+      - "test_candidate_parameter_accounting.py"
+      - ".github/workflows/quantum-candidate-parameter-accounting.yml"
+  push:
+    branches:
+      - quantum-candidate-parameter-accounting
+    paths:
+      - "bpe_candidate_train.py"
+      - "test_candidate_parameter_accounting.py"
+      - ".github/workflows/quantum-candidate-parameter-accounting.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parameter-accounting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU-only PyTorch and dependencies
+        run: pip install -r requirements.txt
+      - name: Verify checkpoint parameter accounting
+        run: python -m unittest -v test_candidate_parameter_accounting.py
