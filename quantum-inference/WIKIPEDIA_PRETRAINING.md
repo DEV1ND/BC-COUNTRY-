@@ -9,11 +9,13 @@ Provide a private UTF-8 JSONL export, one object per line:
 - `page_id`, `title`, `url` (canonical Korean Wikipedia URL)
 - `revision_id`, `content_hash` (SHA-256 of the exact UTF-8 `text`)
 - `text`, `license` (exactly `CC BY-SA 4.0`), `attribution`
-- `status` and `reviewer_note`
+- `status`, `reviewer_note`, and `reviewed_at` (timezone-aware ISO-8601 for manual approvals; null for pending rows)
 
-Rows marked `excluded`, malformed metadata, invalid hashes, missing attribution, and duplicates are rejected. The script accepts a row as manually verified only when `status=approved` and `reviewer_note` begins with `MANUAL_APPROVAL:`.
+The importer accepts only two exact states: `approved` and `pending_review`. `excluded` rows are skipped; unknown states are rejected. An approved row must have a non-empty `MANUAL_APPROVAL:` note and a timezone-aware `reviewed_at`. A pending row must not carry an approval marker or review timestamp. The opt-in flag cannot downgrade an invalid approved row into an unverified training row.
 
-By default, only manually verified rows are eligible. Pending or legacy auto-reviewed rows are not silently treated as facts. To use them solely as an **unverified experimental language corpus**, the operator must deliberately pass `--allow-unverified-experimental`. The report and checkpoint metadata retain this distinction. Such training is not fact-checking and does not make generated claims reliable.
+**Important identity limitation:** the current Cloudflare Worker records a manual-review note and timestamp but does not authenticate or export the reviewer's identity. Therefore the training manifest labels this class `manual_review_metadata_present_identity_unverified`, and explicitly records `reviewer_identity_verified=false`. A marker and timestamp are not proof of who performed the review. This metadata alone does not satisfy the separate reviewer-identity release gate and must not be described as verified reviewer identity.
+
+Pending rows are eligible only as an **unverified experimental language corpus** when the operator deliberately passes `--allow-unverified-experimental`. The flag cannot bypass malformed states, invalid timestamps, source metadata, or hash validation. Such training is not fact-checking and does not make generated claims reliable.
 
 ## Run locally (CPU, isolated output)
 
