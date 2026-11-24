@@ -317,6 +317,8 @@ class InferenceContractTests(unittest.TestCase):
         self.assertEqual(result["generated_tokens"], 8)
         self.assertEqual(result["generation_diagnostics"]["generated_tokens"], 8)
         self.assertIn("interpretation_limit", result["generation_diagnostics"])
+        self.assertFalse(result["output_shape_diagnostics"]["suspicious_repetition"])
+        self.assertEqual(result["output_shape_diagnostics"]["warnings"], [])
         self.assertIn("토큰 진단은 문장 품질 평가가 아닙니다.", result["quality_warning"])
         self.assertEqual(result["generation_stop_reason"], "max_new_tokens")
 
