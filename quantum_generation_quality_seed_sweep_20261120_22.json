@@ -1,0 +1,562 @@
+{
+  "schema": "quantum-generation-quality-seed-sweep-v1",
+  "sample_count": 60,
+  "flagged_sample_count": 49,
+  "seed_count": 3,
+  "flag_counts": {
+    "low_lexical_overlap_proxy": 39,
+    "duplicate_answer_across_samples": 9,
+    "much_shorter_than_reference": 21,
+    "too_short_for_general_qa_review": 15,
+    "internal_trigram_repetition": 2
+  },
+  "production_release_eligible": false,
+  "semantic_accuracy_claimed": false,
+  "human_review_required": true,
+  "method_note": "동일한 고정 20개 질문에 대해 세 개의 seed 결과를 표면적 문자열 규칙으로 감사. 의미적 정확도·사실성 평가는 하지 않음.",
+  "reports": [
+    {
+      "source_file": "bpe_generation_seed_20261120.json",
+      "source_sha": "badc5ec92a17fb20de6f05497f4080242d23b905",
+      "sample_count": 20,
+      "flagged_sample_count": 18,
+      "flag_counts": {
+        "low_lexical_overlap_proxy": 15,
+        "duplicate_answer_across_samples": 2,
+        "much_shorter_than_reference": 8,
+        "too_short_for_general_qa_review": 6
+      },
+      "production_release_eligible": false,
+      "human_review_required": true,
+      "samples": [
+        {
+          "question": "판 구조론이란 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "duplicate_answer_across_samples",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 18,
+          "reference_char_bigram_f1_proxy": 0.08333
+        },
+        {
+          "question": "태양계에서 가장 큰 행성은?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 5,
+          "reference_char_bigram_f1_proxy": 0.16216
+        },
+        {
+          "question": "세포막의 주요 기능은 무엇인가요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 4,
+          "reference_char_bigram_f1_proxy": 0.08163
+        },
+        {
+          "question": "지구의 위성은 무엇인가요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.15385
+        },
+        {
+          "question": "민주주의의 뜻을 설명해줘.",
+          "flags": [],
+          "generated_characters": 13,
+          "reference_char_bigram_f1_proxy": 0.12245
+        },
+        {
+          "question": "삼권분립은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 35,
+          "reference_char_bigram_f1_proxy": 0.08451
+        },
+        {
+          "question": "HTML은 어떤 언어인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 21,
+          "reference_char_bigram_f1_proxy": 0.06667
+        },
+        {
+          "question": "CSS의 역할은 무엇인가요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.08333
+        },
+        {
+          "question": "자바스크립트는 어디에 사용되나요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 29,
+          "reference_char_bigram_f1_proxy": 0.05797
+        },
+        {
+          "question": "파이썬의 특징은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 20,
+          "reference_char_bigram_f1_proxy": 0.06154
+        },
+        {
+          "question": "퇴적암은 어떻게 만들어지나요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 17,
+          "reference_char_bigram_f1_proxy": 0.11321
+        },
+        {
+          "question": "확률의 기본 의미는 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 18,
+          "reference_char_bigram_f1_proxy": 0.10345
+        },
+        {
+          "question": "빛의 속도는 대략 얼마인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 22,
+          "reference_char_bigram_f1_proxy": 0.06667
+        },
+        {
+          "question": "물질의 세 가지 상태는?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.09524
+        },
+        {
+          "question": "기후와 날씨의 차이는?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 11,
+          "reference_char_bigram_f1_proxy": 0.13333
+        },
+        {
+          "question": "세계에서 가장 큰 바다는?",
+          "flags": [],
+          "generated_characters": 19,
+          "reference_char_bigram_f1_proxy": 0.12121
+        },
+        {
+          "question": "윤년은 어떤 해인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 29,
+          "reference_char_bigram_f1_proxy": 0.07229
+        },
+        {
+          "question": "뉴턴의 제1법칙을 설명해줘.",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 9,
+          "reference_char_bigram_f1_proxy": 0.06154
+        },
+        {
+          "question": "운영체제의 역할은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.05333
+        },
+        {
+          "question": "인공지능과 머신러닝의 관계는?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 13,
+          "reference_char_bigram_f1_proxy": 0.1194
+        }
+      ]
+    },
+    {
+      "source_file": "bpe_generation_seed_20261121.json",
+      "source_sha": "dc4d89123056bffac8f05ef393ccf44cee480c07",
+      "sample_count": 20,
+      "flagged_sample_count": 17,
+      "flag_counts": {
+        "low_lexical_overlap_proxy": 15,
+        "much_shorter_than_reference": 8,
+        "too_short_for_general_qa_review": 5
+      },
+      "production_release_eligible": false,
+      "human_review_required": true,
+      "samples": [
+        {
+          "question": "판 구조론이란 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 17,
+          "reference_char_bigram_f1_proxy": 0.08571
+        },
+        {
+          "question": "태양계에서 가장 큰 행성은?",
+          "flags": [],
+          "generated_characters": 15,
+          "reference_char_bigram_f1_proxy": 0.13636
+        },
+        {
+          "question": "세포막의 주요 기능은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 17,
+          "reference_char_bigram_f1_proxy": 0.0678
+        },
+        {
+          "question": "지구의 위성은 무엇인가요?",
+          "flags": [
+            "too_short_for_general_qa_review"
+          ],
+          "generated_characters": 11,
+          "reference_char_bigram_f1_proxy": 0.14286
+        },
+        {
+          "question": "민주주의의 뜻을 설명해줘.",
+          "flags": [],
+          "generated_characters": 14,
+          "reference_char_bigram_f1_proxy": 0.12245
+        },
+        {
+          "question": "삼권분립은 무엇인가요?",
+          "flags": [
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 14,
+          "reference_char_bigram_f1_proxy": 0.14545
+        },
+        {
+          "question": "HTML은 어떤 언어인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 16,
+          "reference_char_bigram_f1_proxy": 0.10345
+        },
+        {
+          "question": "CSS의 역할은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 24,
+          "reference_char_bigram_f1_proxy": 0.10169
+        },
+        {
+          "question": "자바스크립트는 어디에 사용되나요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 11,
+          "reference_char_bigram_f1_proxy": 0.07273
+        },
+        {
+          "question": "파이썬의 특징은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 29,
+          "reference_char_bigram_f1_proxy": 0.05797
+        },
+        {
+          "question": "퇴적암은 어떻게 만들어지나요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 19,
+          "reference_char_bigram_f1_proxy": 0.10909
+        },
+        {
+          "question": "확률의 기본 의미는 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 21,
+          "reference_char_bigram_f1_proxy": 0.1
+        },
+        {
+          "question": "빛의 속도는 대략 얼마인가요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 9,
+          "reference_char_bigram_f1_proxy": 0.08
+        },
+        {
+          "question": "물질의 세 가지 상태는?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 15,
+          "reference_char_bigram_f1_proxy": 0.10714
+        },
+        {
+          "question": "기후와 날씨의 차이는?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 18,
+          "reference_char_bigram_f1_proxy": 0.08163
+        },
+        {
+          "question": "세계에서 가장 큰 바다는?",
+          "flags": [],
+          "generated_characters": 15,
+          "reference_char_bigram_f1_proxy": 0.19355
+        },
+        {
+          "question": "윤년은 어떤 해인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 19,
+          "reference_char_bigram_f1_proxy": 0.08
+        },
+        {
+          "question": "뉴턴의 제1법칙을 설명해줘.",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.09231
+        },
+        {
+          "question": "운영체제의 역할은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 17,
+          "reference_char_bigram_f1_proxy": 0.05714
+        },
+        {
+          "question": "인공지능과 머신러닝의 관계는?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 7,
+          "reference_char_bigram_f1_proxy": 0.09836
+        }
+      ]
+    },
+    {
+      "source_file": "bpe_generation_seed_20261122.json",
+      "source_sha": "5a227bb42a3bd2b7caa4a0f2e012c5d9f7cf0df6",
+      "sample_count": 20,
+      "flagged_sample_count": 14,
+      "flag_counts": {
+        "internal_trigram_repetition": 2,
+        "low_lexical_overlap_proxy": 9,
+        "duplicate_answer_across_samples": 7,
+        "too_short_for_general_qa_review": 4,
+        "much_shorter_than_reference": 5
+      },
+      "production_release_eligible": false,
+      "human_review_required": true,
+      "samples": [
+        {
+          "question": "판 구조론이란 무엇인가요?",
+          "flags": [
+            "internal_trigram_repetition",
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 27,
+          "reference_char_bigram_f1_proxy": 0.07792
+        },
+        {
+          "question": "태양계에서 가장 큰 행성은?",
+          "flags": [],
+          "generated_characters": 22,
+          "reference_char_bigram_f1_proxy": 0.12245
+        },
+        {
+          "question": "세포막의 주요 기능은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 24,
+          "reference_char_bigram_f1_proxy": 0.09231
+        },
+        {
+          "question": "지구의 위성은 무엇인가요?",
+          "flags": [],
+          "generated_characters": 16,
+          "reference_char_bigram_f1_proxy": 0.13043
+        },
+        {
+          "question": "민주주의의 뜻을 설명해줘.",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "duplicate_answer_across_samples",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.13333
+        },
+        {
+          "question": "삼권분립은 무엇인가요?",
+          "flags": [
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 20,
+          "reference_char_bigram_f1_proxy": 0.13333
+        },
+        {
+          "question": "HTML은 어떤 언어인가요?",
+          "flags": [],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.12308
+        },
+        {
+          "question": "CSS의 역할은 무엇인가요?",
+          "flags": [
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 20,
+          "reference_char_bigram_f1_proxy": 0.13793
+        },
+        {
+          "question": "자바스크립트는 어디에 사용되나요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 15,
+          "reference_char_bigram_f1_proxy": 0.0678
+        },
+        {
+          "question": "파이썬의 특징은 무엇인가요?",
+          "flags": [
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 24,
+          "reference_char_bigram_f1_proxy": 0.14706
+        },
+        {
+          "question": "퇴적암은 어떻게 만들어지나요?",
+          "flags": [
+            "internal_trigram_repetition",
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.10169
+        },
+        {
+          "question": "확률의 기본 의미는 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy"
+          ],
+          "generated_characters": 36,
+          "reference_char_bigram_f1_proxy": 0.08451
+        },
+        {
+          "question": "빛의 속도는 대략 얼마인가요?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 6,
+          "reference_char_bigram_f1_proxy": 0.08333
+        },
+        {
+          "question": "물질의 세 가지 상태는?",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.16
+        },
+        {
+          "question": "기후와 날씨의 차이는?",
+          "flags": [],
+          "generated_characters": 12,
+          "reference_char_bigram_f1_proxy": 0.13333
+        },
+        {
+          "question": "세계에서 가장 큰 바다는?",
+          "flags": [],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.15789
+        },
+        {
+          "question": "윤년은 어떤 해인가요?",
+          "flags": [],
+          "generated_characters": 25,
+          "reference_char_bigram_f1_proxy": 0.1519
+        },
+        {
+          "question": "뉴턴의 제1법칙을 설명해줘.",
+          "flags": [
+            "too_short_for_general_qa_review",
+            "low_lexical_overlap_proxy",
+            "duplicate_answer_across_samples",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 8,
+          "reference_char_bigram_f1_proxy": 0.09231
+        },
+        {
+          "question": "운영체제의 역할은 무엇인가요?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "duplicate_answer_across_samples"
+          ],
+          "generated_characters": 24,
+          "reference_char_bigram_f1_proxy": 0.05263
+        },
+        {
+          "question": "인공지능과 머신러닝의 관계는?",
+          "flags": [
+            "low_lexical_overlap_proxy",
+            "much_shorter_than_reference"
+          ],
+          "generated_characters": 16,
+          "reference_char_bigram_f1_proxy": 0.05882
+        }
+      ]
+    }
+  ]
+}
