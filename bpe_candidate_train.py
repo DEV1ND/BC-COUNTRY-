@@ -364,7 +364,10 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    # CI/offline candidate training uses only locally reviewed, approved Q&A.
+    # Training is fail-closed until a trusted cryptographic reviewer identity
+    # verifier is explicitly wired into audit_rows. Dataset booleans and reviewer
+    # labels are never accepted as identity proof. This script does not configure
+    # such a verifier, so metadata-only rows cannot start optimizer steps.
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
     provenance_report = audit_rows(source_rows)
@@ -373,8 +376,10 @@ def main():
     )
     if not provenance_report["training_release_eligible"]:
         raise RuntimeError(
-            "학습 중단: 출처·라이선스 메타데이터 및 사람 검토가 완료된 데이터만 후보 학습에 사용할 수 있습니다. "
+            "학습 중단: 출처·라이선스 메타데이터와 신뢰된 암호학적 검토자 신원 검증이 모두 필요합니다. "
             f"메타데이터 완전 {provenance_report['metadata_complete_records']}/"
+            f"{provenance_report['approved_records']}개, "
+            f"신원 검증 {provenance_report['reviewer_identity_verified_records']}/"
             f"{provenance_report['approved_records']}개"
         )
     rows = clean_pairs(source_rows)
