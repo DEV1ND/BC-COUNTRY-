@@ -20,6 +20,28 @@ class TokenizerDiagnosticsTests(unittest.TestCase):
         self.assertGreater(report["multi_codepoint_vocab_entries"], 0)
         self.assertIn("interpretation_limit", report)
 
+    def test_reports_hangul_syllable_and_jamo_fragmentation_separately(self):
+        texts = ["한국 한국", "한글 가"]
+        tokenizer = BPETokenizer.train(texts, vocab_size=32)
+        report = summarize_tokenizer_usage(tokenizer, texts, label="korean")
+
+        self.assertEqual(report["hangul_syllable_codepoints"], 6)
+        self.assertEqual(report["hangul_jamo_codepoints"], 2)
+        self.assertGreater(report["hangul_tokens"], 0)
+        self.assertGreaterEqual(report["single_hangul_syllable_token_ratio"], 0.0)
+        self.assertLessEqual(report["single_hangul_syllable_token_ratio"], 1.0)
+        self.assertGreater(report["average_hangul_syllables_per_token"], 0.0)
+        self.assertTrue(report["round_trip_verified"])
+
+    def test_hangul_diagnostics_are_zero_for_non_hangul_corpus(self):
+        tokenizer = BPETokenizer.train(["Quantum model"], vocab_size=32)
+        report = summarize_tokenizer_usage(tokenizer, ["Quantum model"])
+        self.assertEqual(report["hangul_syllable_codepoints"], 0)
+        self.assertEqual(report["hangul_jamo_codepoints"], 0)
+        self.assertEqual(report["hangul_tokens"], 0)
+        self.assertEqual(report["single_hangul_syllable_token_ratio"], 0.0)
+        self.assertEqual(report["average_hangul_syllables_per_token"], 0.0)
+
     def test_empty_strings_are_counted_without_division_errors(self):
         tokenizer = BPETokenizer(initial_symbols=[])
         report = summarize_tokenizer_usage(tokenizer, ["", ""], label="empty")
