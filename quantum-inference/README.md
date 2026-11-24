@@ -211,3 +211,10 @@ Domain-alias expansion is subject to the same 64-unique-term ceiling as the orig
 The internal lexical ranker attaches a `match_diagnostics` object to each accepted document. It records the bounded query terms, which terms matched the title and body, match counts, title/body term coverage, and whether the acceptance evidence came from a title match or multiple body-term matches. The authenticated `POST /admin/knowledge/search` endpoint exposes this trace beside the source revision and content hash.
 
 These fields explain the lexical evidence used by the current ranker and help reviewers identify weak or surprising matches. They are not semantic similarity scores, factual confidence, proof that a passage supports an answer, or an automatic quality judgment. Ranking weights and acceptance thresholds are unchanged by this diagnostic addition; model invocation and training remain disabled for the search endpoint.
+
+
+## Explicit hard-negative retrieval evaluation
+
+The retrieval-only evaluation corpus now contains 44 cases, including 12 cases with explicit hard_negative_titles. These labels identify a small set of known, topically plausible but out-of-scope pages for each question. The benchmark reports hard-negative retrieval counts and the share of labeled cases in which at least one such page was returned, both overall and per domain. It rejects malformed labels, duplicate normalized titles, and overlap between expected and hard-negative titles.
+
+Hard-negative metrics are separate from the broader retrieval-noise metric: noise counts every returned title outside the expected-title set, while the hard-negative metric counts only explicitly labeled distractors. These labels are curated test expectations, not a universal semantic relevance oracle. The corpus remains retrieval_only, is not model training data, and does not invoke or train Quantum. A lower hard-negative rate is evidence only for these specific labeled cases; it is not proof of general semantic understanding.
