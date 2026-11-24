@@ -1,0 +1,54 @@
+# Quantum Candidate 10M profile
+
+## 목적
+
+현재 소형 Candidate와 분리된 약 1,000만 학습 가능 파라미터 구조를 재현 가능하게 정의합니다. 이 프로필은 구조·파라미터 계수만 검증하며, 학습·체크포인트 생성·배포·Production 승격을 자동 실행하지 않습니다.
+
+## 고정 아키텍처
+
+| 항목 | 값 |
+|---|---:|
+| 어휘 크기 | 1,024 |
+| Transformer hidden width | 496 |
+| Attention heads | 8 |
+| Encoder layers | 3 |
+| Feed-forward width | 1,984 (width × 4) |
+| Context length | 256 tokens |
+| 학습 가능 파라미터 | 10,020,720 |
+| 비파라미터 causal mask buffer | 65,536 elements |
+| state_dict 텐서 원소 합계 | 10,086,256 |
+| 목표 대비 파라미터 차이 | +0.2072% |
+
+파라미터 수는 실제 PyTorch 모델의 `parameters()`를 합산해 확인합니다. causal mask는 `register_buffer`로 저장되므로 학습 파라미터와 분리해 보고합니다. 체크포인트 텐서 원소 합계에 버퍼가 포함되는 것은 정상입니다.
+
+## 실행 전 구조 검사
+
+```bash
+python train_10m_candidate.py --dry-run
+```
+
+이 명령은 모델 구조를 메모리에 만들고 실제 파라미터 수·버퍼 수를 확인합니다. 데이터 파일을 읽거나 학습을 시작하지 않습니다.
+
+## 학습 실행 명령
+
+```bash
+python train_10m_candidate.py --steps 1000
+```
+
+이 명령은 기존 `bpe_candidate_train.py`를 고정된 10M 구조로 호출합니다. 원래 트레이너의 출처·라이선스·검토자 메타데이터 감사가 먼저 실행되며, 학습 적격성이 false이면 optimizer step 전에 중단되어야 합니다. 현재 데이터 감사 게이트가 통과하지 못한 상태라면 이 명령을 실행해도 학습은 진행되지 않습니다.
+
+## 메모리와 성능 주의
+
+FP32 가중치만 약 40.1 MB입니다. 학습 시 gradient와 Adam optimizer state가 추가되며, activation·임시 텐서·Python/PyTorch 런타임 메모리는 별도입니다. 따라서 실제 학습 메모리와 CPU 처리 속도는 하드웨어 및 batch 구성에서 측정해야 합니다. 이 프로필을 추가했다고 Render CPU에서 학습이 가능하다고 단정하지 않습니다.
+
+## 품질 게이트
+
+파라미터 수 증가는 모델의 표현 용량만 바꿉니다. 자연스러운 한국어, 사실 정확도, 지시 수행, 추론 능력이 개선된다는 보장은 없습니다. 이전 직접 생성 스모크에서 확인한 한글 한 글자 분절 문제를 포함해 별도의 held-out 생성 평가와 사람 검토를 통과해야 합니다. BPC/validation loss만으로 답변 품질을 승인하지 않습니다.
+
+## 운영 안전
+
+- 별도 Candidate 구조만 정의합니다.
+- 기존 운영 모델과 운영 체크포인트를 수정하지 않습니다.
+- 실제 학습은 출처·라이선스·검토자 신원 게이트 통과 전까지 금지합니다.
+- Render 배포, Worker/D1 변경, Production 승격은 이 프로필에 포함되지 않습니다.
+- 사용자 승인 전 자동 병합·승격하지 않습니다.
