@@ -1,5 +1,6 @@
 """Deterministic retrieval benchmark metrics; does not score or train model."""
 from collections import defaultdict
+from itertools import islice
 import unicodedata
 from typing import Callable, Iterable, Mapping
 
@@ -30,7 +31,15 @@ def _bounded_integer(value, label, minimum, maximum):
 def validate_retrieval_cases(cases: Iterable[Mapping], max_cases: int = 500) -> list[dict]:
     """Validate a fixed benchmark corpus and reject ambiguous or duplicate case IDs."""
     _bounded_integer(max_cases, "max_cases", 1, 500)
-    rows = list(cases)
+    try:
+        iterator = iter(cases)
+    except TypeError as exc:
+        raise ValueError("Evaluation cases must be iterable.") from exc
+
+    # Read at most one item beyond the configured limit. Materializing the
+    # entire iterable first would make max_cases ineffective for large or
+    # unbounded generators and could exhaust memory before validation.
+    rows = list(islice(iterator, max_cases + 1))
     if not rows:
         raise ValueError("At least one evaluation case is required.")
     if len(rows) > max_cases:
