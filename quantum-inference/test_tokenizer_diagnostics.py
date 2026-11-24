@@ -85,7 +85,7 @@ class GeneratedTokenDiagnosticsTests(unittest.TestCase):
         self.assertFalse(report["character_fragmentation_suspected"])
 
     def test_generated_token_report_handles_non_hangul_output(self):
-        tokenizer = BPETokenizer(initial_symbols=list("Quantum"))
+        tokenizer = BPETokenizer(initial_symbols=sorted(set("Quantum")))
         report = summarize_generated_tokens(tokenizer, tokenizer.encode("Quantum"))
         self.assertEqual(report["hangul_tokens"], 0)
         self.assertEqual(report["single_hangul_syllable_token_ratio"], 0.0)
