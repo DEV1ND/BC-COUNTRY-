@@ -263,6 +263,45 @@ def require_admin(authorization):
         status_code, message = auth_error
         raise HTTPException(status_code, "관리자 인증이 필요합니다." if status_code == 401 else message)
 
+async def read_bounded_json(request, max_bytes):
+    """Read a JSON request body with a hard byte ceiling, including chunked bodies."""
+    if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes < 1:
+        raise ValueError("max_bytes must be a positive integer")
+    headers = getattr(request, "headers", {})
+    content_length = headers.get("content-length") if hasattr(headers, "get") else None
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(400, "Content-Length 헤더가 올바르지 않습니다.") from exc
+        if declared_length < 0:
+            raise HTTPException(400, "Content-Length 헤더가 올바르지 않습니다.")
+        if declared_length > max_bytes:
+            raise HTTPException(413, "요청 본문이 허용 크기를 초과했습니다.")
+
+    stream = getattr(request, "stream", None)
+    if callable(stream):
+        body = bytearray()
+        async for chunk in stream():
+            body.extend(chunk)
+            if len(body) > max_bytes:
+                raise HTTPException(413, "요청 본문이 허용 크기를 초과했습니다.")
+        try:
+            return json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise HTTPException(400, "JSON 본문이 필요합니다.") from exc
+
+    # Lightweight compatibility for direct handler tests; Starlette requests
+    # always expose stream(), so production requests use the bounded path.
+    try:
+        return await request.json()
+    except Exception as exc:
+        raise HTTPException(400, "JSON 본문이 필요합니다.") from exc
+
+
+KNOWLEDGE_SEARCH_MAX_BODY_BYTES = 16 * 1024
+KNOWLEDGE_IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024
+
 def retrieve_knowledge_diagnostic(question, limit=3):
     """Return documents plus an explicit status; retrieval faults never masquerade as matches."""
     try:
@@ -357,10 +396,7 @@ def health():
 async def knowledge_search(request: Request, authorization: Optional[str] = Header(default=None)):
     """Authenticated retrieval diagnostic; does not invoke or train the language model."""
     require_admin(authorization)
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(400, "JSON 본문이 필요합니다.")
+    payload = await read_bounded_json(request, KNOWLEDGE_SEARCH_MAX_BODY_BYTES)
     question = payload.get("question") if isinstance(payload, dict) else None
     if not isinstance(question, str):
         raise HTTPException(422, "question은 문자열이어야 합니다.")
@@ -438,10 +474,7 @@ def evaluate_knowledge_retrieval(authorization: Optional[str] = Header(default=N
 async def import_knowledge(request: Request, authorization: Optional[str] = Header(default=None)):
     """Validate the entire batch before writing; any failure rolls back every row."""
     require_admin(authorization)
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(400, "JSON 본문이 필요합니다.")
+    payload = await read_bounded_json(request, KNOWLEDGE_IMPORT_MAX_BODY_BYTES)
     documents = payload.get("documents") if isinstance(payload, dict) else None
     try:
         docs = validate_import_documents(documents)
