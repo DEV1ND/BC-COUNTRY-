@@ -17,6 +17,7 @@ from generation_sampling import select_top_k_indices, normalize_prompt, validate
 from tokenizer_diagnostics import summarize_generated_tokens
 from generation_output_diagnostics import diagnose_answer_output
 from generation_context import build_generation_context
+from inference_metrics import elapsed_ms, tokens_per_second
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
 # Reuse the project's conservative, local-only retrieval over reviewed Q&A.
@@ -581,13 +582,16 @@ def training_status(authorization: Optional[str] = Header(default=None)):
 @app.post("/v1/generate")
 @torch.inference_mode()
 def generate(req: GenerateRequest, authorization: Optional[str] = Header(default=None)):
+    request_started_at = time.perf_counter()
     auth_error = generation_auth_error(API_TOKEN, authorization)
     if auth_error is not None:
         status_code, message = auth_error
         raise HTTPException(status_code, message)
     # Prefer a high-confidence answer from Quantum's own reviewed dataset.
     # Intent and margin checks prevent a loose topic match from returning an unrelated answer.
+    qa_retrieval_started_at = time.perf_counter()
     qa_match = retrieve_approved_qa(req.prompt, APPROVED_QA_ROWS)
+    qa_retrieval_ms = elapsed_ms(qa_retrieval_started_at, time.perf_counter())
     if qa_match.get("matched"):
         return {
             "answer": qa_match["answer"],
@@ -602,10 +606,21 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
                 "margin": qa_match.get("margin"),
             },
             "quality_warning": "검수된 Quantum 자체 Q&A 자료에서 검색한 답변입니다.",
+            "timing": {
+                "qa_retrieval_ms": qa_retrieval_ms,
+                "knowledge_retrieval_ms": 0.0,
+                "generation_ms": 0.0,
+                "total_ms": elapsed_ms(request_started_at, time.perf_counter()),
+                "generated_tokens": 0,
+                "tokens_per_second": 0.0,
+                "answer_characters": len(qa_match["answer"]),
+            },
         }
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
+    knowledge_retrieval_started_at = time.perf_counter()
     knowledge_retrieval = retrieve_knowledge_diagnostic(req.prompt, limit=3)
+    knowledge_retrieval_ms = elapsed_ms(knowledge_retrieval_started_at, time.perf_counter())
     knowledge = knowledge_retrieval["documents"]
     # Only documents with a valid Wikipedia URL, CC BY-SA 4.0 label,
     # and non-empty attribution are passed into generation or exposed as citations.
@@ -624,6 +639,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     citations_suppressed_reason = "context_truncated" if context_truncated and knowledge_sources else None
     if citations_suppressed_reason:
         knowledge_sources = []
+    generation_started_at = time.perf_counter()
     generated = []
     generation_stop_reason = "max_new_tokens"
     for step in range(req.max_new_tokens):
@@ -685,6 +701,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
     if not answer:
         raise HTTPException(503, "Quantum 후보 모델이 빈 답변을 생성했습니다.")
+    generation_ms = elapsed_ms(generation_started_at, time.perf_counter())
     generation_diagnostics = summarize_generated_tokens(tokenizer, generated)
     output_shape_diagnostics = diagnose_answer_output(answer)
     return {"answer": answer, "model": "quantum-bpe-candidate",
@@ -693,6 +710,15 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "is_live_retrieval": False,
             "is_model_generation": True,
             "response_mode": "model_generation",
+            "timing": {
+                "qa_retrieval_ms": qa_retrieval_ms,
+                "knowledge_retrieval_ms": knowledge_retrieval_ms,
+                "generation_ms": generation_ms,
+                "total_ms": elapsed_ms(request_started_at, time.perf_counter()),
+                "generated_tokens": len(generated),
+                "tokens_per_second": tokens_per_second(len(generated), generation_ms),
+                "answer_characters": len(answer),
+            },
             "knowledge_sources": knowledge_sources,
             "knowledge_retrieval": {
                 "status": knowledge_retrieval["status"],

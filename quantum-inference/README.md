@@ -237,3 +237,21 @@ Generation source formatting consumes at most 10 source records and reads at mos
 ## Bounded JSON request bodies
 
 The Candidate knowledge search endpoint reads at most 16 KiB of JSON request data, and the knowledge import endpoint reads at most 2 MiB. Both limits are enforced while streaming the body, so chunked requests without a trustworthy Content-Length header are also stopped once the byte ceiling is crossed. A declared oversized Content-Length is rejected before the body is read. Malformed JSON returns HTTP 400 and an oversized body returns HTTP 413. These transport-level limits complement the field-level question and document validation; they do not change model behavior, retrieval relevance, or training data.
+
+
+## Candidate inference latency diagnostics
+
+The isolated Candidate `/v1/generate` response includes a `timing` object:
+
+- `qa_retrieval_ms`: reviewed Q&A lookup duration
+- `knowledge_retrieval_ms`: knowledge-index retrieval and ranking duration
+- `generation_ms`: token-generation loop plus final decode duration
+- `total_ms`: request handling duration measured inside the API handler
+- `generated_tokens`: number of newly generated token IDs
+- `tokens_per_second`: generated token IDs divided by generation duration
+- `answer_characters`: final answer character count
+
+For approved-Q&A retrieval, generation metrics are zero because the model is
+not invoked. These are per-request diagnostics, not p50/p95 load-test results,
+and they do not measure answer correctness or semantic quality. The timing
+fields are Candidate-only until separately reviewed and approved.
