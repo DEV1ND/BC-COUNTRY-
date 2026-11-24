@@ -64,18 +64,18 @@ def query_terms(value):
     result = []
     for token in raw:
         stem = token
-        for suffix in _SUFFIXES:
-            if stem.endswith(suffix) and len(stem) - len(suffix) >= 1:
-                candidate = stem[:-len(suffix)]
-                # Preserve a complete lexical noun, or strip only its outer
-                # particle when the resulting stem is a known lexical noun.
-                # e.g. 국가 stays 국가; 국가의 becomes 국가.
-                if stem in _PROTECTED_STEMS:
+        # Remove at most two recognized outer endings. This handles stacked
+        # forms such as "국가에서는" without introducing an unbounded stemmer.
+        for _ in range(2):
+            if stem in _PROTECTED_STEMS:
+                break
+            stripped = False
+            for suffix in _SUFFIXES:
+                if stem.endswith(suffix) and len(stem) - len(suffix) >= 1:
+                    stem = stem[:-len(suffix)]
+                    stripped = True
                     break
-                if candidate in _PROTECTED_STEMS:
-                    stem = candidate
-                    break
-                stem = candidate
+            if not stripped or stem in _PROTECTED_STEMS:
                 break
         if stem not in _STOP and len(stem) >= 1 and stem not in result:
             result.append(stem)
