@@ -22,6 +22,13 @@ class ExperimentalRetrievalTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertGreater(result[0]["experimental_score"], 0)
 
+    def test_one_syllable_korean_noun_survives_attached_particle(self):
+        rows = [{"title": "달", "text": "지구의 자연 위성", "url": "moon"}]
+        result = rank_experimental("달은 무엇인가요", rows, min_score=0.01)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["title"], "달")
+        self.assertGreater(result[0]["experimental_score"], 0)
+
     def test_unrelated_document_is_below_a_strict_threshold(self):
         rows = [{"title": "민주주의", "text": "국민 주권과 정치 제도", "url": "a"}]
         result = rank_experimental("태양계 행성의 공전", rows, min_score=0.3)
