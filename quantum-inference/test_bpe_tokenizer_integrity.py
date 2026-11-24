@@ -95,6 +95,26 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
                 initial_symbols=["가", "나"],
             )
 
+    def test_serialized_merges_cannot_cross_whitespace_boundaries(self):
+        invalid_merges = (
+            [["가 ", "나"]],
+            [["가", " 나"]],
+            [["가\n", "나"]],
+            [["가", "\t나"]],
+        )
+        for merges in invalid_merges:
+            with self.subTest(merges=merges):
+                with self.assertRaisesRegex(ValueError, "공백 경계를 포함"):
+                    BPETokenizer(merges=merges, initial_symbols=["가", " ", "나", "\n", "\t"])
+
+        payload = {
+            "format": "juckex-bpe-v1",
+            "initial_symbols": ["가", " ", "나"],
+            "merges": [["가 ", "나"]],
+        }
+        with self.assertRaisesRegex(ValueError, "공백 경계를 포함"):
+            BPETokenizer.from_dict(payload)
+
     def test_malformed_payloads_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "객체"):
             BPETokenizer.from_dict([])
