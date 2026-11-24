@@ -17,6 +17,17 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         score = score_document("인공지능이란 무엇인가요?", "인공지능", "컴퓨터 과학의 한 분야")
         self.assertGreaterEqual(score, 0.9)
 
+    def test_common_korean_nouns_ending_in_particle_strings_are_preserved(self):
+        self.assertEqual(query_terms("국가"), ["국가"])
+        self.assertEqual(query_terms("사과"), ["사과"])
+        self.assertEqual(query_terms("회의"), ["회의"])
+        self.assertEqual(query_terms("전문가"), ["전문가"])
+
+    def test_outer_particles_are_removed_without_corrupting_protected_nouns(self):
+        self.assertEqual(query_terms("국가의 역사"), ["국가", "역사"])
+        self.assertEqual(query_terms("사과를 먹는 방법"), ["사과", "먹", "방법"])
+        self.assertEqual(query_terms("회의에서 결정한 결과"), ["회의", "결과", "결정"])
+
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
