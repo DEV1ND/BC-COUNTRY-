@@ -60,5 +60,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Test Cloudflare Worker attestation signer
+      - name: Check Worker JavaScript syntax
+        run: node --check cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs && node --check cloudflare-workers/review_attestation.mjs && node --check cloudflare-workers/review_nonce_store.mjs
+      - name: Test Cloudflare Worker attestation signer and routes
         run: node --test cloudflare-workers/tests/review-attestation.test.mjs cloudflare-workers/tests/review-attestation-routes.test.mjs
