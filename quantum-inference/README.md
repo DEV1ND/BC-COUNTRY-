@@ -184,3 +184,7 @@ This improves candidate selection under malformed-index conditions. It does not 
 ## Korean retrieval query normalization
 
 The lexical query normalizer preserves a conservative set of common Korean nouns whose final syllables overlap with particle strings (for example, 국가, 사과, 회의, 전문가, 종이, 고양이, 정의, 성과, and 도로). It removes at most two recognized outer endings, including common compound postpositions such as 로부터, 에서부터, and 에게서. Examples include 국가의, 국가에서는, 국가로부터, 회의에서부터, 전문가에게서, 종이는, 정의의, and 성과가. This bounded rule also handles forms such as 회의에서의 without becoming an unbounded stemmer. It is a targeted ambiguity guard, not a full Korean morphological analyzer; uncommon words and other grammatical endings still require corpus-driven evaluation.
+
+## BPE serialized merge boundary validation
+
+The isolated inference-side BPE tokenizer rejects serialized merge rules when either input token contains whitespace. Training already keeps spaces, tabs, and line breaks as independent segments; constructor validation now enforces the same invariant when loading a tokenizer artifact, so a manually edited or malformed payload cannot reintroduce merges across word or line boundaries. This is a tokenizer-format integrity rule, not a Korean morphology feature or a language-quality improvement.
