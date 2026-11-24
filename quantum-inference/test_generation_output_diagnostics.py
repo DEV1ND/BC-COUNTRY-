@@ -17,7 +17,7 @@ class GenerationOutputDiagnosticsTests(unittest.TestCase):
         self.assertEqual(result["warnings"], [])
 
     def test_flags_repeated_three_token_sequences(self):
-        answer = "오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다"
+        answer = "오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다"
         result = diagnose_answer_output(answer)
         self.assertTrue(result["suspicious_repetition"])
         self.assertIn("repeated_three_token_sequence", result["warnings"])
