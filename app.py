@@ -608,20 +608,28 @@ async def _train_background(max_steps: int = 80):
             await _delete_training_checkpoint()
             save_training_state()
             return
-        next_step = int(training_state.get("step", 2000)) + steps
-        raw = _to_npz_bytes(candidate, next_step)
-        persisted = await _persist_model(raw, next_step)
-        if not persisted:
-            raise RuntimeError("학습 가중치를 Cloudflare KV에 영구 저장하지 못해 새 모델 적용을 취소했습니다. Render의 JUCKEX_WORKER_URL과 JUCKEX_SYNC_TOKEN을 확인해 주세요.")
-        with model_lock:
-            _save_local(candidate, next_step)
-            model.load_state_dict(candidate.state_dict())
-        try:
-            await _delete_training_checkpoint()
-        except Exception as cleanup_error:
-            training_state["checkpoint_cleanup_warning"] = str(cleanup_error)[:200]
-        training_state.update({"status": "complete", "step": next_step, "trained_pairs": fetched_count, "dataset_pairs": fetched_count, "examples_seen": int(training_state.get("examples_seen", 0)), "last_loss": last_loss, "validation_loss_before": before, "validation_loss": after, "updated_at": int(time.time()), "remote_storage": True, "progress": 100, "last_error": None, "checkpoint_step": 0, "resumed": resumed})
+        # Keep the trained weights as an isolated candidate checkpoint. Runtime
+        # training must never write the production model or mutate the live model.
+        if not await _persist_training_checkpoint(candidate, steps, steps, fetched_count, dataset_cursor, before):
+            raise RuntimeError("후보 체크포인트를 Cloudflare에 저장하지 못했습니다. 운영 모델은 변경하지 않았습니다.")
+        training_state.update({
+            "status": "candidate_ready",
+            "candidate_checkpoint_saved": True,
+            "candidate_checkpoint_step": steps,
+            "candidate_dataset_pairs": fetched_count,
+            "candidate_validation_loss_before": before,
+            "candidate_validation_loss_after": after,
+            "candidate_validation_improved": after < before * 0.995,
+            "production_promotion_status": "blocked_pending_independent_evaluation_and_human_approval",
+            "trained_pairs": fetched_count,
+            "examples_seen": int(training_state.get("examples_seen", 0)),
+            "last_loss": last_loss,
+            "progress": 100,
+            "last_error": None,
+            "resumed": resumed,
+        })
         save_training_state()
+        return
     except Exception as e:
         training_state.update({"status": "error", "last_error": str(e)[:500]})
         save_training_state()
