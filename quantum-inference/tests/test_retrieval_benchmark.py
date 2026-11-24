@@ -78,6 +78,29 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             evaluate_retrieval_cases([{"question": "x"}], lambda q, k: [])
 
+    def test_case_iterable_is_bounded_before_full_materialization(self):
+        consumed = []
+
+        def cases():
+            for index in range(10_000):
+                consumed.append(index)
+                yield {
+                    "id": f"case-{index}",
+                    "domain": "test",
+                    "question": "bounded input",
+                    "expected_titles": [],
+                }
+
+        with self.assertRaisesRegex(ValueError, "configured case limit"):
+            validate_retrieval_cases(cases(), max_cases=3)
+        self.assertEqual(consumed, [0, 1, 2, 3])
+
+    def test_non_iterable_cases_fail_with_clear_validation_error(self):
+        for value in (None, 123, True):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "must be iterable"):
+                    validate_retrieval_cases(value)
+
     def test_duplicate_case_ids_are_rejected(self):
         duplicate = [dict(self.cases[0]), dict(self.cases[0], question="다른 질문")]
         with self.assertRaisesRegex(ValueError, "Duplicate evaluation case id"):
