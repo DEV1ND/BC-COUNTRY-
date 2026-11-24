@@ -6,10 +6,13 @@ on:
       - quantum-candidate-review-attestation-verifier
       - quantum-candidate-review-attestation-issuer
       - quantum-candidate-review-attestation-worker-routes
+      - quantum-candidate-review-attestation-python-client
     paths:
       - "quantum_review_attestation.py"
       - "test_quantum_review_attestation.py"
       - "quantum_human_review.py"
+      - "quantum_review_attestation_client.py"
+      - "test_quantum_review_attestation_client.py"
       - "test_quantum_human_review.py"
       - "cloudflare-workers/review_attestation.mjs"
       - "cloudflare-workers/tests/review-attestation.test.mjs"
@@ -47,9 +50,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile Candidate review modules
-        run: python -m py_compile quantum_review_attestation.py quantum_human_review.py
+        run: python -m py_compile quantum_review_attestation.py quantum_human_review.py quantum_review_attestation_client.py
       - name: Run signed-attestation and human-review tests
-        run: python -m unittest -v test_quantum_review_attestation test_quantum_human_review
+        run: python -m unittest -v test_quantum_review_attestation test_quantum_human_review test_quantum_review_attestation_client
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
