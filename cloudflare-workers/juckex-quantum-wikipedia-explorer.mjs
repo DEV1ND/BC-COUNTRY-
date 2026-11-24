@@ -195,8 +195,8 @@ async function syncApproved(env){
   if(!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
     return {ok:false,synced:0,error:"inference_status_missing_complete_page_ids",detail:"Deploy the compatible inference status endpoint before enabling ID-based reconciliation."};
   const cachedIds=new Set(cacheStatus.page_ids.map(value=>String(value)));
-  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%' AND length(content)>=200").first();
-  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%' AND length(content)>=200 ORDER BY id").all();
+  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*' AND length(content)>=200").first();
+  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*' AND length(content)>=200 ORDER BY id").all();
   const approvedIds=(approved.results||[]).map(row=>String(row.id));
   const missingIds=planMissingPageIds(approvedIds,cachedIds,SYNC_BATCH);
   const rebuilding=cachedIds.size<Number(expected?.count||0);
@@ -204,7 +204,7 @@ async function syncApproved(env){
     return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
   }
   const placeholders=missingIds.map(()=>"?").join(",");
-  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%' ORDER BY id").bind(...missingIds).all();
+  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*' ORDER BY id").bind(...missingIds).all();
   const rows=result.results||[];
   if(rows.length!==missingIds.length)
     return {ok:false,synced:0,error:"approved_document_batch_changed_during_sync",expectedBatch:missingIds.length,selected:rows.length};
@@ -247,7 +247,7 @@ async function previewApprovedSync(env) {
   if (!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
     return {ok:false,dryRun:true,error:"inference_status_missing_complete_page_ids",writes_performed:false};
   const approved = await env.DB.prepare(
-    "SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%' AND length(content)>=200 ORDER BY id"
+    "SELECT id FROM pages WHERE status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*' AND length(content)>=200 ORDER BY id"
   ).all();
   const approvedIds = (approved.results||[]).map(row => String(row.id));
   const preview = buildSyncPreview(approvedIds, cacheStatus.page_ids, SYNC_BATCH);
@@ -355,7 +355,7 @@ export default {
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
       const eligibility=corpus==="manual"
-        ? "status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%'"
+        ? "status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*'"
         : "status='pending_review'";
       const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,status,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE "+eligibility+" AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
@@ -371,7 +371,7 @@ export default {
       // Legacy export route is deliberately restricted to explicit human approvals.
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL_V2:%' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
         license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
