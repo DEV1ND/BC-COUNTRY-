@@ -66,6 +66,22 @@ class KnowledgeRetrievalTests(unittest.TestCase):
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
+    def test_fts5_finds_protected_nouns_after_stacked_particles(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            conn.execute("CREATE VIRTUAL TABLE docs USING fts5(title, text, tokenize='unicode61')")
+            conn.execute(
+                "INSERT INTO docs(title,text) VALUES(?,?)",
+                ("국가", "국가의 역사와 제도"),
+            )
+            rows = conn.execute(
+                "SELECT title FROM docs WHERE docs MATCH ?",
+                (build_fts_query("국가에서는 어떤 제도가 있나요"),),
+            ).fetchall()
+            self.assertEqual(rows, [("국가",)])
+        finally:
+            conn.close()
+
     def test_single_syllable_nouns_survive_particle_removal(self):
         terms = query_terms("별과 달은 무엇인가요?")
         self.assertIn("별", terms)
