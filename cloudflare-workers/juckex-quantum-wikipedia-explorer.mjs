@@ -100,8 +100,7 @@ async function approve(){
   const parsed=new URL(reference);
   if(parsed.protocol!=="https:"||parsed.hostname.endsWith("wikipedia.org"))throw new Error("위키백과 외부 HTTPS 출처를 입력하세요.");
   if(summary.length<20)throw new Error("사실 검토 요약을 20자 이상 작성하세요.");
-  const note="검토 요약: "+summary+" | 대조 출처: "+reference;
-  await api("/approve",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:selected.id,note})});
+  await api("/approve",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({id:selected.id,note:summary,reference_url:reference})});
   showError("승인 완료: "+selected.title);selected=null;el("detail").hidden=true;await loadQueue();
  }catch(error){showError("승인할 수 없습니다: "+error.message);}
 }
@@ -196,8 +195,8 @@ async function syncApproved(env){
   if(!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
     return {ok:false,synced:0,error:"inference_status_missing_complete_page_ids",detail:"Deploy the compatible inference status endpoint before enabling ID-based reconciliation."};
   const cachedIds=new Set(cacheStatus.page_ids.map(value=>String(value)));
-  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200").first();
-  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200 ORDER BY id").all();
+  const expected=await env.DB.prepare("SELECT COUNT(*) AS count FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%' AND length(content)>=200").first();
+  const approved=await env.DB.prepare("SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%' AND length(content)>=200 ORDER BY id").all();
   const approvedIds=(approved.results||[]).map(row=>String(row.id));
   const missingIds=planMissingPageIds(approvedIds,cachedIds,SYNC_BATCH);
   const rebuilding=cachedIds.size<Number(expected?.count||0);
@@ -205,7 +204,7 @@ async function syncApproved(env){
     return {ok:true,synced:0,cacheDocuments:cachedIds.size,expectedDocuments:expected?.count||0,rebuilding:false};
   }
   const placeholders=missingIds.map(()=>"?").join(",");
-  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' ORDER BY id").bind(...missingIds).all();
+  const result=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution FROM pages WHERE id IN ("+placeholders+") AND status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%' ORDER BY id").bind(...missingIds).all();
   const rows=result.results||[];
   if(rows.length!==missingIds.length)
     return {ok:false,synced:0,error:"approved_document_batch_changed_during_sync",expectedBatch:missingIds.length,selected:rows.length};
@@ -248,7 +247,7 @@ async function previewApprovedSync(env) {
   if (!Array.isArray(cacheStatus.page_ids) || cacheStatus.page_ids_complete !== true)
     return {ok:false,dryRun:true,error:"inference_status_missing_complete_page_ids",writes_performed:false};
   const approved = await env.DB.prepare(
-    "SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND length(content)>=200 ORDER BY id"
+    "SELECT id FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%' AND length(content)>=200 ORDER BY id"
   ).all();
   const approvedIds = (approved.results||[]).map(row => String(row.id));
   const preview = buildSyncPreview(approvedIds, cacheStatus.page_ids, SYNC_BATCH);
@@ -355,7 +354,7 @@ export default {
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
       const eligibility=corpus==="manual"
-        ? "status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%'"
+        ? "status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%'"
         : "status='pending_review'";
       const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,status,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE "+eligibility+" AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
