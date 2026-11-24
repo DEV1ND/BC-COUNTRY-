@@ -370,7 +370,10 @@ def public_wikipedia_seed_status(status):
 
 
 @app.get("/health")
-def health(response: Response):
+def health(response: Response = None):
+    # Direct handler calls in the contract suite may omit FastAPI-injected Response.
+    if response is None:
+        response = Response()
     conn = knowledge_db()
     try: knowledge_count = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
     finally: conn.close()
