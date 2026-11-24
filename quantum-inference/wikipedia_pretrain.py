@@ -103,6 +103,11 @@ def load_corpus(path, allow_unverified):
                 and bool(review["reviewer"].strip())
                 and isinstance(review.get("reviewer_subject"), str)
                 and bool(review["reviewer_subject"].strip())
+                and isinstance(review.get("review_note"), str)
+                and len(review["review_note"].strip()) >= 20
+                and isinstance(review.get("reference_url"), str)
+                and review["reference_url"].startswith("https://")
+                and "wikipedia.org" not in review["reference_url"].lower().split("/")[2]
                 and isinstance(reviewed_at, str)
                 and _valid_timezone_aware_timestamp(reviewed_at)
                 and review.get("reviewed_at") == reviewed_at
