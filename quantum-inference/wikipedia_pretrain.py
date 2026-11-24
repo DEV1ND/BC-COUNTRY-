@@ -5,6 +5,7 @@ The checkpoint layout is compatible with quantum-inference/app.py.
 This tool never deploys or changes Production.
 """
 import argparse
+from datetime import datetime
 import hashlib
 import json
 import math
@@ -49,10 +50,23 @@ class BPECandidate(nn.Module):
         return self.output(self.norm(x))
 
 
+def _valid_timezone_aware_timestamp(value):
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return parsed.tzinfo is not None and parsed.utcoffset() is not None
+
+
 def load_corpus(path, allow_unverified):
     docs, seen = [], set()
-    rejected = {"invalid_json": 0, "invalid_metadata": 0, "duplicate": 0,
-                "excluded": 0, "unverified_not_allowed": 0}
+    rejected = {
+        "invalid_json": 0, "invalid_metadata": 0, "duplicate": 0,
+        "excluded": 0, "unsupported_status": 0,
+        "invalid_review_metadata": 0, "unverified_not_allowed": 0,
+    }
     with Path(path).open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle, 1):
             if not line.strip():
@@ -73,13 +87,33 @@ def load_corpus(path, allow_unverified):
                 continue
             status = row["status"].strip()
             note = row["reviewer_note"].strip()
+            reviewed_at = row.get("reviewed_at")
             if status == "excluded":
                 rejected["excluded"] += 1
                 continue
-            manually_verified = status == "approved" and note.startswith("MANUAL_APPROVAL:")
-            if not manually_verified and not allow_unverified:
+            if status not in ("approved", "pending_review"):
+                rejected["unsupported_status"] += 1
+                continue
+
+            manual_marker = note.startswith("MANUAL_APPROVAL:")
+            manual_note_has_content = bool(note[len("MANUAL_APPROVAL:"):].strip()) if manual_marker else False
+            if status == "approved":
+                if not manual_marker or not manual_note_has_content or not _valid_timezone_aware_timestamp(reviewed_at):
+                    rejected["invalid_review_metadata"] += 1
+                    continue
+                manual_review_metadata_present = True
+            else:
+                # Pending rows are the only eligible unverified corpus class.
+                # They must not carry an approval marker or a review timestamp.
+                if manual_marker or reviewed_at is not None:
+                    rejected["invalid_review_metadata"] += 1
+                    continue
+                manual_review_metadata_present = False
+
+            if not manual_review_metadata_present and not allow_unverified:
                 rejected["unverified_not_allowed"] += 1
                 continue
+
             page_id = row["page_id"].strip()
             title = row["title"].strip()
             url = row["url"].strip()
@@ -107,7 +141,12 @@ def load_corpus(path, allow_unverified):
                 "page_id": page_id, "title": title, "url": url,
                 "revision_id": revision_id, "content_hash": digest,
                 "license": LICENSE, "attribution": attribution,
-                "trust": "manually_verified" if manually_verified else "unverified_experimental",
+                "reviewed_at": reviewed_at if manual_review_metadata_present else None,
+                "trust": (
+                    "manual_review_metadata_present_identity_unverified"
+                    if manual_review_metadata_present else "unverified_experimental"
+                ),
+                "reviewer_identity_verified": False,
                 "text": title + "\n" + text,
             })
     if len(docs) < 2:
@@ -309,12 +348,14 @@ def main():
     model.load_state_dict(best_state)
     trust_counts = {
         label: sum(1 for doc in docs if doc["trust"] == label)
-        for label in ("manually_verified", "unverified_experimental")
+        for label in ("manual_review_metadata_present_identity_unverified", "unverified_experimental")
     }
     manifest = [{
         "page_id": d["page_id"], "title": d["title"], "url": d["url"],
         "revision_id": d["revision_id"], "content_hash": d["content_hash"],
         "license": d["license"], "attribution": d["attribution"], "trust": d["trust"],
+        "reviewed_at": d["reviewed_at"],
+        "reviewer_identity_verified": d["reviewer_identity_verified"],
     } for d in docs]
     metadata = {
         "objective": "causal_next_token_prediction",
@@ -324,6 +365,12 @@ def main():
         "train_token_count": train_tokens, "validation_token_count": valid_tokens,
         "tokenizer_usage": tokenizer_usage,
         "trust_counts": trust_counts, "rejected_rows": rejected,
+        "reviewer_identity_verified": False,
+        "reviewer_identity_verification_required": True,
+        "reviewer_identity_note": (
+            "A MANUAL_APPROVAL marker and timestamp are review metadata only; "
+            "the current Worker export does not authenticate reviewer identity."
+        ),
         "license": LICENSE, "attribution_manifest": manifest,
         "unverified_corpus_is_fact_checked": False,
         "production_model_touched": False,
