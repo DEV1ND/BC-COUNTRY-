@@ -116,6 +116,44 @@ class RuntimeTrainingProvenanceGuardTests(unittest.TestCase):
         self.assertTrue(optimizer_lines)
         self.assertLess(gate_lines[0], min(optimizer_lines))
 
+
+    def test_runtime_training_never_promotes_candidate_to_production(self):
+        import ast
+        from pathlib import Path
+
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        train_fn = next(
+            node for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_train_background"
+        )
+        calls = [
+            node for node in ast.walk(train_fn)
+            if isinstance(node, ast.Call)
+        ]
+        called_names = {
+            node.func.id for node in calls if isinstance(node.func, ast.Name)
+        }
+        live_model_loads = [
+            node for node in calls
+            if isinstance(node.func, ast.Attribute)
+            and node.func.attr == "load_state_dict"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "model"
+        ]
+        self.assertNotIn("_persist_model", called_names)
+        self.assertNotIn("_save_local", called_names)
+        self.assertFalse(live_model_loads)
+        self.assertIn("_persist_training_checkpoint", called_names)
+
+    def test_successful_candidate_is_marked_pending_human_approval(self):
+        from pathlib import Path
+
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn('"status": "candidate_ready"', source)
+        self.assertIn('"production_promotion_status": "blocked_pending_independent_evaluation_and_human_approval"', source)
+
     def test_runtime_audit_report_does_not_write_raw_questions(self):
         import ast
         from pathlib import Path
