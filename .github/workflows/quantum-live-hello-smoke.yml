@@ -1,0 +1,87 @@
+name: Quantum Candidate live hello smoke test
+
+on:
+  push:
+    branches: [quantum-candidate-retrieval-experiments]
+    paths:
+      - ".github/workflows/quantum-live-hello-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-hello:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check Candidate health and send one greeting
+        env:
+          QUANTUM_API_TOKEN: ${{ secrets.QUANTUM_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          base = "https://juckex-quantum-candidate.onrender.com"
+          health_request = urllib.request.Request(base + "/health", headers={"Accept": "application/json"})
+          try:
+              with urllib.request.urlopen(health_request, timeout=90) as response:
+                  health = json.loads(response.read().decode("utf-8"))
+          except Exception as exc:
+              print("HEALTH_CHECK_FAILED:", type(exc).__name__)
+              raise SystemExit(1)
+
+          safe_health = {
+              key: health.get(key)
+              for key in (
+                  "ok", "model_loaded", "generation_ready", "checkpoint_status",
+                  "model", "model_parameters", "model_architecture",
+                  "knowledge_documents", "approved_qa_pairs"
+              )
+          }
+          print("HEALTH:", json.dumps(safe_health, ensure_ascii=False))
+
+          token = os.environ.get("QUANTUM_API_TOKEN", "")
+          if not token:
+              print("LIVE_GREETING_SKIPPED: GitHub Actions secret QUANTUM_API_TOKEN is not configured.")
+              raise SystemExit(0)
+
+          if health.get("model_loaded") is not True or health.get("generation_ready") is not True:
+              print("LIVE_GREETING_BLOCKED: Candidate model is not ready; no generation request was sent.")
+              raise SystemExit(1)
+
+          payload = json.dumps({"prompt": "안녕", "max_new_tokens": 32, "temperature": 0.0, "top_k": 1}).encode("utf-8")
+          request = urllib.request.Request(
+              base + "/v1/generate",
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "Authorization": "Bearer " + token,
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as exc:
+              print("LIVE_GREETING_FAILED: HTTP", exc.code)
+              raise SystemExit(1)
+          except Exception as exc:
+              print("LIVE_GREETING_FAILED:", type(exc).__name__)
+              raise SystemExit(1)
+
+          print("LIVE_GREETING_RESULT:", json.dumps({
+              "answer": result.get("answer"),
+              "model": result.get("model"),
+              "response_mode": result.get("response_mode"),
+              "is_model_generation": result.get("is_model_generation"),
+              "is_live_inference": result.get("is_live_inference"),
+              "timing": result.get("timing"),
+              "quality_warning": result.get("quality_warning"),
+          }, ensure_ascii=False))
+          PY
