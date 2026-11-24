@@ -1,5 +1,6 @@
 import { reviewCandidate, validateManualApproval } from "./auto_review.mjs";
 import { planMissingPageIds, isCandidateInferenceTarget, buildSyncPreview } from "./knowledge_sync_plan.mjs";
+import { verifyCloudflareAccessIdentity, makeVerifiedReviewNote, parseVerifiedReviewNote } from "./access_identity.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -34,7 +35,7 @@ a{color:#e7c77f;overflow-wrap:anywhere}.meta{color:var(--muted);font-size:12px;o
 <header class="top"><div><div class="brand">JUCKEX · QUANTUM</div><div class="heading">지식 문서 검토 센터</div><div class="sub">위키백과 문서는 독립적인 출처와 대조한 뒤에만 승인할 수 있습니다.</div></div><div class="meta">Candidate 전용 · 모델 가중치 변경 없음</div></header>
 <section id="login" class="card">
  <div class="label">관리자 토큰</div><div class="row"><input id="token" type="password" autocomplete="off" placeholder="Cloudflare ADMIN_TOKEN"><button id="connect">연결</button></div>
- <p class="meta">토큰은 이 페이지가 열려 있는 동안 메모리에만 보관되며 브라우저 저장소에 저장되지 않습니다.</p>
+ <p class="meta">토큰은 이 페이지가 열려 있는 동안 메모리에만 보관됩니다. 승인 작업은 Cloudflare Access로 인증된 허용 목록 검토자만 할 수 있습니다.</p>
 </section>
 <div id="error" role="status"></div>
 <section id="workspace" class="grid" hidden>
@@ -284,17 +285,30 @@ async function runCycle(env){
     .bind(discovered,updated,sync.synced||0,JSON.stringify({crawl:errors,sync:sync.error||null})).run();
   return {running:true,provider:"ko.wikipedia.org",topics:topics.length,discovered,updated,review,sync,training,errors};
 }
-async function approvePage(request,env){
+async function approvePage(request,env,identity){
   let body;try{body=await request.json();}catch{return json({error:"invalid_json"},400);}
-  const id=String(body.id||"").trim(),note=String(body.note||"").trim().slice(0,1000);
+  const id=String(body.id||"").trim();
+  const note=String(body.note||"").trim().slice(0,1000);
+  const referenceUrl=String(body.reference_url||"").trim().slice(0,2000);
   if(!id)return json({error:"id_required"},400);
+  let reference;
+  try{reference=new URL(referenceUrl);}catch{return json({error:"independent_reference_required"},400);}
+  if(reference.protocol!=="https:"||reference.hostname==="ko.wikipedia.org"||reference.hostname.endsWith(".wikipedia.org"))
+    return json({error:"independent_reference_required"},400);
   const page=await env.DB.prepare("SELECT id,status,provider,title,url,domain,content,content_hash,license_status,license_name,attribution,revision_id FROM pages WHERE id=?").bind(id).first();
   if(!page)return json({error:"page_not_found"},404);
   if(page.status!=="pending_review")return json({error:"only_pending_pages_can_be_approved",status:page.status},409);
-  const validation=await validateManualApproval(page,note);
+  const factCheckNote=note+" | 독립 대조 출처: "+referenceUrl;
+  const validation=await validateManualApproval(page,factCheckNote);
   if(!validation.ok)return json({error:"manual_review_required",detail:validation.reason},422);
-  await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=? AND status='pending_review'").bind("MANUAL_APPROVAL: "+note,id).run();
-  return json({ok:true,id,status:"approved",license:page.license_name,revision_id:page.revision_id,notice:"수동 사실 검토 메모가 기록되었습니다. CC BY-SA 4.0 출처·저작자 표시·동일조건변경허락 의무를 준수하세요."});
+  let reviewerNote;
+  try{reviewerNote=makeVerifiedReviewNote(note,referenceUrl,identity);}
+  catch{return json({error:"verified_reviewer_identity_required"},403);}
+  const update=await env.DB.prepare("UPDATE pages SET status='approved',reviewed_at=datetime('now'),reviewer_note=? WHERE id=? AND status='pending_review'")
+    .bind(reviewerNote,id).run();
+  if(Number(update.meta?.changes||0)!==1)
+    return json({error:"approval_state_changed",detail:"문서 상태가 변경되었습니다. 목록을 새로고침하세요."},409);
+  return json({ok:true,id,status:"approved",reviewer:{provider:identity.provider,email:identity.email,identity_verified:true},license:page.license_name,revision_id:page.revision_id,notice:"Cloudflare Access 인증 검토자와 독립 출처가 기록되었습니다. 사실의 진실성은 별도 검토 대상입니다."});
 }
 function authorized(request,env){return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;}
 export default {
@@ -348,7 +362,8 @@ export default {
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
         license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
         revision_id:row.revision_id,content_hash:row.content_hash,status:row.status,
-        reviewer_note:row.reviewer_note||"",reviewed_at:row.reviewed_at||null
+        reviewer_note:row.reviewer_note||"",reviewed_at:row.reviewed_at||null,
+        provenance_review:parseVerifiedReviewNote(row.reviewer_note,row.reviewed_at)
       })).filter(row=>row.text.length>=200);
       return json({corpus,documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
     }
@@ -356,12 +371,14 @@ export default {
       // Legacy export route is deliberately restricted to explicit human approvals.
       const limit=Math.min(10,Math.max(1,Number(url.searchParams.get("limit")||5)));
       const after=String(url.searchParams.get("after")||"");
-      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,reviewer_note FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL:%' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
+      const rows=await env.DB.prepare("SELECT id,title,url,content,content_hash,revision_id,license_name,attribution,reviewer_note,strftime('%Y-%m-%dT%H:%M:%fZ',reviewed_at) AS reviewed_at FROM pages WHERE status='approved' AND reviewer_note LIKE 'MANUAL_APPROVAL: {"schema":"juckex-cloudflare-access-review-v1"%' AND id>? ORDER BY id LIMIT ?").bind(after,limit).all();
       const documents=(rows.results||[]).map(row=>({
         page_id:row.id,title:row.title,url:row.url,text:String(row.content||""),
         license:row.license_name||"CC BY-SA 4.0",attribution:row.attribution||"Wikipedia contributors",
         revision_id:row.revision_id,content_hash:row.content_hash,status:"approved",
-        reviewer_note:row.reviewer_note||""
+        reviewer_note:row.reviewer_note||"",
+        reviewed_at:row.reviewed_at||null,
+        provenance_review:parseVerifiedReviewNote(row.reviewer_note,row.reviewed_at)
       })).filter(row=>row.text.length>=200);
       return json({documents,next_after:rows.results?.length?rows.results[rows.results.length-1].id:null,has_more:(rows.results||[]).length===limit});
     }
@@ -386,7 +403,11 @@ export default {
     }
     if(request.method==="POST"&&url.pathname==="/run-once")return json(await runCycle(env));
     if(request.method==="POST"&&url.pathname==="/auto-review"){let body={};try{body=await request.json();}catch{} const limit=Math.min(50,Math.max(1,Number(body.limit||20))); return json({ok:true,review:await autoReviewPending(env,limit)});}
-    if(request.method==="POST"&&url.pathname==="/approve")return approvePage(request,env);
+    if(request.method==="POST"&&url.pathname==="/approve"){
+      const verification=await verifyCloudflareAccessIdentity(request,env);
+      if(!verification.ok)return json({error:verification.error},403);
+      return approvePage(request,env,verification.identity);
+    }
     if(request.method==="GET"&&url.pathname==="/sync-preview")return json(await previewApprovedSync(env));
     if(request.method==="POST"&&url.pathname==="/sync-approved")return json(await syncApproved(env));
     return json({error:"not_found"},404);
