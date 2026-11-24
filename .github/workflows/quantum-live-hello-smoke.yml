@@ -88,4 +88,47 @@ jobs:
               "timing": result.get("timing"),
               "quality_warning": result.get("quality_warning"),
           }, ensure_ascii=False))
+
+          # Use a deliberately novel prompt and require the actual Transformer path.
+          # This must never silently pass through the approved-Q&A retrieval route.
+          direct_payload = json.dumps({
+              "prompt": "설명해 줘: 바다와 우주를 비교하는 짧은 문장을 만들어 줘.",
+              "max_new_tokens": 24,
+              "temperature": 0.0,
+              "top_k": 1,
+          }).encode("utf-8")
+          direct_request = urllib.request.Request(
+              base + "/v1/generate",
+              data=direct_payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "Authorization": "Bearer " + token,
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(direct_request, timeout=120) as response:
+                  direct_result = json.loads(response.read().decode("utf-8"))
+          except urllib.error.HTTPError as exc:
+              print("DIRECT_GENERATION_FAILED: HTTP", exc.code)
+              raise SystemExit(1)
+          except Exception as exc:
+              print("DIRECT_GENERATION_FAILED:", type(exc).__name__)
+              raise SystemExit(1)
+
+          print("DIRECT_GENERATION_RESULT:", json.dumps({
+              "answer": direct_result.get("answer"),
+              "model": direct_result.get("model"),
+              "response_mode": direct_result.get("response_mode"),
+              "is_model_generation": direct_result.get("is_model_generation"),
+              "is_live_inference": direct_result.get("is_live_inference"),
+              "generated_tokens": direct_result.get("generated_tokens"),
+              "generation_stop_reason": direct_result.get("generation_stop_reason"),
+              "timing": direct_result.get("timing"),
+              "quality_warning": direct_result.get("quality_warning"),
+          }, ensure_ascii=False))
+          if direct_result.get("response_mode") != "model_generation" or direct_result.get("is_model_generation") is not True:
+              print("DIRECT_GENERATION_BLOCKED: prompt was answered by a non-Transformer path.")
+              raise SystemExit(1)
           PY
