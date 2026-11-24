@@ -130,6 +130,12 @@ class InferenceContractTests(unittest.TestCase):
         self.assertTrue(result["is_live_retrieval"])
         self.assertFalse(result["is_model_generation"])
         self.assertEqual(result["response_mode"], "approved_qa_retrieval")
+        timing = result["timing"]
+        self.assertGreaterEqual(timing["qa_retrieval_ms"], 0)
+        self.assertEqual(timing["knowledge_retrieval_ms"], 0.0)
+        self.assertEqual(timing["generation_ms"], 0.0)
+        self.assertEqual(timing["generated_tokens"], 0)
+        self.assertEqual(timing["answer_characters"], len(match["answer"]))
 
     def test_no_checkpoint_and_no_retrieval_returns_503_not_fake_answer(self):
         with patch.object(
@@ -449,6 +455,14 @@ class InferenceContractTests(unittest.TestCase):
         self.assertEqual(result["output_shape_diagnostics"]["warnings"], [])
         self.assertIn("토큰 진단은 문장 품질 평가가 아닙니다.", result["quality_warning"])
         self.assertEqual(result["generation_stop_reason"], "max_new_tokens")
+        timing = result["timing"]
+        self.assertGreaterEqual(timing["qa_retrieval_ms"], 0)
+        self.assertGreaterEqual(timing["knowledge_retrieval_ms"], 0)
+        self.assertGreaterEqual(timing["generation_ms"], 0)
+        self.assertGreaterEqual(timing["total_ms"], timing["generation_ms"])
+        self.assertEqual(timing["generated_tokens"], 8)
+        self.assertGreaterEqual(timing["tokens_per_second"], 0)
+        self.assertEqual(timing["answer_characters"], len(result["answer"]))
 
     def test_public_wikipedia_seed_summary_redacts_exception_and_document_details(self):
         result = quantum_app.public_wikipedia_seed_status({
