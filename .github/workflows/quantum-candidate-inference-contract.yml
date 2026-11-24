@@ -45,6 +45,7 @@ jobs:
             test_inference_contract.py \
             test_bpe_tokenizer_integrity.py \
             test_generation_context.py \
+            test_generation_output_diagnostics.py \
             test_generation_sampling.py \
             test_review_generation_evaluation.py \
             test_export_generation_review_template.py
