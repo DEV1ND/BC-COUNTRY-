@@ -25,6 +25,10 @@ on:
     paths:
       - "test_review_nonce_migration.py"
       - "cloudflare-workers/review_nonce_store.mjs"
+      - "cloudflare-workers/review_attestation.mjs"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/tests/review-attestation.test.mjs"
+      - "cloudflare-workers/tests/review-attestation-routes.test.mjs"
       - "cloudflare-workers/tests/review-nonce-store.test.mjs"
       - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
       - "cloudflare-workers/REVIEW_NONCE_REPLAY_GUARD.md"
