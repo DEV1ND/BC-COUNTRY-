@@ -62,7 +62,7 @@ class QuantumTrainingDataAuditTests(unittest.TestCase):
     def test_source_metadata_is_counted_when_present(self):
         report = audit_training_rows([{
             "question": "질문", "answer": "답변", "approved": True,
-            "source_metadata": {
+            "source": {
                 "kind": "user_provided", "reference": "https://example.org/source",
                 "license": "CC0", "attribution": "Author", "permission_basis": "written permission"
             },
