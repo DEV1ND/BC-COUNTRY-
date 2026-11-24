@@ -1,0 +1,35 @@
+name: Quantum runtime training provenance guard
+
+on:
+  pull_request:
+    paths:
+      - "app.py"
+      - "runtime_training_provenance_guard.py"
+      - "test_runtime_training_provenance_guard.py"
+      - "training_provenance.py"
+      - ".github/workflows/quantum-runtime-training-provenance-guard.yml"
+  push:
+    branches:
+      - quantum-candidate-runtime-training-provenance-guard
+    paths:
+      - "app.py"
+      - "runtime_training_provenance_guard.py"
+      - "test_runtime_training_provenance_guard.py"
+      - "training_provenance.py"
+      - ".github/workflows/quantum-runtime-training-provenance-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-training-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile runtime guard
+        run: python -m py_compile app.py runtime_training_provenance_guard.py test_runtime_training_provenance_guard.py training_provenance.py
+      - name: Run guard tests
+        run: python -m unittest -v test_runtime_training_provenance_guard.py
