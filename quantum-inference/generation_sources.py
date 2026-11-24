@@ -1,11 +1,13 @@
 """Citation-safe formatting helpers for Quantum's retrieved Wikipedia context."""
 from collections.abc import Mapping
+from itertools import islice
 from typing import Iterable
 
 from knowledge_provenance import has_valid_content_integrity, has_valid_wikipedia_attribution
 
 
 WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
+MAX_KNOWLEDGE_SOURCES = 10
 
 
 def _as_rows(items: Iterable[Mapping] | None) -> list:
@@ -14,9 +16,15 @@ def _as_rows(items: Iterable[Mapping] | None) -> list:
     if isinstance(items, (str, bytes, Mapping)):
         raise TypeError("지식 출처는 문서 목록이어야 합니다.")
     try:
-        return list(items)
+        iterator = iter(items)
+        rows = list(islice(iterator, MAX_KNOWLEDGE_SOURCES + 1))
     except TypeError as exc:
         raise TypeError("지식 출처는 반복 가능한 문서 목록이어야 합니다.") from exc
+    if len(rows) > MAX_KNOWLEDGE_SOURCES:
+        raise ValueError(
+            f"지식 출처는 최대 {MAX_KNOWLEDGE_SOURCES}개까지 처리할 수 있습니다."
+        )
+    return rows
 
 
 def _is_citable(item: Mapping) -> bool:
