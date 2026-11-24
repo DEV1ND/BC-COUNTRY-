@@ -83,7 +83,7 @@ def load_corpus(path, allow_unverified):
             reviewed_at = row.get("reviewed_at")
             identity_verified = (
                 status == "approved"
-                and note.startswith("MANUAL_APPROVAL: ")
+                and note.startswith("MANUAL_APPROVAL_V2: ")
                 and isinstance(review, dict)
                 and review.get("approved") is True
                 and review.get("reviewer_identity_verified") is True
