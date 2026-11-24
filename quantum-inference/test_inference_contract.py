@@ -51,9 +51,9 @@ class InferenceContractTests(unittest.TestCase):
 
             async def stream(self):
                 self.consumed += 1
-                yield b'{"question":"123456'
+                yield b'{"question":'
                 self.consumed += 1
-                yield b'78901234567890"}'
+                yield b'"12345678901234567890"}'
 
         request = FakeRequest()
         with self.assertRaises(HTTPException) as raised:
