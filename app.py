@@ -2,6 +2,7 @@ import os, json, io, time, asyncio, secrets, hashlib, threading, re
 from pathlib import Path
 from typing import Optional
 from runtime_training_provenance_guard import audit_runtime_training_provenance
+from startup_model_restore_guard import should_bootstrap_remote_model
 import numpy as np
 import torch
 import torch.nn as nn
@@ -264,14 +265,20 @@ model = _initial_model()
 @app.on_event("startup")
 async def startup_restore():
     try:
+        restore_failed = False
         try:
             with model_lock:
                 ok = await _restore_remote_model(model)
         except Exception as restore_error:
-            # 이전 구조의 원격 가중치는 새 구조에 맞지 않으므로 보존된 이전 버전으로 남기고 새 구조를 시작합니다.
+            # A failed or incompatible remote restore is NOT proof that no model exists.
+            # Preserve the remote production object and fail closed instead of bootstrapping over it.
+            training_state["remote_model_restore_blocked"] = True
+            training_state["remote_model_restore_error"] = str(restore_error)[:240]
             training_state["legacy_remote_model_detected"] = str(restore_error)[:240]
+            restore_failed = True
             ok = False
-        if not ok and WORKER_URL and SYNC_TOKEN:
+        if should_bootstrap_remote_model(ok, restore_failed) and WORKER_URL and SYNC_TOKEN:
+            # Bootstrap only when the Worker explicitly returned "no model" (404).
             raw = _save_local(model, int(training_state.get("step", 0)))
             ok = await _persist_model(raw, int(training_state.get("step", 0)))
         training_state["remote_storage"] = bool(ok)
