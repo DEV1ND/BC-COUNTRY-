@@ -131,15 +131,15 @@ export function makeVerifiedReviewNote(note, referenceUrl, identity) {
     },
     identity_verified: true
   };
-  return "MANUAL_APPROVAL: " + JSON.stringify(payload);
+  return "MANUAL_APPROVAL_V2: " + JSON.stringify(payload);
 }
 
 export function parseVerifiedReviewNote(note, reviewedAt) {
-  if (typeof note !== "string" || !note.startsWith("MANUAL_APPROVAL: ") ||
+  if (typeof note !== "string" || !note.startsWith("MANUAL_APPROVAL_V2: ") ||
       typeof reviewedAt !== "string" || !reviewedAt.trim()) return null;
   let payload;
   try {
-    payload = JSON.parse(note.slice("MANUAL_APPROVAL: ".length));
+    payload = JSON.parse(note.slice("MANUAL_APPROVAL_V2: ".length));
   } catch {
     return null;
   }
