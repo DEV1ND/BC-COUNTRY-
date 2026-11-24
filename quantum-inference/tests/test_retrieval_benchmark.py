@@ -322,6 +322,38 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         self.assertEqual(report["domain_metrics"]["과학"]["hard_negative_case_rate"], 0.5)
         self.assertIsNone(report["domain_metrics"]["일상"]["hard_negative_case_rate"])
 
+    def test_hard_negative_rank_precedence_distinguishes_order_and_abstention(self):
+        cases = [
+            {"id": "negative-first", "domain": "과학", "question": "질문 A",
+             "expected_titles": ["정답 문서"], "hard_negative_titles": ["혼동 문서"]},
+            {"id": "negative-after", "domain": "과학", "question": "질문 B",
+             "expected_titles": ["정답 문서"], "hard_negative_titles": ["혼동 문서"]},
+            {"id": "negative-only", "domain": "과학", "question": "질문 C",
+             "expected_titles": ["정답 문서"], "hard_negative_titles": ["혼동 문서"]},
+            {"id": "no-negative", "domain": "일상", "question": "질문 D",
+             "expected_titles": ["정답 문서"]},
+        ]
+        retrieved = {
+            "질문 A": [{"title": "혼동 문서"}, {"title": "정답 문서"}],
+            "질문 B": [{"title": "정답 문서"}, {"title": "혼동 문서"}],
+            "질문 C": [{"title": "혼동 문서"}],
+            "질문 D": [{"title": "정답 문서"}],
+        }
+        report = evaluate_retrieval_cases(cases, lambda q, k: retrieved[q], k=5)
+        self.assertEqual(report["hard_negative_comparison_cases"], 2)
+        self.assertEqual(report["hard_negative_precedes_relevant_cases"], 1)
+        self.assertEqual(report["hard_negative_precedes_relevant_rate"], 0.5)
+        self.assertEqual(report["hard_negative_without_relevant_cases"], 1)
+        self.assertEqual(report["results"][0]["first_hard_negative_rank"], 1)
+        self.assertEqual(report["results"][0]["first_relevant_rank"], 2)
+        self.assertTrue(report["results"][0]["hard_negative_precedes_relevant"])
+        self.assertFalse(report["results"][1]["hard_negative_precedes_relevant"])
+        self.assertTrue(report["results"][2]["hard_negative_without_relevant"])
+        self.assertEqual(report["domain_metrics"]["과학"]["hard_negative_comparison_cases"], 2)
+        self.assertEqual(report["domain_metrics"]["과학"]["hard_negative_precedes_relevant_rate"], 0.5)
+        self.assertEqual(report["domain_metrics"]["과학"]["hard_negative_without_relevant_cases"], 1)
+        self.assertIsNone(report["domain_metrics"]["일상"]["hard_negative_precedes_relevant_rate"])
+
     def test_hard_negative_labels_are_validated_and_cannot_overlap_expected(self):
         invalid = [
             dict(self.cases[0], hard_negative_titles="세포"),
