@@ -67,7 +67,7 @@ def verify_hmac_review_attestation(review_payload, secret, now=None):
     subject = attestation.get("reviewer_subject")
     nonce = attestation.get("nonce")
     signature = attestation.get("signature")
-    if not isinstance(email, str) or not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", email):
+    if not isinstance(email, str) or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
         return False
     if not isinstance(subject, str) or not subject.strip() or len(subject) > 512:
         return False
@@ -83,7 +83,8 @@ def verify_hmac_review_attestation(review_payload, secret, now=None):
         expected_digest = review_payload_digest(review_payload)
     except (TypeError, ValueError):
         return False
-    if not hmac.compare_digest(attestation.get("review_payload_sha256", ""), expected_digest):
+    supplied_digest = attestation.get("review_payload_sha256")
+    if not isinstance(supplied_digest, str) or not hmac.compare_digest(supplied_digest, expected_digest):
         return False
 
     issued_at = _parse_time(attestation.get("issued_at"))
