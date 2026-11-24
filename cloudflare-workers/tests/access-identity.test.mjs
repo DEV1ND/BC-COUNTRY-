@@ -99,7 +99,7 @@ test("rejects wrong audience, issuer, expiry, and non-allowlisted identity", asy
 test("rejects a tampered JWT signature", async () => {
   const f = await fixture();
   const parts = f.token.split(".");
-  parts[1] = encode({ iss: issuer, aud: [audience], exp: now + 300, email, sub: subject });
+  parts[1] = encode({ iss: issuer, aud: [audience], iat: now - 10, nbf: now - 10, exp: now + 300, email, sub: subject });
   const result = await verifyCloudflareAccessIdentity(request(parts.join(".")), env, {
     fetchImpl: f.fetchImpl, cryptoImpl: webcrypto, nowSeconds: now
   });
