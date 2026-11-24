@@ -83,19 +83,27 @@ class CorpusValidationTests(unittest.TestCase):
             with self.subTest(field=field):
                 bad = row("bad-" + field)
                 bad["provenance_review"][field] = value
-                with self.assertRaises(ValueError):
-                    load_corpus(self.write_rows([bad, row("good-1"), row("good-2")]), False)
+                docs, rejected = load_corpus(
+                    self.write_rows([bad, row("good-1"), row("good-2")]), False
+                )
+                self.assertEqual(len(docs), 2)
+                self.assertEqual(rejected["invalid_metadata"], 1)
         bad_time = row("bad-time")
         bad_time["reviewed_at"] = "2026-11-24T12:00:00"
         bad_time["provenance_review"]["reviewed_at"] = bad_time["reviewed_at"]
-        with self.assertRaises(ValueError):
-            load_corpus(self.write_rows([bad_time, row("good-1"), row("good-2")]), False)
+        docs, rejected = load_corpus(
+            self.write_rows([bad_time, row("good-1"), row("good-2")]), False
+        )
+        self.assertEqual(len(docs), 2)
+        self.assertEqual(rejected["invalid_metadata"], 1)
 
     def test_approved_identity_metadata_cannot_be_downgraded_with_unverified_flag(self):
         bad = row("legacy")
         bad["provenance_review"] = None
+        bad_two = row("legacy-two")
+        bad_two["provenance_review"] = None
         with self.assertRaises(ValueError):
-            load_corpus(self.write_rows([bad, row("good-1"), row("good-2")]), True)
+            load_corpus(self.write_rows([bad, bad_two]), True)
 
     def test_unsupported_status_is_rejected(self):
         bad = row("bad-status", status="manually_approved")
