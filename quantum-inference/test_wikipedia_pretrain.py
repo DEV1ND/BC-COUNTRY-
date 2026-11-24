@@ -19,6 +19,14 @@ def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against sour
         "text": text, "license": "CC BY-SA 4.0",
         "attribution": "위키백과 contributors", "status": status,
         "reviewer_note": note,
+        "reviewed_at": "2026-11-24T12:00:00.000Z" if status == "approved" else None,
+        "provenance_review": ({
+            "approved": True, "reviewer": "reviewer@example.org",
+            "reviewer_subject": "cloudflare-subject-001",
+            "identity_provider": "cloudflare_access",
+            "reviewer_identity_verified": True,
+            "reviewed_at": "2026-11-24T12:00:00.000Z",
+        } if status == "approved" and note.startswith("MANUAL_APPROVAL:") else None),
     }
 
 
@@ -34,7 +42,7 @@ class CorpusValidationTests(unittest.TestCase):
     def test_manual_approval_is_accepted(self):
         docs, rejected = load_corpus(self.write_rows([row("1"), row("2")]), False)
         self.assertEqual(len(docs), 2)
-        self.assertEqual(docs[0]["trust"], "manually_verified")
+        self.assertEqual(docs[0]["trust"], "identity_verified_human_review")
         self.assertEqual(rejected["invalid_metadata"], 0)
 
     def test_legacy_auto_review_is_not_accepted_by_default(self):
@@ -54,6 +62,46 @@ class CorpusValidationTests(unittest.TestCase):
             load_corpus(docs_path, False)
         docs, _ = load_corpus(docs_path, True)
         self.assertTrue(all(d["trust"] == "unverified_experimental" for d in docs))
+
+
+    def test_legacy_manual_note_without_authenticated_identity_is_rejected(self):
+        legacy = row("legacy", note="MANUAL_APPROVAL: reviewed against source")
+        legacy.pop("provenance_review")
+        legacy.pop("reviewed_at")
+        path = self.write_rows([legacy, row("valid-2"), row("valid-3")])
+        docs, rejected = load_corpus(path, True)
+        self.assertEqual(len(docs), 2)
+        self.assertEqual(rejected["invalid_metadata"], 1)
+        self.assertTrue(all(doc["trust"] == "unverified_experimental" for doc in docs))
+
+    def test_approved_row_requires_cloudflare_access_identity_and_timestamp(self):
+        for field, value in (
+            ("reviewer_identity_verified", False),
+            ("identity_provider", "shared_admin_token"),
+            ("reviewer_subject", ""),
+        ):
+            with self.subTest(field=field):
+                bad = row("bad-" + field)
+                bad["provenance_review"][field] = value
+                with self.assertRaises(ValueError):
+                    load_corpus(self.write_rows([bad, row("good-1"), row("good-2")]), False)
+        bad_time = row("bad-time")
+        bad_time["reviewed_at"] = "2026-11-24T12:00:00"
+        bad_time["provenance_review"]["reviewed_at"] = bad_time["reviewed_at"]
+        with self.assertRaises(ValueError):
+            load_corpus(self.write_rows([bad_time, row("good-1"), row("good-2")]), False)
+
+    def test_approved_identity_metadata_cannot_be_downgraded_with_unverified_flag(self):
+        bad = row("legacy")
+        bad["provenance_review"] = None
+        with self.assertRaises(ValueError):
+            load_corpus(self.write_rows([bad, row("good-1"), row("good-2")]), True)
+
+    def test_unsupported_status_is_rejected(self):
+        bad = row("bad-status", status="manually_approved")
+        docs, rejected = load_corpus(self.write_rows([bad, row("good-1"), row("good-2")]), True)
+        self.assertEqual(len(docs), 2)
+        self.assertEqual(rejected["unsupported_status"], 1)
 
     def test_hash_mismatch_is_rejected(self):
         bad = row("1")
