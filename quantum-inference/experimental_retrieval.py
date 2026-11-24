@@ -20,20 +20,46 @@ def _normalize(value):
     return unicodedata.normalize("NFKC", value).casefold().strip()
 
 
+_STOP_WORDS = {
+    "무엇", "무엇인가요", "어떤", "어느", "누구", "언제", "어디", "어떻게",
+    "왜", "뜻", "의미", "정의", "설명", "설명해줘", "알려줘", "해주세요",
+    "은", "는", "이", "가", "을", "를", "의", "에", "에서", "으로", "로",
+    "란", "이란",
+}
+_KOREAN_SUFFIXES = (
+    "에서는", "으로부터", "에서부터", "에게서", "으로", "에서",
+    "은", "는", "이", "가", "을", "를", "의", "에", "로",
+)
+
+
 def _features(value):
-    """Build bounded word and within-token character n-gram features."""
+    """Build word, conservative particle-stripped, and character n-gram features."""
     normalized = _normalize(value)
     words = re.findall(r"[0-9a-z]+|[가-힣]+", normalized)
     features = {}
-    for word in words:
+
+    def add_word(word):
+        if not word or word in _STOP_WORDS:
+            return
         if len(word) >= 2:
             features["w:" + word] = features.get("w:" + word, 0) + 1
-        # Character n-grams allow partial overlap across Korean inflections.
+        elif len(word) == 1:
+            # Preserve meaningful one-syllable terms such as 달, 별, 빛.
+            features["u:" + word] = features.get("u:" + word, 0) + 1
         for size in (2, 3):
             for index in range(max(0, len(word) - size + 1)):
                 gram = word[index:index + size]
                 key = f"c{size}:" + gram
                 features[key] = features.get(key, 0) + 1
+
+    for word in words:
+        add_word(word)
+        if re.fullmatch(r"[가-힣]+", word):
+            for suffix in _KOREAN_SUFFIXES:
+                if word.endswith(suffix) and len(word) > len(suffix):
+                    stem = word[:-len(suffix)]
+                    add_word(stem)
+                    break
     return features
 
 
