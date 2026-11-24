@@ -9,6 +9,7 @@ import unicodedata
 
 MAX_QUERY_CHARS = 2000
 MAX_DOCUMENTS = 500
+MAX_FEATURES_PER_FIELD = 1500
 MAX_TITLE_CHARS = 512
 MAX_BODY_CHARS = 100000
 MAX_URL_CHARS = 2048
@@ -51,15 +52,21 @@ def _features(value):
                 gram = word[index:index + size]
                 key = f"c{size}:" + gram
                 features[key] = features.get(key, 0) + 1
+                if len(features) >= MAX_FEATURES_PER_FIELD:
+                    return
 
     for word in words:
         add_word(word)
+        if len(features) >= MAX_FEATURES_PER_FIELD:
+            break
         if re.fullmatch(r"[가-힣]+", word):
             for suffix in _KOREAN_SUFFIXES:
                 if word.endswith(suffix) and len(word) > len(suffix):
                     stem = word[:-len(suffix)]
                     add_word(stem)
                     break
+        if len(features) >= MAX_FEATURES_PER_FIELD:
+            break
     return features
 
 
