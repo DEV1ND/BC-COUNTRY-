@@ -67,9 +67,13 @@ def query_terms(value):
         for suffix in _SUFFIXES:
             if stem.endswith(suffix) and len(stem) - len(suffix) >= 1:
                 candidate = stem[:-len(suffix)]
-                # Particle stripping is ambiguous for short Korean nouns:
-                # 국가/사과/회의 are lexical terms, not stems "국/사/회".
+                # Preserve a complete lexical noun, or strip only its outer
+                # particle when the resulting stem is a known lexical noun.
+                # e.g. 국가 stays 국가; 국가의 becomes 국가.
                 if stem in _PROTECTED_STEMS:
+                    break
+                if candidate in _PROTECTED_STEMS:
+                    stem = candidate
                     break
                 stem = candidate
                 break
