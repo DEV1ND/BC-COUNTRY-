@@ -183,4 +183,4 @@ This improves candidate selection under malformed-index conditions. It does not 
 
 ## Korean retrieval query normalization
 
-The lexical query normalizer preserves a conservative set of common Korean nouns whose final syllables overlap with particle strings (for example, 국가, 사과, 회의, and 전문가). Outer particles can still be removed from these forms, so 국가의 becomes 국가 and 사과를 becomes 사과. This is a targeted ambiguity guard, not a full Korean morphological analyzer; uncommon words may still require future corpus-driven evaluation.
+The lexical query normalizer preserves a conservative set of common Korean nouns whose final syllables overlap with particle strings (for example, 국가, 사과, 회의, and 전문가). It removes at most two recognized outer endings, so 국가의 and 국가에서는 normalize to 국가, while 사과를 normalizes to 사과. This bounded rule also handles forms such as 회의에서의 without becoming an unbounded stemmer. It is a targeted ambiguity guard, not a full Korean morphological analyzer; uncommon words and other grammatical endings still require corpus-driven evaluation.
