@@ -25,6 +25,8 @@ def row(page_id, status="approved", note="MANUAL_APPROVAL_V2: reviewed against s
             "reviewer_subject": "cloudflare-subject-001",
             "identity_provider": "cloudflare_access",
             "reviewer_identity_verified": True,
+            "review_note": "독립 자료와 문서의 핵심 사실을 대조하여 검토했습니다.",
+            "reference_url": "https://example.org/verified-reference",
             "reviewed_at": "2026-11-24T12:00:00.000Z",
         } if status == "approved" and note.startswith("MANUAL_APPROVAL_V2:") else None),
     }
@@ -83,6 +85,8 @@ class CorpusValidationTests(unittest.TestCase):
             ("reviewer_identity_verified", False),
             ("identity_provider", "shared_admin_token"),
             ("reviewer_subject", ""),
+            ("review_note", "짧음"),
+            ("reference_url", "https://ko.wikipedia.org/wiki/가짜"),
         ):
             with self.subTest(field=field):
                 bad = row("bad-" + field)
