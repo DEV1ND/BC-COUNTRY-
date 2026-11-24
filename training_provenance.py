@@ -86,12 +86,16 @@ def audit_rows(rows, identity_verifier=None):
 
     metadata_complete = sum(item["metadata_complete"] for item in findings)
     identity_verified = sum(item["reviewer_identity_verified"] for item in findings)
+    all_rows_approved = bool(rows) and len(approved) == len(rows)
+    unapproved_records = len(rows) - len(approved)
     all_metadata_complete = bool(findings) and metadata_complete == len(findings)
     all_identities_verified = bool(findings) and identity_verified == len(findings)
     return {
         "schema": "juckex-training-provenance-audit-v2",
         "records_total": len(rows),
         "approved_records": len(approved),
+        "unapproved_records": unapproved_records,
+        "all_training_rows_approved": all_rows_approved,
         "metadata_complete_records": metadata_complete,
         "metadata_incomplete_records": len(findings) - metadata_complete,
         "metadata_completeness_ratio": round(metadata_complete / max(1, len(findings)), 4),
@@ -99,7 +103,7 @@ def audit_rows(rows, identity_verifier=None):
         "reviewer_identity_verified_records": identity_verified,
         "reviewer_identity_verification_required": True,
         "identity_verifier_configured": identity_verifier is not None,
-        "training_release_eligible": all_metadata_complete and all_identities_verified,
+        "training_release_eligible": all_rows_approved and all_metadata_complete and all_identities_verified,
         "release_gate_scope": "metadata completeness AND trusted cryptographic reviewer identity verification",
         "important_limit": (
             "메타데이터 완전성은 출처·라이선스·사용 권한의 진실성을 증명하지 않습니다. "

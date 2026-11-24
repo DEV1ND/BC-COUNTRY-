@@ -82,6 +82,31 @@ class TrainingProvenanceTests(unittest.TestCase):
         self.assertEqual(report["approved_records"], 0)
         self.assertFalse(report["training_release_eligible"])
 
+
+    def test_mixed_approved_and_unapproved_rows_are_ineligible(self):
+        approved = self.complete_row()
+        unapproved = {
+            "question": "미승인 질문",
+            "answer": "미승인 답변입니다.",
+            "approved": False,
+        }
+        report = audit_rows(
+            [approved, unapproved],
+            identity_verifier=lambda *_: True,
+        )
+        self.assertEqual(report["approved_records"], 1)
+        self.assertEqual(report["unapproved_records"], 1)
+        self.assertFalse(report["all_training_rows_approved"])
+        self.assertFalse(report["training_release_eligible"])
+
+    def test_malformed_rows_cannot_be_silently_ignored(self):
+        report = audit_rows(
+            [self.complete_row(), None],
+            identity_verifier=lambda *_: True,
+        )
+        self.assertEqual(report["unapproved_records"], 1)
+        self.assertFalse(report["training_release_eligible"])
+
     def test_record_index_points_to_original_dataset_position(self):
         unapproved = {"question": "보류 질문", "answer": "보류 답변입니다.", "approved": False}
         first_approved = self.complete_row()

@@ -1,6 +1,7 @@
 import os, json, io, time, asyncio, secrets, hashlib, threading, re
 from pathlib import Path
 from typing import Optional
+from runtime_training_provenance_guard import audit_runtime_training_provenance
 import numpy as np
 import torch
 import torch.nn as nn
@@ -532,6 +533,25 @@ async def _train_background(max_steps: int = 80):
                 "curated_pairs": len(pairs),
                 "fetch_cursor": 0,
             })
+        # Fail closed across normal D1 ingestion AND curated fallback. Legacy
+        # approved=true flags are not provenance or reviewer identity proof.
+        provenance_report = audit_runtime_training_provenance(pairs)
+        (ROOT / "runtime_training_provenance_audit.json").write_text(
+            json.dumps(provenance_report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        training_state.update({
+            "training_provenance_eligible": bool(provenance_report["training_release_eligible"]),
+            "training_provenance_approved_records": int(provenance_report["approved_records"]),
+            "training_provenance_metadata_complete": int(provenance_report["metadata_complete_records"]),
+            "training_provenance_identity_verified": int(provenance_report["reviewer_identity_verified_records"]),
+        })
+        if not provenance_report["training_release_eligible"]:
+            raise RuntimeError(
+                "학습 차단: 출처·라이선스·사용 권한과 신뢰된 검토자 신원 인증이 필요합니다. "
+                f"승인 {provenance_report['approved_records']}개, "
+                f"메타데이터 완전 {provenance_report['metadata_complete_records']}개, "
+                f"신원 검증 {provenance_report['reviewer_identity_verified_records']}개"
+            )
         fetched_count = len(pairs)
         dataset_cursor = int(training_state.get("fetch_cursor", 0))
         seqs, skipped = make_sequences(pairs)
