@@ -1,0 +1,39 @@
+name: Quantum Candidate review attestation verifier
+
+on:
+  push:
+    branches:
+      - quantum-candidate-review-attestation-verifier
+    paths:
+      - "quantum_review_attestation.py"
+      - "test_quantum_review_attestation.py"
+      - "quantum_human_review.py"
+      - "test_quantum_human_review.py"
+      - ".github/workflows/quantum-review-attestation.yml"
+  pull_request:
+    branches:
+      - quantum-candidate-human-review-identity-gate
+      - quantum-candidate-review-attestation-verifier
+    paths:
+      - "quantum_review_attestation.py"
+      - "test_quantum_review_attestation.py"
+      - "quantum_human_review.py"
+      - "test_quantum_human_review.py"
+      - "QUANTUM_REVIEW_ATTESTATION.md"
+      - ".github/workflows/quantum-review-attestation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile Candidate review modules
+        run: python -m py_compile quantum_review_attestation.py quantum_human_review.py
+      - name: Run signed-attestation and human-review tests
+        run: python -m unittest -v test_quantum_review_attestation test_quantum_human_review
