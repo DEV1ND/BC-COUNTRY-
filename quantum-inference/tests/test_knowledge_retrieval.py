@@ -607,6 +607,53 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         self.assertNotIn("미적분학", terms)
         self.assertNotIn("입자물리학", terms)
 
+    def test_rank_documents_rejects_candidate_batches_over_the_hard_limit(self):
+        from knowledge_retrieval import MAX_RANK_CANDIDATES
+
+        rows = [
+            {"title": "문서", "text": "검색 내용", "url": f"https://example.test/{i}"}
+            for i in range(MAX_RANK_CANDIDATES + 1)
+        ]
+        with self.assertRaisesRegex(ValueError, "최대"):
+            rank_documents("검색 내용", rows)
+
+    def test_rank_documents_rejects_oversized_document_fields(self):
+        from knowledge_retrieval import (
+            MAX_DOCUMENT_BODY_CHARS,
+            MAX_DOCUMENT_TITLE_CHARS,
+            MAX_DOCUMENT_URL_CHARS,
+        )
+
+        oversized_rows = [
+            {"title": "제목" * (MAX_DOCUMENT_TITLE_CHARS // 2 + 1),
+             "text": "검색 내용", "url": "https://example.test/doc"},
+            {"title": "문서", "text": "가" * (MAX_DOCUMENT_BODY_CHARS + 1),
+             "url": "https://example.test/doc"},
+            {"title": "문서", "text": "검색 내용",
+             "url": "https://example.test/" + "a" * MAX_DOCUMENT_URL_CHARS},
+        ]
+        for row in oversized_rows:
+            with self.subTest(field_lengths={key: len(value) for key, value in row.items()}):
+                with self.assertRaisesRegex(ValueError, "허용 길이"):
+                    rank_documents("검색 내용", [row])
+
+    def test_rank_documents_accepts_documents_at_configured_size_limits(self):
+        from knowledge_retrieval import (
+            MAX_DOCUMENT_BODY_CHARS,
+            MAX_DOCUMENT_TITLE_CHARS,
+            MAX_DOCUMENT_URL_CHARS,
+        )
+
+        row = {
+            "title": "가" * MAX_DOCUMENT_TITLE_CHARS,
+            "text": "나" * MAX_DOCUMENT_BODY_CHARS,
+            "url": "https://example.test/" + "a" * (MAX_DOCUMENT_URL_CHARS - len("https://example.test/")),
+        }
+        # A single title hit is sufficient evidence; the test only checks that
+        # exact configured boundaries are accepted rather than rejected.
+        ranked = rank_documents("가", [row], min_score=0.0)
+        self.assertEqual(len(ranked), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
