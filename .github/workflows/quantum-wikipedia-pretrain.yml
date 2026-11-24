@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - quantum-data-repair
+      - quantum-candidate-security-hardening
     paths:
       - "quantum-inference/app.py"
       - "quantum-inference/test_inference_contract.py"
