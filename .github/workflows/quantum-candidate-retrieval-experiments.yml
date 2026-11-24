@@ -5,6 +5,9 @@ on:
     branches: [quantum-candidate-retrieval-experiments]
     paths:
       - "quantum-inference/experimental_retrieval.py"
+      - "quantum-inference/app.py"
+      - "quantum-inference/inference_metrics.py"
+      - "quantum-inference/tests/test_inference_metrics.py"
       - "quantum-inference/benchmark_experimental_retrieval.py"
       - "quantum-inference/tests/test_experimental_retrieval.py"
       - "quantum-inference/tests/test_experimental_benchmark.py"
@@ -13,6 +16,9 @@ on:
     branches: [quantum-candidate-security-hardening]
     paths:
       - "quantum-inference/experimental_retrieval.py"
+      - "quantum-inference/app.py"
+      - "quantum-inference/inference_metrics.py"
+      - "quantum-inference/tests/test_inference_metrics.py"
       - "quantum-inference/benchmark_experimental_retrieval.py"
       - "quantum-inference/tests/test_experimental_retrieval.py"
       - "quantum-inference/tests/test_experimental_benchmark.py"
@@ -32,6 +38,9 @@ jobs:
       - name: Compile experiment modules
         run: |
           python -m py_compile quantum-inference/experimental_retrieval.py
+          python -m py_compile quantum-inference/app.py
+          python -m py_compile quantum-inference/inference_metrics.py
+          python -m py_compile quantum-inference/tests/test_inference_metrics.py
           python -m py_compile quantum-inference/benchmark_experimental_retrieval.py
           python -m py_compile quantum-inference/tests/test_experimental_retrieval.py
           python -m py_compile quantum-inference/tests/test_experimental_benchmark.py
@@ -39,4 +48,5 @@ jobs:
         working-directory: quantum-inference
         run: |
           python -m unittest discover -s tests -p "test_experimental_retrieval.py" -v
+          python -m unittest discover -s tests -p "test_inference_metrics.py" -v
           python -m unittest discover -s tests -p "test_experimental_benchmark.py" -v
