@@ -222,3 +222,10 @@ Hard-negative metrics are separate from the broader retrieval-noise metric: nois
 
 ## Retrieval candidate and document size bounds
 The lexical reranker accepts at most 500 candidate rows per call. Each row is limited to a 512-character title, 100,000-character body, and 2,048-character URL. Inputs beyond these bounds fail explicitly rather than being silently truncated, preserving deterministic scoring and preventing oversized direct-library inputs from consuming unbounded normalization and ranking work. The SQLite retrieval path currently supplies at most 100 FTS/fallback candidates, and the Wikipedia importer stores article text below the body ceiling. These are resource-safety limits, not relevance or answer-quality improvements.
+
+
+## Hard-negative ranking diagnostics
+
+`retrieval_benchmark.py` reports explicitly labeled hard-negative documents separately from ordinary irrelevant results. In addition to the rate at which any hard negative appears in the top-k results, it records the first relevant and first hard-negative ranks, the number of cases where a returned hard negative precedes a returned relevant document, and cases where a hard negative is returned without any expected document.
+
+The precedence rate is calculated only over labeled cases where both a relevant document and at least one hard negative were returned; it is `null` when there are no comparable cases. The without-relevant count is reported separately so missing relevant results are not silently mixed into the rank-order denominator. These are retrieval diagnostics, not model-answer quality or factuality scores.
