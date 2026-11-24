@@ -27,7 +27,7 @@ on:
       - 'quantum_generation_eval.py'
       - '.github/workflows/quantum-10m-smoke.yml'
   push:
-    branches: [main, quantum-generation-quality, quantum-candidate-security-hardening]
+    branches: [main, quantum-generation-quality, quantum-candidate-security-hardening, quantum-candidate-10m-config-driven]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
@@ -127,7 +127,7 @@ jobs:
       - name: Verify and smoke-train Quantum 10M
         if: steps.provenance.outputs.eligible == 'true'
         run: |
-          python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
+          python bpe_candidate_train.py --steps 500 --profile-config quantum_10m_config.json --seed 20261123
           python - <<'PY'
           import json
           from pathlib import Path

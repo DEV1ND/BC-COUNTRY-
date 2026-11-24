@@ -7,10 +7,12 @@ on:
     paths:
       - "bpe_candidate_train.py"
       - "test_candidate_parameter_accounting.py"
+      - "quantum_10m_config.json"
       - ".github/workflows/quantum-candidate-parameter-accounting.yml"
   push:
     branches:
       - quantum-candidate-parameter-accounting
+      - quantum-candidate-10m-config-driven
     paths:
       - "bpe_candidate_train.py"
       - "test_candidate_parameter_accounting.py"
