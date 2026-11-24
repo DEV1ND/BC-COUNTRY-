@@ -16,6 +16,7 @@ on:
       - quantum-candidate-review-attestation-issuer
       - quantum-candidate-review-attestation-replay-guard
     paths:
+      - "test_review_nonce_migration.py"
       - "cloudflare-workers/review_nonce_store.mjs"
       - "cloudflare-workers/tests/review-nonce-store.test.mjs"
       - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
