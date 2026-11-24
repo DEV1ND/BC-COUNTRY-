@@ -50,6 +50,11 @@ def validate_export_document(row, corpus):
         raise RuntimeError("Worker returned an invalid content hash")
     if hashlib.sha256(text.encode("utf-8")).hexdigest() != digest:
         raise RuntimeError("Worker returned a content hash that does not match its text")
+    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL_V2:")
+    if corpus == "manual" and not is_manual:
+        raise RuntimeError("Manual corpus contains a row without human approval metadata")
+    if corpus == "unverified" and is_manual:
+        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
     if "reviewed_at" not in row:
         raise RuntimeError("Worker export is missing the review timestamp field")
     reviewed_at = row["reviewed_at"]
@@ -80,11 +85,6 @@ def validate_export_document(row, corpus):
     expected_status = "approved" if corpus == "manual" else "pending_review"
     if row["status"] != expected_status:
         raise RuntimeError("Worker returned a document outside the selected trust class")
-    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL_V2:")
-    if corpus == "manual" and not is_manual:
-        raise RuntimeError("Manual corpus contains a row without human approval metadata")
-    if corpus == "unverified" and is_manual:
-        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
     return row["page_id"].strip()
 
 
