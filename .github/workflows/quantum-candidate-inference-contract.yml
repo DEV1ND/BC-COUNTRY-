@@ -4,12 +4,14 @@ on:
   push:
     branches:
       - quantum-candidate-security-hardening
+      - quantum-candidate-inference-health-status
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
   pull_request:
     branches:
       - quantum-data-repair
+      - quantum-candidate-inference-health-status
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
@@ -43,6 +45,7 @@ jobs:
         run: |
           python -m unittest -v \
             test_inference_contract.py \
+            tests/test_inference_health.py \
             test_bpe_tokenizer_integrity.py \
             test_generation_context.py \
             test_generation_output_diagnostics.py \
