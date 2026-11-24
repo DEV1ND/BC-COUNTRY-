@@ -566,6 +566,18 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         self.assertEqual(len(terms), MAX_QUERY_TERMS)
         self.assertNotIn("화학", terms)
 
+    def test_multiple_domain_aliases_share_one_global_term_budget(self):
+        from knowledge_retrieval import MAX_QUERY_TERMS
+
+        filler = [f"항목{chr(0xAC00 + index)}점" for index in range(56)]
+        triggers = ["화학자", "연속", "신호", "변화율", "누적량", "입자", "물리학"]
+        terms = query_terms(" ".join(filler + triggers))
+        self.assertEqual(len(terms), MAX_QUERY_TERMS)
+        self.assertIn("화학", terms)
+        self.assertNotIn("아날로그", terms)
+        self.assertNotIn("미적분학", terms)
+        self.assertNotIn("입자물리학", terms)
+
 
 if __name__ == "__main__":
     unittest.main()
