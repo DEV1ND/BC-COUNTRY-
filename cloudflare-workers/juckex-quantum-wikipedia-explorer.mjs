@@ -293,7 +293,7 @@ async function approvePage(request,env,identity){
   if(note.length<20)return json({error:"review_summary_too_short"},400);
   let reference;
   try{reference=new URL(referenceUrl);}catch{return json({error:"independent_reference_required"},400);}
-  if(reference.protocol!=="https:"||reference.hostname==="ko.wikipedia.org"||reference.hostname.endsWith(".wikipedia.org"))
+  if(reference.protocol!=="https:"||reference.username||reference.password||reference.hostname==="ko.wikipedia.org"||reference.hostname.endsWith(".wikipedia.org"))
     return json({error:"independent_reference_required"},400);
   const page=await env.DB.prepare("SELECT id,status,provider,title,url,domain,content,content_hash,license_status,license_name,attribution,revision_id FROM pages WHERE id=?").bind(id).first();
   if(!page)return json({error:"page_not_found"},404);
