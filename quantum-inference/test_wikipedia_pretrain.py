@@ -9,10 +9,12 @@ from bpe_tokenizer import BPETokenizer
 from wikipedia_pretrain import batch_windows, load_corpus, make_windows, split_documents
 
 
-def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source", reviewed_at=None):
+def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source", reviewed_at="__auto__"):
     text = ("한국어 문서 내용입니다. " * 20).strip()
-    if reviewed_at is None and status == "approved" and note.startswith("MANUAL_APPROVAL:"):
+    if reviewed_at == "__auto__" and status == "approved" and note.startswith("MANUAL_APPROVAL:"):
         reviewed_at = "2026-11-23T10:00:00Z"
+    elif reviewed_at == "__auto__":
+        reviewed_at = None
     return {
         "page_id": page_id, "title": "테스트 문서",
         "url": "https://ko.wikipedia.org/wiki/테스트",
