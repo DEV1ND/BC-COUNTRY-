@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, StrictInt, validator
 from bpe_tokenizer import BPETokenizer
 from generation_sampling import select_top_k_indices, normalize_prompt, validate_sampling_probabilities, safe_ngram_bans
 from tokenizer_diagnostics import summarize_generated_tokens
+from generation_output_diagnostics import diagnose_answer_output
 from generation_context import build_generation_context
 from wikipedia_seed import seed_wikipedia, DEFAULT_TITLES
 
@@ -648,6 +649,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
     if not answer:
         raise HTTPException(503, "Quantum 후보 모델이 빈 답변을 생성했습니다.")
     generation_diagnostics = summarize_generated_tokens(tokenizer, generated)
+    output_shape_diagnostics = diagnose_answer_output(answer)
     return {"answer": answer, "model": "quantum-bpe-candidate",
             "model_parameters": MODEL_PARAMETER_COUNT,
             "is_live_inference": True,
@@ -670,6 +672,7 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             "generation_stop_reason": generation_stop_reason,
             "context_truncated": context_truncated,
             "generation_diagnostics": generation_diagnostics,
+            "output_shape_diagnostics": output_shape_diagnostics,
             "quality_warning": (
                 "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다. "
                 + ("출력 토큰이 지나치게 잘게 분리되는 현상이 감지되었습니다. "
