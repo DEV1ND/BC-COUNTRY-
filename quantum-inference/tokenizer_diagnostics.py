@@ -114,6 +114,9 @@ def summarize_generated_tokens(tokenizer, token_ids):
     unknown = 0
     single_codepoint = 0
     known = 0
+    hangul_tokens = 0
+    single_hangul_syllable_tokens = 0
+    total_hangul_syllables = 0
     decoded_pieces = []
     for token_id in token_ids:
         if isinstance(token_id, bool) or not isinstance(token_id, int) or token_id < 0:
@@ -135,6 +138,13 @@ def summarize_generated_tokens(tokenizer, token_ids):
         known += 1
         if len(piece) == 1:
             single_codepoint += 1
+        piece_hangul_syllables = sum(
+            1 for char in piece if 0xAC00 <= ord(char) <= 0xD7A3
+        )
+        if piece_hangul_syllables:
+            hangul_tokens += 1
+            total_hangul_syllables += piece_hangul_syllables
+            single_hangul_syllable_tokens += int(piece_hangul_syllables == 1)
         decoded_pieces.append(piece)
 
     total = len(token_ids)
@@ -145,6 +155,13 @@ def summarize_generated_tokens(tokenizer, token_ids):
         "unknown_token_ratio": round(unknown / total if total else 0.0, 6),
         "single_codepoint_tokens": single_codepoint,
         "single_codepoint_token_ratio": round(ratio, 6),
+        "hangul_tokens": hangul_tokens,
+        "single_hangul_syllable_token_ratio": round(
+            single_hangul_syllable_tokens / hangul_tokens if hangul_tokens else 0.0, 6
+        ),
+        "average_hangul_syllables_per_token": round(
+            total_hangul_syllables / hangul_tokens if hangul_tokens else 0.0, 4
+        ),
         "character_fragmentation_suspected": total >= 8 and known >= 8 and ratio >= 0.9,
         "interpretation_limit": (
             "Token granularity diagnostic only; not a fluency, correctness, or quality score."
