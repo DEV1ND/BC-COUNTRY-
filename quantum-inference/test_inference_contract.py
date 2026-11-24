@@ -29,6 +29,63 @@ class InferenceContractTests(unittest.TestCase):
         self.addCleanup(self.qa_patch.stop)
         self.addCleanup(self.model_patch.stop)
 
+    def test_bounded_json_rejects_oversized_declared_content_length_without_reading(self):
+        class FakeRequest:
+            headers = {"content-length": "1001"}
+            consumed = False
+
+            async def stream(self):
+                self.consumed = True
+                yield b"{}"
+
+        request = FakeRequest()
+        with self.assertRaises(HTTPException) as raised:
+            asyncio.run(quantum_app.read_bounded_json(request, 1000))
+        self.assertEqual(raised.exception.status_code, 413)
+        self.assertFalse(request.consumed)
+
+    def test_bounded_json_rejects_oversized_chunked_body_during_streaming(self):
+        class FakeRequest:
+            headers = {}
+            consumed = 0
+
+            async def stream(self):
+                self.consumed += 1
+                yield b'{"question":"123456'
+                self.consumed += 1
+                yield b'78901234567890"}'
+
+        request = FakeRequest()
+        with self.assertRaises(HTTPException) as raised:
+            asyncio.run(quantum_app.read_bounded_json(request, 16))
+        self.assertEqual(raised.exception.status_code, 413)
+        self.assertEqual(request.consumed, 2)
+
+    def test_bounded_json_accepts_valid_body_at_exact_byte_limit(self):
+        payload = b'{"question":"ok"}'
+
+        class FakeRequest:
+            headers = {"content-length": str(len(payload))}
+
+            async def stream(self):
+                yield payload
+
+        self.assertEqual(
+            asyncio.run(quantum_app.read_bounded_json(FakeRequest(), len(payload))),
+            {"question": "ok"},
+        )
+
+    def test_bounded_json_rejects_malformed_json(self):
+        class FakeRequest:
+            headers = {}
+
+            async def stream(self):
+                yield b'{"question":'
+
+        with self.assertRaises(HTTPException) as raised:
+            asyncio.run(quantum_app.read_bounded_json(FakeRequest(), 100))
+        self.assertEqual(raised.exception.status_code, 400)
+
     def test_missing_authentication_is_rejected_before_retrieval(self):
         with patch.object(quantum_app, "retrieve_approved_qa") as retrieve:
             with self.assertRaises(HTTPException) as raised:
