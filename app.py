@@ -246,6 +246,8 @@ async def _restore_remote_model(model: JuckexModel):
     raw = base64.b64decode(body["model"])
     _load_npz(model, raw)
     LOCAL_MODEL.write_bytes(raw)
+    training_state["local_weights_loaded"] = True
+    training_state["loaded_weights_from"] = "remote-worker"
     training_state["step"] = int(body.get("step", 2000))
     training_state["model_version"] = int(body.get("version", 1))
     return True
@@ -270,6 +272,9 @@ model = _initial_model()
 async def startup_restore():
     restore_failed = False
     local_weights_loaded = bool(training_state.get("local_weights_loaded"))
+    training_state.pop("remote_model_restore_blocked", None)
+    training_state.pop("remote_model_restore_error", None)
+    training_state.pop("model_bootstrap_blocked", None)
     ok = False
     try:
         try:
