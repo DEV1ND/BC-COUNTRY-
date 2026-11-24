@@ -26,10 +26,13 @@ on:
       - quantum-candidate-review-attestation-issuer
       - quantum-candidate-review-attestation-replay-guard
       - quantum-candidate-review-attestation-worker-routes
+      - quantum-candidate-review-attestation-python-client
     paths:
       - "quantum_review_attestation.py"
       - "test_quantum_review_attestation.py"
       - "quantum_human_review.py"
+      - "quantum_review_attestation_client.py"
+      - "test_quantum_review_attestation_client.py"
       - "test_quantum_human_review.py"
       - "QUANTUM_REVIEW_ATTESTATION.md"
       - "cloudflare-workers/review_attestation.mjs"
