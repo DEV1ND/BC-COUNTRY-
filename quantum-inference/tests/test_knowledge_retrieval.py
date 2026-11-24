@@ -28,6 +28,38 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         self.assertEqual(query_terms("사과를 먹는 방법"), ["사과", "먹"])
         self.assertEqual(query_terms("회의에서 결정한 결과"), ["회의", "결정한", "결과"])
 
+    def test_protected_korean_nouns_survive_attached_outer_particles(self):
+        examples = {
+            "아이의": "아이",
+            "국가의": "국가",
+            "사과를": "사과",
+            "결과는": "결과",
+            "효과가": "효과",
+            "교과의": "교과",
+            "허가를": "허가",
+            "추가로": "추가",
+            "참가가": "참가",
+            "평가를": "평가",
+            "전문가의": "전문가",
+            "작가가": "작가",
+            "화가의": "화가",
+            "원가의": "원가",
+            "물가가": "물가",
+            "주가의": "주가",
+            "대가를": "대가",
+            "상가의": "상가",
+            "휴가를": "휴가",
+            "증가가": "증가",
+            "감소가": "감소",
+            "국어를": "국어",
+            "영어를": "영어",
+            "언어의": "언어",
+            "회의에서": "회의",
+        }
+        for attached, expected in examples.items():
+            with self.subTest(attached=attached):
+                self.assertEqual(query_terms(attached), [expected])
+
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
