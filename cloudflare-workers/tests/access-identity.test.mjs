@@ -106,6 +106,13 @@ test("rejects a tampered JWT signature", async () => {
   assert.equal(result.error, "access_jwt_signature_invalid");
 });
 
+test("rejects oversized JWT input before fetching JWKS", async () => {
+  const result = await verifyCloudflareAccessIdentity(request("x".repeat(9000)), env, {
+    cryptoImpl: webcrypto, nowSeconds: now
+  });
+  assert.equal(result.error, "access_jwt_too_large");
+});
+
 test("fails closed when JWKS cannot be retrieved", async () => {
   const f = await fixture();
   const result = await verifyCloudflareAccessIdentity(request(f.token), env, {
