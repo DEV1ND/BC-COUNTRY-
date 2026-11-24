@@ -173,7 +173,7 @@ The generation response also includes `output_shape_diagnostics` from `generatio
 
 ## Provenance filtering before the final retrieval limit
 
-The SQLite retrieval path ranks its bounded candidate batch (up to 50 FTS rows or 100 fallback rows), validates source attribution and content integrity for those ranked candidates, and only then applies the caller's requested result limit (1–10). This prevents a small number of high-scoring but invalid rows from occupying the entire result window and hiding valid documents immediately below them.
+The SQLite retrieval path ranks its bounded candidate batch (up to 100 FTS rows or 100 fallback rows), validates source attribution and content integrity for those ranked candidates, and only then applies the caller's requested result limit (1–10). This prevents a small number of high-scoring but invalid rows from occupying the entire result window and hiding valid documents immediately below them.
 
 The standalone lexical ranking helper accepts a bounded limit up to 100 for this internal candidate-batch use. The public index-search result limit remains 1–10. If every candidate is rejected, the response reports the relevant source-metadata or content-integrity failure state; mixed source and integrity failures use `document_metadata_invalid`. Rejection counters remain separate.
 
