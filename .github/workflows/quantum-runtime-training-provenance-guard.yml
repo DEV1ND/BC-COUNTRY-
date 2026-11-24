@@ -6,6 +6,7 @@ on:
       - "app.py"
       - "runtime_training_provenance_guard.py"
       - "test_runtime_training_provenance_guard.py"
+      - "test_training_provenance.py"
       - "training_provenance.py"
       - ".github/workflows/quantum-runtime-training-provenance-guard.yml"
   push:
@@ -30,6 +31,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile runtime guard
-        run: python -m py_compile app.py runtime_training_provenance_guard.py test_runtime_training_provenance_guard.py training_provenance.py
+        run: python -m py_compile app.py runtime_training_provenance_guard.py test_runtime_training_provenance_guard.py training_provenance.py test_training_provenance.py
       - name: Run guard tests
-        run: python -m unittest -v test_runtime_training_provenance_guard.py
+        run: python -m unittest -v test_runtime_training_provenance_guard.py test_training_provenance.py
