@@ -34,6 +34,14 @@ python -m unittest -v test_auth_policy.py test_wikipedia_pretrain.py
 
 GitHub Actions의 `Quantum Candidate encrypted training`은 먼저 Candidate 안전성 사전 검사를 수행합니다. 실제 Candidate 학습은 `dry_run=false`와 `confirm_candidate_training=true` 두 입력이 모두 명시된 경우에만 별도 작업으로 생성됩니다.
 
+## 학습 데이터 provenance 및 신원 게이트
+
+- `training_provenance.py`는 출처·라이선스·검토 메타데이터 완전성과 검토자 신원 검증을 별도로 계산합니다.
+- `reviewer` 문자열, `reviewer_identity_verified` 데이터 필드, 승인 체크박스만으로 신원 인증을 통과할 수 없습니다.
+- 기본 Candidate trainer는 신뢰된 암호학적 identity verifier를 연결하지 않으므로, 메타데이터가 완성되어도 학습 적격 판정은 계속 false입니다.
+- `apply_training_provenance_review.py`는 검토 메타데이터가 입력된 별도 사본만 만들며, 학습 승인을 부여하지 않습니다.
+- 실제 학습을 열려면 신뢰된 verifier 구현·키 관리·서명 검증 테스트·사람 검토를 별도로 완료해야 합니다.
+
 ## 위키백과 라이선스
 
 위키백과 자료를 사용할 때 CC BY-SA 4.0의 저작자 표시 및 적용되는 동일조건변경허락 조건을 보존해야 합니다. 자동 검토 표시는 사람의 사실 검증이나 수동 승인을 의미하지 않습니다.

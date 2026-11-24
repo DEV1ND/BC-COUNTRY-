@@ -50,10 +50,36 @@ def validate_export_document(row, corpus):
         raise RuntimeError("Worker returned an invalid content hash")
     if hashlib.sha256(text.encode("utf-8")).hexdigest() != digest:
         raise RuntimeError("Worker returned a content hash that does not match its text")
+    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL_V2:")
+    if corpus == "manual" and not is_manual:
+        raise RuntimeError("Manual corpus contains a row without human approval metadata")
+    if corpus == "unverified" and is_manual:
+        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
     if "reviewed_at" not in row:
         raise RuntimeError("Worker export is missing the review timestamp field")
     reviewed_at = row["reviewed_at"]
     if corpus == "manual":
+        review = row.get("provenance_review")
+        if not isinstance(review, dict) or review.get("approved") is not True:
+            raise RuntimeError("Manual corpus requires a structured human review record")
+        if review.get("reviewer_identity_verified") is not True:
+            raise RuntimeError("Manual corpus requires a verified reviewer identity")
+        if review.get("identity_provider") != "cloudflare_access":
+            raise RuntimeError("Manual corpus requires Cloudflare Access identity metadata")
+        if not isinstance(review.get("reviewer"), str) or "@" not in review["reviewer"]:
+            raise RuntimeError("Manual corpus requires a verified reviewer email")
+        if not isinstance(review.get("reviewer_subject"), str) or not review["reviewer_subject"].strip():
+            raise RuntimeError("Manual corpus requires a verified reviewer subject")
+        if not isinstance(review.get("review_note"), str) or len(review["review_note"].strip()) < 20:
+            raise RuntimeError("Manual corpus requires a substantive review note")
+        reference_url = review.get("reference_url")
+        if not isinstance(reference_url, str) or not reference_url.startswith("https://"):
+            raise RuntimeError("Manual corpus requires an independent HTTPS reference")
+        reference_host = urllib.parse.urlparse(reference_url).hostname or ""
+        if reference_host == "wikipedia.org" or reference_host.endswith(".wikipedia.org"):
+            raise RuntimeError("Manual corpus reference must be independent of Wikipedia")
+        if review.get("reviewed_at") != reviewed_at:
+            raise RuntimeError("Review metadata timestamp does not match Worker timestamp")
         if not isinstance(reviewed_at, str) or not reviewed_at.strip():
             raise RuntimeError("Manual corpus requires a review timestamp")
         try:
@@ -62,16 +88,11 @@ def validate_export_document(row, corpus):
             raise RuntimeError("Manual corpus review timestamp must be ISO-8601") from exc
         if parsed_reviewed_at.tzinfo is None or parsed_reviewed_at.utcoffset() is None:
             raise RuntimeError("Manual corpus review timestamp must include a timezone")
-    elif reviewed_at is not None:
-        raise RuntimeError("Unverified corpus must not contain a review timestamp")
+    elif reviewed_at is not None or row.get("provenance_review") is not None:
+        raise RuntimeError("Unverified corpus must not contain human-review metadata")
     expected_status = "approved" if corpus == "manual" else "pending_review"
     if row["status"] != expected_status:
         raise RuntimeError("Worker returned a document outside the selected trust class")
-    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL:")
-    if corpus == "manual" and not is_manual:
-        raise RuntimeError("Manual corpus contains a row without human approval metadata")
-    if corpus == "unverified" and is_manual:
-        raise RuntimeError("Unverified corpus unexpectedly contains a manually approved row")
     return row["page_id"].strip()
 
 

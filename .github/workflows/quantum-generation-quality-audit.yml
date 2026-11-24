@@ -1,0 +1,59 @@
+name: Quantum candidate generation quality audit
+
+on:
+  push:
+    branches:
+      - quantum-candidate-generation-quality-audit
+    paths:
+      - "quantum_generation_quality_audit.py"
+      - "test_quantum_generation_quality_audit.py"
+      - "bpe_generation_seed_*.json"
+      - "quantum_decoding_sweep.json"
+      - ".github/workflows/quantum-generation-quality-audit.yml"
+  pull_request:
+    branches:
+      - quantum-candidate-identity-release-gate
+    paths:
+      - "quantum_generation_quality_audit.py"
+      - "test_quantum_generation_quality_audit.py"
+      - "bpe_generation_seed_*.json"
+      - "quantum_decoding_sweep.json"
+      - ".github/workflows/quantum-generation-quality-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lexical-quality-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile audit and tests
+        run: python -m py_compile quantum_generation_quality_audit.py test_quantum_generation_quality_audit.py
+      - name: Run audit unit tests
+        run: python -m unittest -v test_quantum_generation_quality_audit.py
+      - name: Audit committed generation samples when present
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from quantum_generation_quality_audit import audit_generation_report
+          candidates = sorted(Path(".").glob("bpe_generation_seed_*.json"))
+          candidates += [Path("quantum_decoding_sweep.json")]
+          existing = [path for path in candidates if path.is_file()]
+          if not existing:
+              print("No committed generation report in this branch; unit tests remain authoritative.")
+          for path in existing:
+              report = audit_generation_report(json.loads(path.read_text(encoding="utf-8")))
+              print(json.dumps({
+                  "file": str(path),
+                  "sample_count": report["sample_count"],
+                  "flagged_sample_count": report["flagged_sample_count"],
+                  "flag_counts": report["flag_counts"],
+                  "production_release_eligible": report["production_release_eligible"],
+              }, ensure_ascii=False))
+          PY

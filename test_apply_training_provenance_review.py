@@ -35,13 +35,18 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         self.assertEqual(rows, original)
         self.assertEqual(reviewed[0]["source"]["kind"], "user_authored")
         self.assertEqual(reviewed[0]["source_legacy_label"], "curated-v1")
-        self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
+        report = audit_rows(reviewed)
+        self.assertTrue(report["metadata_review_complete"])
+        self.assertFalse(report["training_release_eligible"])
+        self.assertFalse(report["records"][0]["reviewer_identity_verified"])
 
     def test_redacted_template_can_be_applied_without_exporting_training_text(self):
         rows = self.source_rows()
         reviewed = apply_review(rows, self.completed_template(rows, include_content=False))
         self.assertEqual(reviewed[0]["question"], rows[0]["question"])
-        self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
+        report = audit_rows(reviewed)
+        self.assertTrue(report["metadata_review_complete"])
+        self.assertFalse(report["training_release_eligible"])
 
     def test_missing_review_record_is_rejected(self):
         template = self.completed_template()
@@ -104,7 +109,8 @@ class ApplyTrainingProvenanceReviewTests(unittest.TestCase):
         rows.append(copy.deepcopy(rows[0]))
         reviewed = apply_review(rows, self.completed_template(rows))
         self.assertEqual(reviewed[0]["source"], reviewed[2]["source"])
-        self.assertTrue(audit_rows(reviewed)["training_release_eligible"])
+        self.assertTrue(audit_rows(reviewed)["metadata_review_complete"])
+        self.assertFalse(audit_rows(reviewed)["training_release_eligible"])
 
     def test_record_id_is_stable_and_uses_an_unambiguous_separator(self):
         self.assertEqual(_record_id("Q", "A"), _record_id("Q", "A"))
