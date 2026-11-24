@@ -4,7 +4,9 @@ import { webcrypto } from "node:crypto";
 import {
   canonicalReviewJson,
   createReviewAttestation,
-  reviewPayloadDigest
+  reviewPayloadDigest,
+  verifyReviewAttestation,
+  validateHumanReviewPayload
 } from "../review_attestation.mjs";
 
 const secret = "candidate-test-secret-that-is-at-least-32-bytes";
@@ -93,4 +95,62 @@ test("rejects malformed nonce supplied by a test hook", async () => {
     }),
     /invalid_attestation_nonce/
   );
+});
+
+test("Worker verifier accepts the issued signature and rejects modified review content", async () => {
+  const original = review();
+  const signed = await createReviewAttestation(original, identity, env, {
+    cryptoImpl: webcrypto, now: fixedNow, nonceFactory: () => "0123456789abcdef"
+  });
+  assert.equal(await verifyReviewAttestation(signed, secret, {
+    cryptoImpl: webcrypto, now: fixedNow
+  }), true);
+  const changed = structuredClone(signed);
+  changed.records[0].ratings.factuality = 1;
+  assert.equal(await verifyReviewAttestation(changed, secret, {
+    cryptoImpl: webcrypto, now: fixedNow
+  }), false);
+});
+
+test("Worker verifier rejects expired, wrong-key and malformed signatures", async () => {
+  const signed = await createReviewAttestation(review(), identity, env, {
+    cryptoImpl: webcrypto, now: fixedNow, nonceFactory: () => "0123456789abcdef"
+  });
+  assert.equal(await verifyReviewAttestation(signed, secret, {
+    cryptoImpl: webcrypto, now: fixedNow + 6 * 60 * 1000
+  }), false);
+  assert.equal(await verifyReviewAttestation(signed, "different-secret-with-32-bytes-minimum", {
+    cryptoImpl: webcrypto, now: fixedNow
+  }), false);
+  const malformed = structuredClone(signed);
+  malformed.identity_attestation.signature = "bad";
+  assert.equal(await verifyReviewAttestation(malformed, secret, {
+    cryptoImpl: webcrypto, now: fixedNow
+  }), false);
+});
+
+test("human review validator requires complete, unique and Access-bound ratings", () => {
+  const payload = {
+    schema: "juckex-quantum-human-review-v1",
+    reviewer: "reviewer@example.org",
+    reviewed_at: "2026-11-24T11:59:00.000Z",
+    records: [{
+      record_id: "strategy-a:0",
+      strategy: "greedy",
+      question: "질문",
+      reference_answer: "기준 답변",
+      generated_answer: "생성 답변",
+      sample_sha256: "a".repeat(64),
+      ratings: { factuality: 4, relevance: 4, completeness: 4, korean_naturalness: 4 },
+      reviewer_notes: "검토 완료"
+    }]
+  };
+  assert.equal(validateHumanReviewPayload(payload, identity.email), true);
+  assert.equal(validateHumanReviewPayload(payload, "other@example.org"), false);
+  const incomplete = structuredClone(payload);
+  incomplete.records[0].ratings.factuality = null;
+  assert.equal(validateHumanReviewPayload(incomplete), false);
+  const duplicate = structuredClone(payload);
+  duplicate.records.push(structuredClone(duplicate.records[0]));
+  assert.equal(validateHumanReviewPayload(duplicate), false);
 });
