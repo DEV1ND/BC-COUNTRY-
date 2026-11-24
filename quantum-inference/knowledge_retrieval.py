@@ -213,7 +213,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
         # Otherwise a few high-scoring but invalid rows can hide valid sources
         # that would have appeared just below the requested result limit.
         documents = rank_documents(
-            question, rows, limit=min(100, len(rows)), min_score=min_score
+            question, rows, limit=max(1, min(100, len(rows))), min_score=min_score
         )
     except ValueError:
         # Malformed indexed rows are not coerced into trusted documents.
