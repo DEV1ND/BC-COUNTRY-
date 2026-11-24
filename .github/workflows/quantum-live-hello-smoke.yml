@@ -5,6 +5,10 @@ on:
     branches: [quantum-candidate-retrieval-experiments]
     paths:
       - ".github/workflows/quantum-live-hello-smoke.yml"
+  pull_request:
+    branches: [quantum-candidate-security-hardening]
+    paths:
+      - ".github/workflows/quantum-live-hello-smoke.yml"
   workflow_dispatch:
 
 permissions:
