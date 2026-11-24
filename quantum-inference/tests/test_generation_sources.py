@@ -119,7 +119,22 @@ class GenerationSourcesTests(unittest.TestCase):
     def test_exact_source_collection_limit_is_accepted(self):
         from generation_sources import MAX_KNOWLEDGE_SOURCES
 
-        rows = [source(title=f"문서 {index}") for index in range(MAX_KNOWLEDGE_SOURCES)]
+        rows = []
+        for index in range(MAX_KNOWLEDGE_SOURCES):
+            title = f"문서 {index}"
+            url = f"https://ko.wikipedia.org/wiki/{title}"
+            text = f"{title}의 본문입니다."
+            attribution = (
+                f"Wikipedia contributors, {title}, {url}; licensed under "
+                "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)."
+            )
+            rows.append(source(
+                title=title,
+                url=url,
+                text=text,
+                content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                attribution=attribution,
+            ))
         self.assertEqual(len(serialize_knowledge_sources(rows)), MAX_KNOWLEDGE_SOURCES)
 
 
