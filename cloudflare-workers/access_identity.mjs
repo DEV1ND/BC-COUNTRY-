@@ -136,7 +136,7 @@ export function makeVerifiedReviewNote(note, referenceUrl, identity) {
 
 export function parseVerifiedReviewNote(note, reviewedAt) {
   if (typeof note !== "string" || !note.startsWith("MANUAL_APPROVAL_V2: ") ||
-      typeof reviewedAt !== "string" || !reviewedAt.trim()) return null;
+      typeof reviewedAt !== "string" || !reviewedAt.trim() || !/(Z|[+-][0-9]{2}:[0-9]{2})$/i.test(reviewedAt.trim())) return null;
   let payload;
   try {
     payload = JSON.parse(note.slice("MANUAL_APPROVAL_V2: ".length));
