@@ -75,6 +75,22 @@ class GeneratedTokenDiagnosticsTests(unittest.TestCase):
         self.assertEqual(report["single_codepoint_token_ratio"], 1.0)
         self.assertIn("not a fluency", report["interpretation_limit"])
 
+    def test_generated_token_report_includes_hangul_specific_fragmentation(self):
+        tokenizer = BPETokenizer(initial_symbols=list("한국어"))
+        report = summarize_generated_tokens(tokenizer, tokenizer.encode("한국어"))
+
+        self.assertEqual(report["hangul_tokens"], 3)
+        self.assertEqual(report["single_hangul_syllable_token_ratio"], 1.0)
+        self.assertEqual(report["average_hangul_syllables_per_token"], 1.0)
+        self.assertTrue(report["character_fragmentation_suspected"])
+
+    def test_generated_token_report_handles_non_hangul_output(self):
+        tokenizer = BPETokenizer(initial_symbols=list("Quantum"))
+        report = summarize_generated_tokens(tokenizer, tokenizer.encode("Quantum"))
+        self.assertEqual(report["hangul_tokens"], 0)
+        self.assertEqual(report["single_hangul_syllable_token_ratio"], 0.0)
+        self.assertEqual(report["average_hangul_syllables_per_token"], 0.0)
+
     def test_reports_unknown_tokens_and_empty_generation(self):
         tokenizer = BPETokenizer(initial_symbols=["가"])
         report = summarize_generated_tokens(tokenizer, [1, 0, 1])
