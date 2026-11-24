@@ -173,6 +173,8 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             "reviewer_subject": "cloudflare-subject-001",
             "identity_provider": "cloudflare_access",
             "reviewer_identity_verified": True,
+            "review_note": "독립 자료와 핵심 사실을 대조하여 검토했습니다.",
+            "reference_url": "https://example.org/verified-reference",
             "reviewed_at": "2026-11-23T10:00:00.000Z",
         },
         )
