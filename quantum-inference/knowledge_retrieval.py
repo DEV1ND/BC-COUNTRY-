@@ -67,7 +67,9 @@ def _expand_domain_terms(terms):
         add("미적분학")
     if {"입자", "물리학"}.issubset(present):
         add("입자물리학")
-    return expanded
+    # Alias expansion happens after lexical-term deduplication. Enforce the
+    # same hard cap again so aliases cannot bypass MAX_QUERY_TERMS.
+    return expanded[:MAX_QUERY_TERMS]
 
 
 def query_terms(value):
