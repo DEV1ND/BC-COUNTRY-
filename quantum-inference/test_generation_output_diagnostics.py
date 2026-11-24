@@ -16,6 +16,20 @@ class GenerationOutputDiagnosticsTests(unittest.TestCase):
         self.assertFalse(result["suspicious_fragmentation"])
         self.assertEqual(result["warnings"], [])
 
+    def test_flags_repeated_three_token_sequences(self):
+        answer = "오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다 오늘은 날씨가 좋습니다"
+        result = diagnose_answer_output(answer)
+        self.assertTrue(result["suspicious_repetition"])
+        self.assertIn("repeated_three_token_sequence", result["warnings"])
+        self.assertGreaterEqual(result["repeated_trigram_count"], 2)
+        self.assertGreaterEqual(result["repeated_trigram_ratio"], 0.20)
+
+    def test_does_not_flag_one_shared_phrase_as_repetition(self):
+        answer = "오늘은 날씨가 좋습니다 내일은 학교에 갑니다 그리고 주말에는 책을 읽겠습니다"
+        result = diagnose_answer_output(answer)
+        self.assertFalse(result["suspicious_repetition"])
+        self.assertEqual(result["repeated_trigram_count"], 0)
+
     def test_empty_answer_has_safe_zero_ratio(self):
         result = diagnose_answer_output("   ")
         self.assertFalse(result["suspicious_fragmentation"])
