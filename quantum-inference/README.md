@@ -204,3 +204,10 @@ The Korean retrieval query normalizer rejects questions longer than 2,000 Unicod
 
 
 Domain-alias expansion is subject to the same 64-unique-term ceiling as the original query. Alias terms are appended only when budget remains; a query already using the full lexical-term budget does not gain extra alias terms. This closes a secondary expansion path that could otherwise exceed the documented retrieval work bound. It is a resource-bound guarantee, not a search-relevance improvement.
+
+
+## Lexical retrieval evidence diagnostics
+
+The internal lexical ranker attaches a `match_diagnostics` object to each accepted document. It records the bounded query terms, which terms matched the title and body, match counts, title/body term coverage, and whether the acceptance evidence came from a title match or multiple body-term matches. The authenticated `POST /admin/knowledge/search` endpoint exposes this trace beside the source revision and content hash.
+
+These fields explain the lexical evidence used by the current ranker and help reviewers identify weak or surprising matches. They are not semantic similarity scores, factual confidence, proof that a passage supports an answer, or an automatic quality judgment. Ranking weights and acceptance thresholds are unchanged by this diagnostic addition; model invocation and training remain disabled for the search endpoint.
