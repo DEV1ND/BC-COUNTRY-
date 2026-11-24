@@ -141,6 +141,9 @@ def evaluate_retrieval_cases(
         "relevant_retrieved_total": 0, "expected_titles_total": 0,
         "hard_negative_cases": 0, "hard_negative_hit_cases": 0,
         "hard_negative_retrievals": 0,
+        "hard_negative_comparison_cases": 0,
+        "hard_negative_precedes_relevant_cases": 0,
+        "hard_negative_without_relevant_cases": 0,
     })
 
     for case in rows:
@@ -189,6 +192,15 @@ def evaluate_retrieval_cases(
             1 for title in normalized_titles if title in hard_negative_titles
         )
         hard_negative_hit = bool(hard_negative_retrieved)
+        hard_negative_positions = [
+            position for position, title in enumerate(normalized_titles, start=1)
+            if title in hard_negative_titles
+        ]
+        hard_negative_precedes_relevant = bool(
+            hard_negative_positions and matched_positions
+            and min(hard_negative_positions) < min(matched_positions)
+        )
+        hard_negative_without_relevant = bool(hard_negative_positions and not matched_positions)
 
         hits += int(hit)
         reciprocal_ranks.append(reciprocal_rank)
@@ -210,6 +222,10 @@ def evaluate_retrieval_cases(
             bucket["hard_negative_cases"] += 1
             bucket["hard_negative_hit_cases"] += int(hard_negative_hit)
         bucket["hard_negative_retrievals"] += hard_negative_retrieved
+        if hard_negative_positions and matched_positions:
+            bucket["hard_negative_comparison_cases"] += 1
+            bucket["hard_negative_precedes_relevant_cases"] += int(hard_negative_precedes_relevant)
+        bucket["hard_negative_without_relevant_cases"] += int(hard_negative_without_relevant)
         if recall_at_k is not None:
             recall_at_k_values.append(recall_at_k)
             bucket["recall_at_k_sum"] += recall_at_k
@@ -237,6 +253,10 @@ def evaluate_retrieval_cases(
             "hard_negative_titles": sorted(hard_negative_titles),
             "hard_negative_retrieved": hard_negative_retrieved,
             "hard_negative_hit": hard_negative_hit,
+            "first_relevant_rank": matched_positions[0] if matched_positions else None,
+            "first_hard_negative_rank": hard_negative_positions[0] if hard_negative_positions else None,
+            "hard_negative_precedes_relevant": hard_negative_precedes_relevant,
+            "hard_negative_without_relevant": hard_negative_without_relevant,
         })
 
     total = len(rows)
@@ -273,6 +293,13 @@ def evaluate_retrieval_cases(
             "hard_negative_cases": values["hard_negative_cases"],
             "hard_negative_hit_cases": values["hard_negative_hit_cases"],
             "hard_negative_retrievals": values["hard_negative_retrievals"],
+            "hard_negative_comparison_cases": values["hard_negative_comparison_cases"],
+            "hard_negative_precedes_relevant_cases": values["hard_negative_precedes_relevant_cases"],
+            "hard_negative_precedes_relevant_rate": (
+                round(values["hard_negative_precedes_relevant_cases"] / values["hard_negative_comparison_cases"], 4)
+                if values["hard_negative_comparison_cases"] else None
+            ),
+            "hard_negative_without_relevant_cases": values["hard_negative_without_relevant_cases"],
             "hard_negative_case_rate": (
                 round(values["hard_negative_hit_cases"] / values["hard_negative_cases"], 4)
                 if values["hard_negative_cases"] else None
@@ -325,6 +352,23 @@ def evaluate_retrieval_cases(
             and result["hard_negative_titles"]
         ),
         "hard_negative_retrievals": sum(result["hard_negative_retrieved"] for result in results),
+        "hard_negative_comparison_cases": sum(
+            1 for result in results if result["hard_negative_hit"] and result["hit"]
+        ),
+        "hard_negative_precedes_relevant_cases": sum(
+            1 for result in results if result["hard_negative_precedes_relevant"]
+        ),
+        "hard_negative_precedes_relevant_rate": (
+            round(
+                sum(1 for result in results if result["hard_negative_precedes_relevant"])
+                / sum(1 for result in results if result["hard_negative_hit"] and result["hit"]),
+                4,
+            )
+            if any(result["hard_negative_hit"] and result["hit"] for result in results) else None
+        ),
+        "hard_negative_without_relevant_cases": sum(
+            1 for result in results if result["hard_negative_without_relevant"]
+        ),
         "hard_negative_case_rate": (
             round(
                 sum(1 for result in results if result["hard_negative_hit"] and result["hard_negative_titles"])
