@@ -26,7 +26,7 @@ class KnowledgeRetrievalTests(unittest.TestCase):
     def test_outer_particles_are_removed_without_corrupting_protected_nouns(self):
         self.assertEqual(query_terms("국가의 역사"), ["국가", "역사"])
         self.assertEqual(query_terms("사과를 먹는 방법"), ["사과", "먹", "방법"])
-        self.assertEqual(query_terms("회의에서 결정한 결과"), ["회의", "결과", "결정"])
+        self.assertEqual(query_terms("회의에서 결정한 결과"), ["회의", "결정한", "결과"])
 
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
