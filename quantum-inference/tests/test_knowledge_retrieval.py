@@ -80,6 +80,32 @@ class KnowledgeRetrievalTests(unittest.TestCase):
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
+    def test_additional_postpositions_reach_matching_fts5_documents(self):
+        conn = sqlite3.connect(":memory:")
+        try:
+            conn.execute("CREATE VIRTUAL TABLE docs USING fts5(title, text, tokenize='unicode61')")
+            conn.executemany(
+                "INSERT INTO docs(title,text) VALUES(?,?)",
+                [
+                    ("국가", "국가의 역사와 제도"),
+                    ("회의", "회의의 진행과 기록"),
+                    ("전문가", "전문가의 연구와 의견"),
+                ],
+            )
+            for question, expected_title in (
+                ("국가로부터", "국가"),
+                ("회의에서부터", "회의"),
+                ("전문가에게서", "전문가"),
+            ):
+                with self.subTest(question=question):
+                    rows = conn.execute(
+                        "SELECT title FROM docs WHERE docs MATCH ?",
+                        (build_fts_query(question),),
+                    ).fetchall()
+                    self.assertIn((expected_title,), rows)
+        finally:
+            conn.close()
+
     def test_fts5_finds_protected_nouns_after_stacked_particles(self):
         conn = sqlite3.connect(":memory:")
         try:
