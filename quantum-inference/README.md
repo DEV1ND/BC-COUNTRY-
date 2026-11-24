@@ -170,3 +170,12 @@ The model-generation response includes a `context_diagnostics` object calculated
 ### Candidate runtime output-shape diagnostics
 
 The generation response also includes `output_shape_diagnostics` from `generation_output_diagnostics.py`. It reports visible whitespace-token fragmentation and repeated three-token sequence patterns. A repetition warning requires at least 12 lexical tokens, at least two repeated trigram occurrences, and a repeated-occurrence ratio of at least 0.20. These conservative thresholds are anomaly flags only; they do not automatically reject an answer or measure fluency, factuality, correctness, or overall quality. The same helper is used by the held-out benchmark and runtime API so both paths report the same diagnostic definitions.
+
+## Provenance filtering before the final retrieval limit
+
+The SQLite retrieval path ranks its bounded candidate batch (up to 50 FTS rows or 100 fallback rows), validates source attribution and content integrity for those ranked candidates, and only then applies the caller's requested result limit (1–10). This prevents a small number of high-scoring but invalid rows from occupying the entire result window and hiding valid documents immediately below them.
+
+The standalone lexical ranking helper accepts a bounded limit up to 100 for this internal candidate-batch use. The public index-search result limit remains 1–10. If every candidate is rejected, the response reports the relevant source-metadata or content-integrity failure state; mixed source and integrity failures use `document_metadata_invalid`. Rejection counters remain separate.
+
+This improves candidate selection under malformed-index conditions. It does not improve semantic relevance, establish factual correctness, or prove that a returned passage supports a generated claim.
+
