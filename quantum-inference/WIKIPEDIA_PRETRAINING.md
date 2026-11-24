@@ -9,9 +9,9 @@ Provide a private UTF-8 JSONL export, one object per line:
 - `page_id`, `title`, `url` (canonical Korean Wikipedia URL)
 - `revision_id`, `content_hash` (SHA-256 of the exact UTF-8 `text`)
 - `text`, `license` (exactly `CC BY-SA 4.0`), `attribution`
-- `status` and `reviewer_note`
+- `status`, `reviewer_note`, `reviewed_at`, and `provenance_review` identity metadata
 
-Rows marked `excluded`, malformed metadata, invalid hashes, missing attribution, and duplicates are rejected. The script accepts a row as manually verified only when `status=approved` and `reviewer_note` begins with `MANUAL_APPROVAL:`.
+Rows marked `excluded`, malformed metadata, invalid hashes, missing attribution, and duplicates are rejected. The script accepts a row as manually verified only when `status=approved`, `reviewer_note` begins with `MANUAL_APPROVAL_V2:`, and the Worker supplies a structured Cloudflare Access identity proof (`reviewer_identity_verified=true`, verified subject/email/provider, and matching timezone-aware review timestamp). Legacy shared-token approvals are rejected even when the unverified-experimental option is enabled.
 
 By default, only manually verified rows are eligible. Pending or legacy auto-reviewed rows are not silently treated as facts. To use them solely as an **unverified experimental language corpus**, the operator must deliberately pass `--allow-unverified-experimental`. The report and checkpoint metadata retain this distinction. Such training is not fact-checking and does not make generated claims reliable.
 
@@ -43,7 +43,7 @@ Validation loss only measures next-token prediction on the held-out text. It is 
 
 The Worker exposes an admin-authenticated, paginated `/export-candidate` endpoint. It has two explicit trust classes:
 
-- `--corpus manual`: only `approved` rows with a `MANUAL_APPROVAL:` review record.
+- `--corpus manual`: only `approved` rows with a `MANUAL_APPROVAL_V2:` review record.
 - `--corpus unverified`: only `pending_review` rows, labeled `unverified_experimental` by the training pipeline.
 
 Legacy `AUTO_REVIEW` approvals are excluded from both. The endpoint returns at most 10 documents per request and does not change D1 state. Export locally with Python's standard library:
