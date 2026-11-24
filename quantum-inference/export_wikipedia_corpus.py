@@ -80,7 +80,7 @@ def validate_export_document(row, corpus):
     expected_status = "approved" if corpus == "manual" else "pending_review"
     if row["status"] != expected_status:
         raise RuntimeError("Worker returned a document outside the selected trust class")
-    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL:")
+    is_manual = row["reviewer_note"].startswith("MANUAL_APPROVAL_V2:")
     if corpus == "manual" and not is_manual:
         raise RuntimeError("Manual corpus contains a row without human approval metadata")
     if corpus == "unverified" and is_manual:
