@@ -96,7 +96,7 @@ test("manual approval requires a verified Cloudflare Access identity in addition
 });
 
 test("legacy shared-token approvals are excluded from sync and manual export", () => {
-  assert.match(worker, /MANUAL_APPROVAL_V2:*/);
+  assert.match(worker, /MANUAL_APPROVAL_V2:/);
   assert.doesNotMatch(worker, /reviewer_note LIKE 'MANUAL_APPROVAL:%'/);
   assert.match(worker, /parseVerifiedReviewNote\(row\.reviewer_note,row\.reviewed_at\)/);
 });
