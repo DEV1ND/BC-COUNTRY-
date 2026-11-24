@@ -6,14 +6,19 @@ class TrainingProvenanceBlocked(RuntimeError):
     """Raised when runtime data lacks complete provenance and trusted identity."""
 
 
+def audit_runtime_training_provenance(rows):
+    """Audit rows without accepting verifier configuration from untrusted callers."""
+    return audit_rows(rows, identity_verifier=None)
+
+
 def enforce_runtime_training_provenance(rows):
     """Return audit report only if every approved row is eligible.
 
-    No verifier is accepted from caller-controlled data. Until the runtime is
-    wired to a trusted attestation verifier, this function intentionally blocks
-    training, including D1, curated fallback, and imported public-source rows.
+    Until the runtime is wired to a trusted attestation verifier, this function
+    intentionally blocks training, including D1, curated fallback, and imported
+    public-source rows.
     """
-    report = audit_rows(rows, identity_verifier=None)
+    report = audit_runtime_training_provenance(rows)
     if not report.get("training_release_eligible", False):
         raise TrainingProvenanceBlocked(
             "학습 차단: 모든 승인 데이터에 출처·라이선스·사용 권한 검토와 "
