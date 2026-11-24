@@ -176,6 +176,16 @@ class InferenceContractTests(unittest.TestCase):
             "attribution": "Wikipedia contributors",
             "text": "태양계 행성 설명",
             "relevance_score": 0.91,
+            "match_diagnostics": {
+                "query_terms": ["태양계", "행성"],
+                "title_matched_terms": ["태양계"],
+                "body_matched_terms": ["태양계", "행성"],
+                "title_match_count": 1,
+                "body_match_count": 2,
+                "title_coverage": 0.5,
+                "body_coverage": 1.0,
+                "evidence_basis": "title",
+            },
         }
         retrieval = {
             "documents": [document],
@@ -197,6 +207,9 @@ class InferenceContractTests(unittest.TestCase):
         self.assertEqual(trace["revision_id"], "987654")
         self.assertEqual(trace["content_sha256"], "a" * 64)
         self.assertEqual(trace["relevance_score"], 0.91)
+        self.assertEqual(trace["match_diagnostics"]["query_terms"], ["태양계", "행성"])
+        self.assertEqual(trace["match_diagnostics"]["title_matched_terms"], ["태양계"])
+        self.assertEqual(trace["match_diagnostics"]["body_coverage"], 1.0)
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
 
