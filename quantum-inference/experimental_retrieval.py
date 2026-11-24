@@ -31,6 +31,17 @@ _KOREAN_SUFFIXES = (
     "에서는", "으로부터", "에서부터", "에게서", "으로", "에서",
     "은", "는", "이", "가", "을", "를", "의", "에", "로",
 )
+_PROTECTED_STEMS = {
+    "아이", "국가", "사과", "결과", "효과", "교과", "허가", "추가", "참가",
+    "평가", "전문가", "작가", "화가", "원가", "물가", "주가", "대가",
+    "상가", "휴가", "증가", "감소", "국어", "영어", "언어", "회의",
+    "종이", "사이", "차이", "고양이", "길이", "높이", "깊이", "먹이",
+    "놀이", "추이", "정의", "강의", "합의", "건의", "질의", "논의",
+    "동의", "주의", "편의", "임의", "협의", "항의", "심의", "결의",
+    "상의", "성과", "학과", "전과", "도로", "가로", "세로", "난로",
+    "경로", "진로", "회로", "통로", "미로", "피로", "마을", "가을",
+    "바늘", "마늘",
+}
 
 
 def _features(value):
@@ -59,7 +70,7 @@ def _features(value):
         add_word(word)
         if len(features) >= MAX_FEATURES_PER_FIELD:
             break
-        if re.fullmatch(r"[가-힣]+", word):
+        if re.fullmatch(r"[가-힣]+", word) and word not in _PROTECTED_STEMS:
             for suffix in _KOREAN_SUFFIXES:
                 if word.endswith(suffix) and len(word) > len(suffix):
                     stem = word[:-len(suffix)]
