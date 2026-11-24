@@ -21,6 +21,8 @@ on:
       - quantum-candidate-human-review-identity-gate
       - quantum-candidate-review-attestation-verifier
       - quantum-candidate-review-attestation-issuer
+      - quantum-candidate-review-attestation-replay-guard
+      - quantum-candidate-review-attestation-worker-routes
     paths:
       - "quantum_review_attestation.py"
       - "test_quantum_review_attestation.py"
@@ -29,6 +31,8 @@ on:
       - "QUANTUM_REVIEW_ATTESTATION.md"
       - "cloudflare-workers/review_attestation.mjs"
       - "cloudflare-workers/tests/review-attestation.test.mjs"
+      - "cloudflare-workers/tests/review-attestation-routes.test.mjs"
+      - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
       - ".github/workflows/quantum-review-attestation.yml"
 
 permissions:
