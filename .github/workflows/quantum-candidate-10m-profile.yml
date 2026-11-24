@@ -1,0 +1,41 @@
+name: Quantum Candidate 10M Profile
+
+on:
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "bpe_candidate_train.py"
+      - "train_10m_candidate.py"
+      - "test_10m_candidate_profile.py"
+      - "QUANTUM_10M_PROFILE.md"
+      - ".github/workflows/quantum-candidate-10m-profile.yml"
+  push:
+    branches:
+      - quantum-candidate-10m-profile
+    paths:
+      - "bpe_candidate_train.py"
+      - "train_10m_candidate.py"
+      - "test_10m_candidate_profile.py"
+      - "QUANTUM_10M_PROFILE.md"
+      - ".github/workflows/quantum-candidate-10m-profile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Candidate dependencies
+        run: pip install -r requirements.txt
+      - name: Compile profile wrapper
+        run: python -m py_compile train_10m_candidate.py bpe_candidate_train.py
+      - name: Verify exact 10M architecture and parameter accounting
+        run: python -m unittest -v test_10m_candidate_profile.py test_candidate_parameter_accounting.py
+      - name: Verify dry-run does not start training
+        run: python train_10m_candidate.py --dry-run --steps 10
