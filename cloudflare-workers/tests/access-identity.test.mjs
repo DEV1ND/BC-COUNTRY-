@@ -28,7 +28,7 @@ async function fixture(overrides = {}) {
   jwk.alg = "RS256";
   const header = encode({ alg: "RS256", typ: "JWT", kid: "test-key" });
   const claims = encode({
-    iss: issuer, aud: [audience], exp: now + 300, nbf: now - 10,
+    iss: issuer, aud: [audience], iat: now - 10, exp: now + 300, nbf: now - 10,
     email, sub: subject, ...overrides
   });
   const signingInput = header + "." + claims;
@@ -84,6 +84,8 @@ test("rejects wrong audience, issuer, expiry, and non-allowlisted identity", asy
     { aud: ["wrong-audience"] },
     { iss: "https://attacker.cloudflareaccess.com" },
     { exp: now - 1 },
+    { iat: now + 120 },
+    { nbf: now + 120 },
     { email: "other@example.org" }
   ]) {
     const f = await fixture(claims);
