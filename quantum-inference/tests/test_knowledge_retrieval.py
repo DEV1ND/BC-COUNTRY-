@@ -226,6 +226,33 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_fts_candidate_window_keeps_valid_rows_beyond_old_fifty_row_cap(self):
+        conn = self._knowledge_connection(include_fts=True)
+        try:
+            for index in range(60):
+                title = "태양계 행성"
+                body = "태양계 행성에 관한 검증되지 않은 문서입니다."
+                url = f"https://ko.wikipedia.org/wiki/잘못된_문서_{index}"
+                conn.execute(
+                    "INSERT INTO knowledge_docs VALUES(?,?,?,?,?,?,?,?)",
+                    (
+                        str(index + 100), title, url, body,
+                        "불완전한 출처 표시", "CC BY-SA 4.0", str(30000 + index),
+                        hashlib.sha256(body.encode("utf-8")).hexdigest(),
+                    ),
+                )
+                conn.execute(
+                    "INSERT INTO knowledge_fts VALUES(?,?,?)",
+                    (str(index + 100), title, body),
+                )
+            result = search_knowledge_index(conn, "태양계 행성", limit=1)
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(len(result["documents"]), 1)
+            self.assertEqual(result["documents"][0]["page_id"], "1")
+            self.assertEqual(result["rejected_source_rows"], 60)
+        finally:
+            conn.close()
+
     def test_search_limit_requires_bounded_integer(self):
         conn = self._knowledge_connection(include_fts=False)
         try:
