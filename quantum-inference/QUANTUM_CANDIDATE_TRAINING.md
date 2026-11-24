@@ -26,8 +26,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 GitHub → Actions → **Quantum Candidate encrypted training** → Run workflow에서 실행합니다.
 
-- `manual`: 사람이 직접 승인한 문서만 사용합니다. 최소 2개 문서가 있어야 합니다.
-- `unverified`: `allow_unverified_experimental=true` 확인을 별도로 선택해야 합니다. 이는 사실 검증이 아닌 실험용 언어 코퍼스입니다. 생성 답변을 검증된 사실로 취급하면 안 됩니다.
+- `manual`: `approved` 상태, `MANUAL_APPROVAL:` 검토 메모, 시간대가 포함된 `reviewed_at`이 필요합니다. 단, 현재 Worker는 검토자 신원을 인증하거나 export하지 않으므로 이 데이터는 `manual_review_metadata_present_identity_unverified`로 기록됩니다. 이는 검토자 신원 확인을 요구하는 학습 릴리스 게이트를 통과한 것이 아닙니다.
+- `unverified`: `allow_unverified_experimental=true` 확인을 별도로 선택해야 합니다. `pending_review` 상태만 허용하며, 승인 메모나 검토 시각이 섞이면 거부합니다. 이는 사실 검증이 아닌 실험용 언어 코퍼스입니다. 생성 답변을 검증된 사실로 취급하면 안 됩니다.
 - 문서 상한은 10/25/50, 스텝은 25/50/100 중에서 선택합니다.
 
 초기 실험은 25개 문서와 50 step으로 제한합니다. 전체 500여 문서를 한 번에 학습하는 설정이 아닙니다.
