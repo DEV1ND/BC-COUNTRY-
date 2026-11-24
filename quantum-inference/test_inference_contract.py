@@ -200,6 +200,32 @@ class InferenceContractTests(unittest.TestCase):
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
 
+    def test_knowledge_search_rejects_oversized_question_before_retrieval(self):
+        class FakeRequest:
+            async def json(self):
+                return {"question": "태양계" * 501}
+
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(quantum_app, "retrieve_knowledge_diagnostic") as retrieve:
+                with self.assertRaises(HTTPException) as raised:
+                    asyncio.run(quantum_app.knowledge_search(FakeRequest()))
+        self.assertEqual(raised.exception.status_code, 422)
+        retrieve.assert_not_called()
+
+    def test_knowledge_search_rejects_non_object_and_non_string_question(self):
+        for payload in (["태양계"], {"question": 123}, {"question": None}):
+            class FakeRequest:
+                async def json(self):
+                    return payload
+
+            with self.subTest(payload=payload):
+                with patch.object(quantum_app, "require_admin"):
+                    with patch.object(quantum_app, "retrieve_knowledge_diagnostic") as retrieve:
+                        with self.assertRaises(HTTPException) as raised:
+                            asyncio.run(quantum_app.knowledge_search(FakeRequest()))
+                self.assertEqual(raised.exception.status_code, 422)
+                retrieve.assert_not_called()
+
     def test_knowledge_search_exposes_rejected_source_and_integrity_counters(self):
         retrieval = {
             "documents": [],
