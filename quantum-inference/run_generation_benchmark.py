@@ -4,6 +4,7 @@ This tool never trains, updates weights, or contacts an external language model.
 Answers are captured for human review; rubric items are not auto-scored.
 """
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import json
 import os
@@ -27,16 +28,36 @@ def diagnose_answer_output(answer):
         len(single_character_tokens) / len(lexical_tokens)
         if lexical_tokens else 0.0
     )
+    normalized_tokens = [token.casefold() for token in lexical_tokens]
+    trigrams = list(zip(
+        normalized_tokens,
+        normalized_tokens[1:],
+        normalized_tokens[2:],
+    ))
+    trigram_counts = Counter(trigrams)
+    repeated_trigram_count = sum(count - 1 for count in trigram_counts.values() if count > 1)
+    repeated_trigram_ratio = (
+        repeated_trigram_count / len(trigrams) if trigrams else 0.0
+    )
     warnings = []
     if len(lexical_tokens) >= 12 and ratio >= 0.60:
         warnings.append("high_single_character_token_fragmentation")
+    if (
+        len(lexical_tokens) >= 12
+        and repeated_trigram_count >= 2
+        and repeated_trigram_ratio >= 0.20
+    ):
+        warnings.append("repeated_three_token_sequence")
     return {
         "whitespace_token_count": len(tokens),
         "lexical_token_count": len(lexical_tokens),
         "single_character_token_count": len(single_character_tokens),
         "single_character_token_ratio": round(ratio, 4),
+        "repeated_trigram_count": repeated_trigram_count,
+        "repeated_trigram_ratio": round(repeated_trigram_ratio, 4),
         "warnings": warnings,
-        "suspicious_fragmentation": bool(warnings),
+        "suspicious_fragmentation": "high_single_character_token_fragmentation" in warnings,
+        "suspicious_repetition": "repeated_three_token_sequence" in warnings,
     }
 
 
