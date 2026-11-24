@@ -70,6 +70,14 @@ def validate_export_document(row, corpus):
             raise RuntimeError("Manual corpus requires a verified reviewer email")
         if not isinstance(review.get("reviewer_subject"), str) or not review["reviewer_subject"].strip():
             raise RuntimeError("Manual corpus requires a verified reviewer subject")
+        if not isinstance(review.get("review_note"), str) or len(review["review_note"].strip()) < 20:
+            raise RuntimeError("Manual corpus requires a substantive review note")
+        reference_url = review.get("reference_url")
+        if not isinstance(reference_url, str) or not reference_url.startswith("https://"):
+            raise RuntimeError("Manual corpus requires an independent HTTPS reference")
+        reference_host = urllib.parse.urlparse(reference_url).hostname or ""
+        if reference_host == "wikipedia.org" or reference_host.endswith(".wikipedia.org"):
+            raise RuntimeError("Manual corpus reference must be independent of Wikipedia")
         if review.get("reviewed_at") != reviewed_at:
             raise RuntimeError("Review metadata timestamp does not match Worker timestamp")
         if not isinstance(reviewed_at, str) or not reviewed_at.strip():
