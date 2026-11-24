@@ -10,7 +10,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from quantum_review_attestation import verify_hmac_review_attestation
+from quantum_review_attestation_client import build_worker_identity_verifier
+
 
 DIMENSIONS = ("factuality", "relevance", "completeness", "korean_naturalness")
 
@@ -202,12 +203,15 @@ def main():
     args = parser.parse_args()
     if args.review_input:
         payload = json.loads(Path(args.review_input).read_text(encoding="utf-8"))
-        attestation_secret = os.environ.get("QUANTUM_REVIEW_ATTESTATION_SECRET", "")
-        verifier = (
-            lambda review: verify_hmac_review_attestation(review, attestation_secret)
-            if attestation_secret else None
-        )
-        summary = summarize_reviews(payload, identity_verifier=verifier if attestation_secret else None)
+        consume_url = os.environ.get("QUANTUM_REVIEW_ATTESTATION_CONSUME_URL", "")
+        consume_token = os.environ.get("QUANTUM_REVIEW_ATTESTATION_CONSUME_TOKEN", "")
+        verifier = None
+        if consume_url and consume_token:
+            try:
+                verifier = build_worker_identity_verifier(consume_url, consume_token)
+            except ValueError:
+                verifier = None
+        summary = summarize_reviews(payload, identity_verifier=verifier)
         Path(args.summary_output).write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         print(json.dumps(summary, ensure_ascii=False, indent=2))
         return
