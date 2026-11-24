@@ -72,7 +72,7 @@ test("rejects missing JWT and incomplete Access configuration", async () => {
   const noToken = await verifyCloudflareAccessIdentity(request(""), env, {
     cryptoImpl: webcrypto, nowSeconds: now
   });
-  assert.equal(noToken.error, "invalid_access_jwt");
+  assert.equal(noToken.error, "cloudflare_access_identity_required");
   const noConfig = await verifyCloudflareAccessIdentity(request("x.y.z"), {}, {
     cryptoImpl: webcrypto, nowSeconds: now
   });
