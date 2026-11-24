@@ -63,6 +63,20 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             with self.subTest(attached=attached):
                 self.assertEqual(query_terms(attached), [expected])
 
+    def test_additional_korean_postpositions_are_removed_conservatively(self):
+        examples = {
+            "국가로부터": "국가",
+            "회의에서부터": "회의",
+            "전문가에게서": "전문가",
+            "국가까지": "국가",
+            "사과처럼": "사과",
+            "결과보다": "결과",
+            "회의에서부터의": "회의",
+        }
+        for attached, expected in examples.items():
+            with self.subTest(attached=attached):
+                self.assertEqual(query_terms(attached), [expected])
+
     def test_fts_query_uses_prefix_matching(self):
         self.assertEqual(build_fts_query("태양계의 행성으로"), '"태양계"* OR "행성"*')
 
