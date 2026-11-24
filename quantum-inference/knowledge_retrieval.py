@@ -16,6 +16,14 @@ _STOP = {
     "으로", "로", "와", "과", "및", "대한", "관한", "관련",
     "분야", "학문", "연구", "설명", "개념", "방법", "기본", "원리",
 }
+# Common lexical nouns that happen to end with strings also used as particles.
+# Keep these intact after outer particles are removed (e.g. "국가의" -> "국가").
+_PROTECTED_STEMS = {
+    "아이", "국가", "사과", "결과", "효과", "교과", "허가", "추가", "참가",
+    "평가", "전문가", "작가", "화가", "원가", "물가", "주가", "대가",
+    "상가", "휴가", "증가", "감소", "국어", "영어", "언어", "회의",
+}
+
 _SUFFIXES = (
     "무엇인가요", "무엇인가", "인가요", "인가", "이란", "에서", "으로",
     "에게", "은", "는", "이", "가", "을", "를", "의", "와", "과", "에", "로", "란",
@@ -58,7 +66,12 @@ def query_terms(value):
         stem = token
         for suffix in _SUFFIXES:
             if stem.endswith(suffix) and len(stem) - len(suffix) >= 1:
-                stem = stem[:-len(suffix)]
+                candidate = stem[:-len(suffix)]
+                # Particle stripping is ambiguous for short Korean nouns:
+                # 국가/사과/회의 are lexical terms, not stems "국/사/회".
+                if stem in _PROTECTED_STEMS:
+                    break
+                stem = candidate
                 break
         if stem not in _STOP and len(stem) >= 1 and stem not in result:
             result.append(stem)
