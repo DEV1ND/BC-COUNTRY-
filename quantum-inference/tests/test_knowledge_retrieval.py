@@ -63,6 +63,10 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             with self.subTest(attached=attached):
                 self.assertEqual(query_terms(attached), [expected])
 
+    def test_definition_remains_a_searchable_lexical_noun(self):
+        self.assertEqual(query_terms("정의"), ["정의"])
+        self.assertEqual(query_terms("정의의"), ["정의"])
+
     def test_common_lexical_nouns_are_not_stripped_as_particles(self):
         examples = {
             "종이는": "종이",
