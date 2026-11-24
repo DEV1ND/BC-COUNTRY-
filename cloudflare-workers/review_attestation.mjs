@@ -183,3 +183,34 @@ export async function verifyReviewAttestation(
     return false;
   }
 }
+
+
+/** Validate the exact human-review template before an Access identity signs it. */
+export function validateHumanReviewPayload(reviewPayload, expectedEmail = null) {
+  if (!reviewPayload || typeof reviewPayload !== "object" || Array.isArray(reviewPayload) ||
+      reviewPayload.schema !== "juckex-quantum-human-review-v1" ||
+      typeof reviewPayload.reviewer !== "string" || !reviewPayload.reviewer.trim() ||
+      (expectedEmail && reviewPayload.reviewer.trim().toLowerCase() !== expectedEmail.trim().toLowerCase()) ||
+      parseTimezoneTimestamp(reviewPayload.reviewed_at) === null ||
+      !Array.isArray(reviewPayload.records) || reviewPayload.records.length < 1 ||
+      reviewPayload.records.length > 500) return false;
+  const ids = new Set();
+  const dimensions = ["factuality", "relevance", "completeness", "korean_naturalness"];
+  for (const record of reviewPayload.records) {
+    if (!record || typeof record !== "object" || Array.isArray(record) ||
+        typeof record.record_id !== "string" || !record.record_id.trim() || ids.has(record.record_id) ||
+        typeof record.strategy !== "string" || !record.strategy.trim() ||
+        typeof record.question !== "string" || !record.question.trim() ||
+        typeof record.reference_answer !== "string" || !record.reference_answer.trim() ||
+        typeof record.generated_answer !== "string" ||
+        !/^[0-9a-f]{64}$/.test(record.sample_sha256 || "") ||
+        typeof record.reviewer_notes !== "string" ||
+        !record.ratings || typeof record.ratings !== "object" || Array.isArray(record.ratings)) return false;
+    ids.add(record.record_id);
+    for (const dimension of dimensions) {
+      const rating = record.ratings[dimension];
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) return false;
+    }
+  }
+  return true;
+}
