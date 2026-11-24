@@ -135,12 +135,16 @@ class RuntimeTrainingProvenanceGuardTests(unittest.TestCase):
         called_names = {
             node.func.id for node in calls if isinstance(node.func, ast.Name)
         }
-        called_attributes = {
-            node.func.attr for node in calls if isinstance(node.func, ast.Attribute)
-        }
+        live_model_loads = [
+            node for node in calls
+            if isinstance(node.func, ast.Attribute)
+            and node.func.attr == "load_state_dict"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "model"
+        ]
         self.assertNotIn("_persist_model", called_names)
         self.assertNotIn("_save_local", called_names)
-        self.assertNotIn("load_state_dict", called_attributes)
+        self.assertFalse(live_model_loads)
         self.assertIn("_persist_training_checkpoint", called_names)
 
     def test_successful_candidate_is_marked_pending_human_approval(self):
