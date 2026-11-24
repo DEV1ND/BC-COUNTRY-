@@ -23,6 +23,8 @@ class BPETokenizer:
             left, right = pair
             if not isinstance(left, str) or not isinstance(right, str) or not left or not right:
                 raise ValueError(f"BPE 병합 {index}에 비어 있거나 잘못된 토큰이 있습니다.")
+            if any(char.isspace() for char in left + right):
+                raise ValueError(f"BPE 병합 {index}가 공백 경계를 포함합니다.")
             if left not in available or right not in available:
                 raise ValueError(f"BPE 병합 {index}가 이전에 정의되지 않은 토큰을 참조합니다.")
             merged = left + right
