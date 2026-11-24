@@ -11,6 +11,10 @@ from knowledge_provenance import has_valid_content_integrity, has_valid_wikipedi
 
 MAX_QUERY_CHARS = 2000
 MAX_QUERY_TERMS = 64
+MAX_RANK_CANDIDATES = 500
+MAX_DOCUMENT_TITLE_CHARS = 512
+MAX_DOCUMENT_BODY_CHARS = 100000
+MAX_DOCUMENT_URL_CHARS = 2048
 
 _STOP = {
     "무엇", "무엇인가요", "무엇인가", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
@@ -151,6 +155,10 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         raise ValueError("min_score는 0과 1 사이의 유한한 숫자여야 합니다.")
     if not isinstance(rows, (list, tuple)):
         raise ValueError("rows는 list 또는 tuple이어야 합니다.")
+    if len(rows) > MAX_RANK_CANDIDATES:
+        raise ValueError(
+            f"검색 후보 문서는 최대 {MAX_RANK_CANDIDATES}개까지 처리할 수 있습니다."
+        )
     ranked = []
     seen = set()
     terms = query_terms(question)
@@ -167,6 +175,12 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         url = item.get("url", "")
         if not isinstance(title, str) or not isinstance(body, str) or not isinstance(url, str):
             raise ValueError("검색 문서의 title, text, url은 문자열이어야 합니다.")
+        if (
+            len(title) > MAX_DOCUMENT_TITLE_CHARS
+            or len(body) > MAX_DOCUMENT_BODY_CHARS
+            or len(url) > MAX_DOCUMENT_URL_CHARS
+        ):
+            raise ValueError("검색 문서의 제목, 본문 또는 URL이 허용 길이를 초과했습니다.")
         key = (title.casefold(), url)
         if key in seen:
             continue
