@@ -51,6 +51,29 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
                 self.assertEqual(restored.encode(sample), tokenizer.encode(sample))
                 self.assertEqual(restored.decode(restored.encode(sample)), sample)
 
+    def test_training_never_learns_merges_across_whitespace(self):
+        tokenizer = BPETokenizer.train(
+            ["한글 한글", "한글\n한글", "한글\t한글"],
+            vocab_size=64,
+            min_pair_frequency=2,
+        )
+        for left, right in tokenizer.merges:
+            with self.subTest(left=left, right=right):
+                self.assertFalse(any(char.isspace() for char in left))
+                self.assertFalse(any(char.isspace() for char in right))
+                self.assertFalse(any(char.isspace() for char in left + right))
+        for sample in ("한글 한글", "한글\n한글", "한글\t한글"):
+            self.assertEqual(tokenizer.decode(tokenizer.encode(sample)), sample)
+
+    def test_training_still_learns_frequent_pairs_inside_korean_words(self):
+        tokenizer = BPETokenizer.train(
+            ["한글 한글", "한글 한글"],
+            vocab_size=32,
+            min_pair_frequency=2,
+        )
+        self.assertIn(("한", "글"), tokenizer.merges)
+        self.assertIn("한글", tokenizer.vocab)
+
     def test_training_is_deterministic_for_identical_corpus(self):
         texts = ["가나다라마바사", "가나다라마바사", "한글 토큰"]
         first = BPETokenizer.train(texts, vocab_size=48)
