@@ -98,7 +98,7 @@ class GenerationContextTests(unittest.TestCase):
             diagnostics["remaining_generation_capacity"],
             20 - len(prompt_ids),
         )
-        self.assertEqual(diagnostics["context_policy"], "keep_tail")
+        self.assertEqual(diagnostics["context_policy"], "keep_head")
 
     def test_context_budget_diagnostics_report_no_truncation(self):
         _, truncated, diagnostics = build_generation_context(
@@ -118,6 +118,21 @@ class GenerationContextTests(unittest.TestCase):
         ids, truncated = build_generation_context(FakeTokenizer(), "", "질문", block_size=32)
         self.assertFalse(truncated)
         self.assertEqual(ids, FakeTokenizer().encode("질문:질문\n답변:"))
+
+    def test_truncation_preserves_the_highest_ranked_context_prefix(self):
+        tokenizer = FakeTokenizer()
+        context, truncated = build_generation_context(
+            tokenizer, "TOP-SOURCE-SECOND-SOURCE", "Q", block_size=24
+        )
+        question_ids = tokenizer.encode("질문:Q\\n답변:")
+        included_context = context[:-len(question_ids)]
+        self.assertTrue(truncated)
+        self.assertEqual(
+            included_context,
+            tokenizer.encode("TOP-SOURCE-SECOND-SOURCE")[:len(included_context)],
+        )
+        self.assertTrue(included_context)
+        self.assertEqual(included_context[0], ord("T"))
 
 
 if __name__ == "__main__":
