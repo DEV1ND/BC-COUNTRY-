@@ -315,7 +315,7 @@ async function approvePage(request,env,identity){
 function authorized(request,env){return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;}
 async function readReviewJson(request){
   const declared=request.headers.get("content-length");
-  if(declared!==null&&(!/^\\d+$/.test(declared)||Number(declared)>1024*1024))
+  if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>1024*1024))
     return {ok:false,error:"review_payload_too_large"};
   let raw;
   try{raw=await request.text();}catch{return {ok:false,error:"invalid_json"};}
