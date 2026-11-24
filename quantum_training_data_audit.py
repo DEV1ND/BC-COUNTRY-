@@ -88,12 +88,9 @@ def audit_training_rows(rows):
                 control_character_rows += 1
 
         legacy_source = row.get("source")
-        source_labels[legacy_source if isinstance(legacy_source, str) else "<missing-or-non-string>"] += 1
+        source_labels[legacy_source if isinstance(legacy_source, str) else ("<structured>" if isinstance(legacy_source, dict) else "<missing-or-non-string>")] += 1
 
-        source = row.get("source_metadata")
-        # Accept the established schema key too; this is inventory only, not approval.
-        if source is None:
-            source = row.get("source") if isinstance(row.get("source"), dict) else None
+        source = row.get("source") if isinstance(row.get("source"), dict) else row.get("source_metadata")
         for field in REQUIRED_SOURCE_FIELDS:
             value = source.get(field) if isinstance(source, dict) else None
             if not isinstance(value, str) or value.strip().casefold() in PLACEHOLDERS:
