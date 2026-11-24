@@ -243,6 +243,35 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         }]
         self.assertEqual(len(rank_documents("태양계 행성의 공전", rows)), 1)
 
+    def test_ranked_results_explain_title_and_body_match_evidence(self):
+        rows = [{
+            "title": "태양계",
+            "url": "https://ko.wikipedia.org/wiki/태양계",
+            "text": "태양계 행성의 공전과 태양의 중력",
+        }]
+        result = rank_documents("태양계 행성의 공전", rows)[0]
+        trace = result["match_diagnostics"]
+        self.assertEqual(trace["query_terms"], ["태양계", "행성", "공전"])
+        self.assertEqual(trace["title_matched_terms"], ["태양계"])
+        self.assertEqual(trace["body_matched_terms"], ["태양계", "행성", "공전"])
+        self.assertEqual(trace["title_match_count"], 1)
+        self.assertEqual(trace["body_match_count"], 3)
+        self.assertEqual(trace["title_coverage"], 0.333333)
+        self.assertEqual(trace["body_coverage"], 1.0)
+        self.assertEqual(trace["evidence_basis"], "title")
+
+    def test_body_only_match_diagnostic_requires_multiple_terms(self):
+        rows = [{
+            "title": "천문학 개론",
+            "url": "https://ko.wikipedia.org/wiki/천문학",
+            "text": "태양계 행성의 공전과 태양의 중력",
+        }]
+        result = rank_documents("태양계 행성의 공전", rows)[0]
+        trace = result["match_diagnostics"]
+        self.assertEqual(trace["title_matched_terms"], [])
+        self.assertEqual(trace["body_matched_terms"], ["태양계", "행성", "공전"])
+        self.assertEqual(trace["evidence_basis"], "multiple_body_terms")
+
     def test_ten_subject_areas_have_relevant_title_matches(self):
         cases = [
             ("조선 왕조의 역사", "조선", "한국의 역사 속 왕조"),
