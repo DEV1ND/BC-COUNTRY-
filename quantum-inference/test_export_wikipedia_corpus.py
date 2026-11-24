@@ -147,7 +147,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             "reviewer_subject": "cloudflare-subject-001",
             "identity_provider": "cloudflare_access",
             "reviewer_identity_verified": True,
-            "reviewed_at": "2026-11-23T10:00:00.000Z",
+            "reviewed_at": "2026-11-23 10:00:00",
         },
         )
         with tempfile.TemporaryDirectory() as temp_dir:
