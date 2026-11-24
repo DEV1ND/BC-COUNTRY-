@@ -1,0 +1,69 @@
+name: Quantum Candidate training identity gate
+
+on:
+  push:
+    branches:
+      - quantum-candidate-identity-release-gate
+    paths:
+      - "training_provenance.py"
+      - "apply_training_provenance_review.py"
+      - "export_training_provenance_template.py"
+      - "bpe_candidate_train.py"
+      - "training_extra.json"
+      - "test_training_provenance.py"
+      - "test_apply_training_provenance_review.py"
+      - ".github/workflows/quantum-training-identity-gate.yml"
+  pull_request:
+    branches:
+      - quantum-candidate-security-hardening
+    paths:
+      - "training_provenance.py"
+      - "apply_training_provenance_review.py"
+      - "export_training_provenance_template.py"
+      - "bpe_candidate_train.py"
+      - "training_extra.json"
+      - "test_training_provenance.py"
+      - "test_apply_training_provenance_review.py"
+      - ".github/workflows/quantum-training-identity-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provenance-and-identity-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile provenance tools
+        run: |
+          python -m py_compile training_provenance.py apply_training_provenance_review.py export_training_provenance_template.py bpe_candidate_train.py
+
+      - name: Run provenance and review-template tests
+        run: |
+          python -m unittest -v test_training_provenance.py test_apply_training_provenance_review.py
+
+      - name: Assert current dataset remains blocked without identity verifier
+        run: |
+          python training_provenance.py --input training_extra.json --output "$RUNNER_TEMP/training_provenance_audit.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path(__import__("os").environ["RUNNER_TEMP"], "training_provenance_audit.json").read_text(encoding="utf-8"))
+          assert report["approved_records"] > 0, "Expected the existing curated Q&A dataset to be present"
+          assert report["training_release_eligible"] is False, "Dataset must remain blocked without a trusted identity verifier"
+          assert report["reviewer_identity_verified_records"] == 0, "No cryptographic identity verifier is configured"
+          print({
+              "approved_records": report["approved_records"],
+              "metadata_complete_records": report["metadata_complete_records"],
+              "reviewer_identity_verified_records": report["reviewer_identity_verified_records"],
+              "training_release_eligible": report["training_release_eligible"],
+          })
+          PY
