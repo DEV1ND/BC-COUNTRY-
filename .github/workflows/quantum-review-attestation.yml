@@ -18,6 +18,7 @@ on:
       - "cloudflare-workers/tests/review-attestation.test.mjs"
       - "cloudflare-workers/tests/review-attestation-routes.test.mjs"
       - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/REVIEW_ATTESTATION_WORKER_ROUTES.md"
       - ".github/workflows/quantum-review-attestation.yml"
   pull_request:
     branches:
