@@ -1,0 +1,32 @@
+name: Quantum Candidate immutable checkpoint contract
+
+on:
+  pull_request:
+    paths:
+      - "candidate_checkpoint_contract.py"
+      - "test_candidate_checkpoint_contract.py"
+      - "QUANTUM_CANDIDATE_CHECKPOINT_CONTRACT.md"
+      - ".github/workflows/quantum-candidate-checkpoint-contract.yml"
+  push:
+    branches:
+      - quantum-candidate-immutable-checkpoint-contract
+    paths:
+      - "candidate_checkpoint_contract.py"
+      - "test_candidate_checkpoint_contract.py"
+      - ".github/workflows/quantum-candidate-checkpoint-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-checkpoint-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile contract
+        run: python -m py_compile candidate_checkpoint_contract.py test_candidate_checkpoint_contract.py
+      - name: Run contract tests
+        run: python -m unittest -v test_candidate_checkpoint_contract.py
