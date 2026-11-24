@@ -201,3 +201,6 @@ The retrieval benchmark validates iterable inputs without first materializing th
 ## Retrieval query resource bounds
 
 The Korean retrieval query normalizer rejects questions longer than 2,000 Unicode characters before tokenization and retains at most 64 unique lexical terms in first-occurrence order. The FTS query builder applies its stricter caller-supplied term limit (10 by default). This bounds regex tokenization, ranking work, and fallback SQL parameter expansion for direct library callers as well as API callers. Oversized queries fail explicitly instead of being silently accepted; term-heavy queries retain their earliest distinct terms. This is an input/resource bound, not a relevance or answer-quality improvement.
+
+
+Domain-alias expansion is subject to the same 64-unique-term ceiling as the original query. Alias terms are appended only when budget remains; a query already using the full lexical-term budget does not gain extra alias terms. This closes a secondary expansion path that could otherwise exceed the documented retrieval work bound. It is a resource-bound guarantee, not a search-relevance improvement.
