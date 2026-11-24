@@ -10,7 +10,7 @@ test("knowledge synchronization is restricted to the Candidate hostname", () => 
 });
 
 test("only manually fact-checked approvals are eligible for retrieval sync", () => {
-  assert.match(worker, /status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*'/);
+  assert.match(worker, /status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:\\*'/);
 });
 
 test("scheduled Wikipedia collection cannot start model training", () => {
@@ -40,7 +40,7 @@ test("full document details remain behind the admin authorization gate", () => {
 
 test("Candidate corpus export separates manual and unverified documents", () => {
   assert.match(worker, /url\.pathname==="\/export-candidate"/);
-  assert.match(worker, /status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:*'/);
+  assert.match(worker, /status='approved' AND reviewer_note GLOB 'MANUAL_APPROVAL_V2:\\*'/);
   assert.match(worker, /status='pending_review'/);
   assert.match(worker, /corpus_must_be_manual_or_unverified/);
   assert.match(worker, /reviewer_note:row\.reviewer_note\|\|""/);
@@ -51,7 +51,7 @@ test("legacy export excludes auto-review approvals", () => {
   const routeEnd = worker.indexOf('url.pathname==="/topics"', routeStart);
   assert.ok(routeStart >= 0 && routeEnd > routeStart);
   const route = worker.slice(routeStart, routeEnd);
-  assert.match(route, /reviewer_note GLOB 'MANUAL_APPROVAL_V2:*'/);
+  assert.match(route, /reviewer_note GLOB 'MANUAL_APPROVAL_V2:\\*'/);
   assert.doesNotMatch(route, /AUTO_REVIEW/);
 });
 
@@ -66,7 +66,7 @@ test("sync preview is authenticated and strictly read-only", () => {
   const preview = worker.slice(start, end);
   assert.match(preview, /dryRun:true/);
   assert.match(preview, /writes_performed:false/);
-  assert.match(preview, /reviewer_note GLOB 'MANUAL_APPROVAL_V2:*'/);
+  assert.match(preview, /reviewer_note GLOB 'MANUAL_APPROVAL_V2:\\*'/);
   assert.doesNotMatch(preview, /\.run\(|\.batch\(/);
 });
 
