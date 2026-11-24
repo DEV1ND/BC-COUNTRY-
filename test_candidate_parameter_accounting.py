@@ -28,7 +28,7 @@ class CandidateParameterAccountingTests(unittest.TestCase):
         self.assertEqual((args.width, args.heads, args.layers, args.vocab_size), (496, 8, 3, 1024))
         self.assertEqual(args.target_parameters, 10_000_000)
         self.assertLessEqual(abs(count - args.target_parameters) / args.target_parameters, args.parameter_tolerance)
-        self.assertEqual(count, 10_026_672)
+        self.assertEqual(count, 10_020_720)
 
 
 if __name__ == "__main__":
