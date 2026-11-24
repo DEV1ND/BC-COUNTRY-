@@ -106,8 +106,8 @@ def score_document(question, title, body):
 
 def rank_documents(question, rows, limit=3, min_score=0.18):
     """Rank candidates conservatively, filtering accidental single body-word matches."""
-    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
-        raise ValueError("limit는 1~10 사이의 정수여야 합니다.")
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+        raise ValueError("limit는 1~100 사이의 정수여야 합니다.")
     if isinstance(min_score, bool) or not isinstance(min_score, (int, float)):
         raise ValueError("min_score는 0과 1 사이의 유한한 숫자여야 합니다.")
     if not math.isfinite(float(min_score)) or not 0.0 <= float(min_score) <= 1.0:
@@ -167,6 +167,8 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
     FTS5 is preferred. A LIKE scan is used only when FTS is unavailable or
     malformed; source documents are never modified by this function.
     """
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
+        raise ValueError("limit는 1~10 사이의 정수여야 합니다.")
     terms = query_terms(question)
     match = build_fts_query(question, max_terms=10)
     if not terms or not match:
@@ -207,8 +209,11 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
         }
 
     try:
+        # Rank the full bounded candidate batch before provenance filtering.
+        # Otherwise a few high-scoring but invalid rows can hide valid sources
+        # that would have appeared just below the requested result limit.
         documents = rank_documents(
-            question, rows, limit=limit, min_score=min_score
+            question, rows, limit=min(100, len(rows)), min_score=min_score
         )
     except ValueError:
         # Malformed indexed rows are not coerced into trusted documents.
@@ -241,7 +246,9 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
             continue
         eligible.append(document)
 
-    if rejected_source_rows and not eligible and not rejected_integrity_rows:
+    if rejected_source_rows and rejected_integrity_rows and not eligible:
+        status = "document_metadata_invalid"
+    elif rejected_source_rows and not eligible:
         status = "source_metadata_invalid"
     elif rejected_integrity_rows and not eligible:
         status = "document_integrity_invalid"
@@ -251,7 +258,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
         status = "no_match"
 
     return {
-        "documents": eligible,
+        "documents": eligible[:limit],
         "status": status,
         "used_fallback": used_fallback,
         "rejected_source_rows": rejected_source_rows,
