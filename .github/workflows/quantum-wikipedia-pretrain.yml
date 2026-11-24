@@ -16,12 +16,15 @@ on:
       - "quantum-inference/test_export_wikipedia_corpus.py"
       - ".github/workflows/quantum-candidate-encrypted-training.yml"
       - "cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs"
+      - "cloudflare-workers/access_identity.mjs"
+      - "cloudflare-workers/tests/access-identity.test.mjs"
       - "cloudflare-workers/tests/worker-safety.test.mjs"
       - ".github/workflows/quantum-wikipedia-pretrain.yml"
   push:
     branches:
       - quantum-candidate-wikipedia-pretrain
       - quantum-candidate-security-hardening
+      - quantum-candidate-access-review-auth
     paths:
       - "quantum-inference/app.py"
       - "quantum-inference/test_inference_contract.py"
