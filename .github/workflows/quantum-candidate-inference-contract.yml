@@ -10,6 +10,7 @@ on:
   pull_request:
     branches:
       - quantum-data-repair
+      - quantum-candidate-inference-readiness-guard
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
