@@ -37,7 +37,7 @@ For API access, send `Authorization: Bearer <ADMIN_TOKEN>`. Except for `GET /hea
 - `GET /page?id=<id>`: full article detail.
 - `POST /approve` with `{"id":"...","note":"...","reference_url":"https://independent-source.example/..."}`: record human review and approve. The note must be meaningful and the reference must be HTTPS and independent of Wikipedia.
 - `GET /sync-preview`: authenticated read-only preview of the next manual-approval sync batch; it does not write to D1 or Candidate.
-- `POST /sync-approved`: sync only manually approved pages with a `MANUAL_APPROVAL:` reviewer note and at least 200 characters of content.
+- `POST /sync-approved`: sync only manually approved pages with a `MANUAL_APPROVAL_V2:` reviewer note and at least 200 characters of content.
 - `POST /auto-review`: structural triage only; it must never be treated as fact-checking or manual approval.
 - `POST /pause` and `POST /start`: change the D1 running flag. Do not start automation until the safety prerequisites below are satisfied.
 - `POST /run-once`: execute one collection cycle; keep paused until explicitly ready.
