@@ -58,7 +58,7 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         missing = [
             (case["id"], title)
             for case in dataset["cases"]
-            for title in case["expected_titles"]
+            for title in case["expected_titles"] + case.get("hard_negative_titles", [])
             if normalize_retrieval_title(title) not in available
         ]
         self.assertEqual(missing, [])
@@ -123,9 +123,10 @@ class RetrievalBenchmarkTests(unittest.TestCase):
         dataset = json.loads(path.read_text(encoding="utf-8"))
         cases = validate_retrieval_cases(dataset["cases"])
         self.assertEqual(dataset["scope"], "retrieval_only")
-        self.assertEqual(len(cases), 32)
-        self.assertEqual(len({case["domain"] for case in cases}), 32)
-        self.assertEqual(len({case["id"] for case in cases}), 32)
+        self.assertEqual(len(cases), 44)
+        self.assertEqual(len({case["domain"] for case in cases}), 44)
+        self.assertEqual(len({case["id"] for case in cases}), 44)
+        self.assertEqual(sum(bool(case["hard_negative_titles"]) for case in cases), 12)
         self.assertEqual(
             {case["id"] for case in cases if not case["expected_titles"]},
             {"unknown", "fictional-person", "fictional-invention", "fictional-history",
@@ -282,6 +283,58 @@ class RetrievalBenchmarkTests(unittest.TestCase):
                 lambda question, k: [{"title": "인공지능"}, {"title": " 인공지능 "}],
                 k=5,
             )
+
+    def test_hard_negative_retrievals_are_measured_separately(self):
+        cases = [
+            {
+                "id": "negative-hit",
+                "domain": "과학",
+                "question": "원자 구조",
+                "expected_titles": ["원자"],
+                "hard_negative_titles": ["세포"],
+            },
+            {
+                "id": "negative-clear",
+                "domain": "과학",
+                "question": "세포 구조",
+                "expected_titles": ["세포"],
+                "hard_negative_titles": ["원자"],
+            },
+            {
+                "id": "without-negative-labels",
+                "domain": "일상",
+                "question": "시간 관리",
+                "expected_titles": ["시간 관리"],
+            },
+        ]
+        retrieved = {
+            "원자 구조": [{"title": "원자"}, {"title": " 세포 "}],
+            "세포 구조": [{"title": "세포"}],
+            "시간 관리": [{"title": "시간 관리"}],
+        }
+        report = evaluate_retrieval_cases(cases, lambda q, k: retrieved[q], k=5)
+        self.assertEqual(report["hard_negative_cases"], 2)
+        self.assertEqual(report["hard_negative_hit_cases"], 1)
+        self.assertEqual(report["hard_negative_retrievals"], 1)
+        self.assertEqual(report["hard_negative_case_rate"], 0.5)
+        self.assertEqual(report["results"][0]["hard_negative_retrieved"], 1)
+        self.assertTrue(report["results"][0]["hard_negative_hit"])
+        self.assertEqual(report["domain_metrics"]["과학"]["hard_negative_case_rate"], 0.5)
+        self.assertIsNone(report["domain_metrics"]["일상"]["hard_negative_case_rate"])
+
+    def test_hard_negative_labels_are_validated_and_cannot_overlap_expected(self):
+        invalid = [
+            dict(self.cases[0], hard_negative_titles="세포"),
+            dict(self.cases[0], hard_negative_titles=[""]),
+            dict(self.cases[0], hard_negative_titles=["세포", "세포"]),
+            dict(self.cases[0], hard_negative_titles=["인공지능"]),
+            dict(self.cases[0], hard_negative_titles=["x" * 257]),
+            dict(self.cases[0], hard_negative_titles=["세포"] * 21),
+        ]
+        for case in invalid:
+            with self.subTest(case=case):
+                with self.assertRaises(ValueError):
+                    validate_retrieval_cases([case])
 
     def test_non_list_retriever_output_is_rejected(self):
         with self.assertRaises(ValueError):
