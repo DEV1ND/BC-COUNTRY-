@@ -19,18 +19,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check Candidate health and send one greeting
+      - name: Check Candidate health, approved greeting, and direct generation
         env:
           QUANTUM_API_TOKEN: ${{ secrets.QUANTUM_API_TOKEN }}
         run: |
           python - <<'PY'
           import json
           import os
-                    import urllib.error
+          import re
+          import urllib.error
           import urllib.request
 
           base = "https://juckex-quantum-candidate.onrender.com"
-          health_request = urllib.request.Request(base + "/health", headers={"Accept": "application/json"})
+          token = os.environ.get("QUANTUM_API_TOKEN", "")
+          if not token:
+              print("LIVE_TEST_FAILED: QUANTUM_API_TOKEN secret is not configured.")
+              raise SystemExit(1)
+
+          health_request = urllib.request.Request(
+              base + "/health",
+              headers={"Accept": "application/json"},
+          )
           try:
               with urllib.request.urlopen(health_request, timeout=90) as response:
                   health = json.loads(response.read().decode("utf-8"))
@@ -43,34 +52,37 @@ jobs:
               for key in (
                   "ok", "model_loaded", "generation_ready", "checkpoint_status",
                   "model", "model_parameters", "model_architecture",
-                  "knowledge_documents", "approved_qa_pairs"
+                  "knowledge_documents", "approved_qa_pairs",
               )
           }
           print("HEALTH:", json.dumps(safe_health, ensure_ascii=False))
 
-          token = os.environ.get("QUANTUM_API_TOKEN", "")
-          if not token:
-              print("LIVE_GREETING_SKIPPED: GitHub Actions secret QUANTUM_API_TOKEN is not configured.")
-              raise SystemExit(0)
-
           if health.get("model_loaded") is not True or health.get("generation_ready") is not True:
-              print("LIVE_GREETING_BLOCKED: Candidate model is not ready; no generation request was sent.")
+              print("LIVE_TEST_BLOCKED: Candidate model is not ready.")
               raise SystemExit(1)
 
-          payload = json.dumps({"prompt": "안녕", "max_new_tokens": 32, "temperature": 0.0, "top_k": 1}).encode("utf-8")
-          request = urllib.request.Request(
-              base + "/v1/generate",
-              data=payload,
-              headers={
-                  "Content-Type": "application/json",
-                  "Accept": "application/json",
-                  "Authorization": "Bearer " + token,
-              },
-              method="POST",
-          )
-          try:
+          def post_generate(prompt, max_new_tokens):
+              payload = json.dumps({
+                  "prompt": prompt,
+                  "max_new_tokens": max_new_tokens,
+                  "temperature": 0.0,
+                  "top_k": 1,
+              }).encode("utf-8")
+              request = urllib.request.Request(
+                  base + "/v1/generate",
+                  data=payload,
+                  headers={
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "Authorization": "Bearer " + token,
+                  },
+                  method="POST",
+              )
               with urllib.request.urlopen(request, timeout=120) as response:
-                  result = json.loads(response.read().decode("utf-8"))
+                  return json.loads(response.read().decode("utf-8"))
+
+          try:
+              greeting = post_generate("안녕", 32)
           except urllib.error.HTTPError as exc:
               print("LIVE_GREETING_FAILED: HTTP", exc.code)
               raise SystemExit(1)
@@ -79,36 +91,21 @@ jobs:
               raise SystemExit(1)
 
           print("LIVE_GREETING_RESULT:", json.dumps({
-              "answer": result.get("answer"),
-              "model": result.get("model"),
-              "response_mode": result.get("response_mode"),
-              "is_model_generation": result.get("is_model_generation"),
-              "is_live_inference": result.get("is_live_inference"),
-              "timing": result.get("timing"),
-              "quality_warning": result.get("quality_warning"),
+              "answer": greeting.get("answer"),
+              "model": greeting.get("model"),
+              "response_mode": greeting.get("response_mode"),
+              "is_model_generation": greeting.get("is_model_generation"),
+              "is_live_inference": greeting.get("is_live_inference"),
+              "quality_warning": greeting.get("quality_warning"),
           }, ensure_ascii=False))
 
-          # Use a deliberately novel prompt and require the actual Transformer path.
-          # This must never silently pass through the approved-Q&A retrieval route.
-          direct_payload = json.dumps({
-              "prompt": "설명해 줘: 바다와 우주를 비교하는 짧은 문장을 만들어 줘.",
-              "max_new_tokens": 24,
-              "temperature": 0.0,
-              "top_k": 1,
-          }).encode("utf-8")
-          direct_request = urllib.request.Request(
-              base + "/v1/generate",
-              data=direct_payload,
-              headers={
-                  "Content-Type": "application/json",
-                  "Accept": "application/json",
-                  "Authorization": "Bearer " + token,
-              },
-              method="POST",
-          )
+          if greeting.get("answer") != "안녕하세요. 무엇을 도와드릴까요?" or greeting.get("model") != "quantum-approved-knowledge":
+              print("LIVE_GREETING_MISMATCH: approved greeting response differed from expected reviewed Q&A.")
+              raise SystemExit(1)
+
+          # Novel prompt: require the actual Candidate Transformer, not approved-Q&A retrieval.
           try:
-              with urllib.request.urlopen(direct_request, timeout=120) as response:
-                  direct_result = json.loads(response.read().decode("utf-8"))
+              direct = post_generate("설명해 줘: 바다와 우주를 비교하는 짧은 문장을 만들어 줘.", 24)
           except urllib.error.HTTPError as exc:
               print("DIRECT_GENERATION_FAILED: HTTP", exc.code)
               raise SystemExit(1)
@@ -116,27 +113,37 @@ jobs:
               print("DIRECT_GENERATION_FAILED:", type(exc).__name__)
               raise SystemExit(1)
 
-          print("DIRECT_GENERATION_RESULT:", json.dumps({
-              "answer": direct_result.get("answer"),
-              "model": direct_result.get("model"),
-              "response_mode": direct_result.get("response_mode"),
-              "is_model_generation": direct_result.get("is_model_generation"),
-              "is_live_inference": direct_result.get("is_live_inference"),
-              "generated_tokens": direct_result.get("generated_tokens"),
-              "generation_stop_reason": direct_result.get("generation_stop_reason"),
-              "timing": direct_result.get("timing"),
-              "quality_warning": direct_result.get("quality_warning"),
-          }, ensure_ascii=False))
-          # Older Candidate deployments identify this path by model name and
-          # is_live_inference; newer responses additionally expose response_mode.
-          direct_model_confirmed = (
-              direct_result.get("model") == "quantum-bpe-candidate"
-              and direct_result.get("is_live_inference") is True
-              and direct_result.get("answer") is not None
+          answer = direct.get("answer")
+          model_confirmed = (
+              direct.get("model") == "quantum-bpe-candidate"
+              and direct.get("is_live_inference") is True
+              and isinstance(answer, str)
+              and bool(answer.strip())
           )
-          response_mode = direct_result.get("response_mode")
-          if not direct_model_confirmed or response_mode not in (None, "model_generation"):
+          response_mode = direct.get("response_mode")
+          if not model_confirmed or response_mode not in (None, "model_generation"):
               print("DIRECT_GENERATION_BLOCKED: response did not identify the Candidate Transformer path.")
+              print("DIRECT_RESPONSE_METADATA:", json.dumps({
+                  "model": direct.get("model"),
+                  "response_mode": response_mode,
+                  "is_live_inference": direct.get("is_live_inference"),
+              }, ensure_ascii=False))
               raise SystemExit(1)
-          print("DIRECT_GENERATION_CONFIRMED: the Candidate Transformer produced this output; quality still requires human evaluation.")
+
+          visible_tokens = answer.split()
+          single_hangul_fragmentation = bool(visible_tokens) and all(
+              len(token) == 1 and re.fullmatch(r"[가-힣]", token)
+              for token in visible_tokens
+          )
+          print("DIRECT_GENERATION_RESULT:", json.dumps({
+              "answer": answer,
+              "model": direct.get("model"),
+              "response_mode": response_mode,
+              "is_live_inference": direct.get("is_live_inference"),
+              "generated_tokens": direct.get("generated_tokens"),
+              "generation_stop_reason": direct.get("generation_stop_reason"),
+              "quality_warning": direct.get("quality_warning"),
+              "single_hangul_fragmentation_flag": single_hangul_fragmentation,
+          }, ensure_ascii=False))
+          print("DIRECT_GENERATION_CONFIRMED: Transformer execution succeeded; this is not a quality pass.")
           PY
