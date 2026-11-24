@@ -174,8 +174,11 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
 
         title_n = _norm(title)
         body_n = _norm(body)
-        title_hits = sum(1 for term in terms if term in title_n)
-        body_hits = sum(1 for term in terms if term in body_n)
+        title_matched_terms = [term for term in terms if term in title_n]
+        body_matched_terms = [term for term in terms if term in body_n]
+        title_hits = len(title_matched_terms)
+        body_hits = len(body_matched_terms)
+        title_coverage = title_hits / len(terms)
         body_coverage = body_hits / len(terms)
         has_reliable_evidence = title_hits > 0 or (
             body_hits >= 2 and body_coverage >= 0.5
@@ -183,6 +186,18 @@ def rank_documents(question, rows, limit=3, min_score=0.18):
         score = score_document(question, title, body)
         if has_reliable_evidence and score >= min_score:
             item["relevance_score"] = score
+            # Expose the lexical evidence behind the rank for authenticated
+            # diagnostics. These are match traces, not semantic confidence.
+            item["match_diagnostics"] = {
+                "query_terms": list(terms),
+                "title_matched_terms": title_matched_terms,
+                "body_matched_terms": body_matched_terms,
+                "title_match_count": title_hits,
+                "body_match_count": body_hits,
+                "title_coverage": round(title_coverage, 6),
+                "body_coverage": round(body_coverage, 6),
+                "evidence_basis": "title" if title_hits else "multiple_body_terms",
+            }
             ranked.append(item)
 
     # Stable tie-breaking keeps identical candidate sets in the same order,
