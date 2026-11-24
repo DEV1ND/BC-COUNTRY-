@@ -88,6 +88,7 @@ def summarize_reviews(review_payload, identity_verifier=None):
     must cryptographically validate a trusted attestation and return exactly True.
     The CLI intentionally has no verifier configured and therefore cannot pass
     the identity gate on its own.
+    """
     if not isinstance(review_payload, dict):
         raise ValueError("검토 파일은 JSON 객체여야 합니다.")
     if identity_verifier is not None and not callable(identity_verifier):
