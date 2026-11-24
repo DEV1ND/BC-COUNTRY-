@@ -1,4 +1,5 @@
 const ACCESS_JWT_HEADER = "Cf-Access-Jwt-Assertion";
+const MAX_ACCESS_JWT_CHARS = 8192;
 const ACCESS_IDENTITY_SCHEMA = "juckex-cloudflare-access-review-v1";
 
 function decodeBase64Url(value) {
@@ -46,6 +47,8 @@ export async function verifyCloudflareAccessIdentity(
   const token = request?.headers?.get(ACCESS_JWT_HEADER);
   if (typeof token !== "string" || !token.trim())
     return { ok: false, error: "cloudflare_access_identity_required" };
+  if (token.length > MAX_ACCESS_JWT_CHARS)
+    return { ok: false, error: "access_jwt_too_large" };
 
   const parts = token.split(".");
   if (parts.length !== 3 || parts.some(part => !part))
@@ -152,6 +155,15 @@ export function parseVerifiedReviewNote(note, reviewedAt) {
       typeof reviewer.subject !== "string" || !reviewer.subject.trim() ||
       typeof payload.note !== "string" || payload.note.length < 20 ||
       typeof payload.reference_url !== "string") return null;
+  let reference;
+  try {
+    reference = new URL(payload.reference_url);
+  } catch {
+    return null;
+  }
+  if (reference.protocol !== "https:" || reference.username || reference.password ||
+      reference.hostname === "wikipedia.org" || reference.hostname.endsWith(".wikipedia.org"))
+    return null;
   try {
     const timestamp = new Date(reviewedAt);
     if (!Number.isFinite(timestamp.getTime())) return null;
