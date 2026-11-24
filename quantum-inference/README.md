@@ -179,3 +179,8 @@ The standalone lexical ranking helper accepts a bounded limit up to 100 for this
 
 This improves candidate selection under malformed-index conditions. It does not improve semantic relevance, establish factual correctness, or prove that a returned passage supports a generated claim.
 
+
+
+## Korean retrieval query normalization
+
+The lexical query normalizer preserves a conservative set of common Korean nouns whose final syllables overlap with particle strings (for example, 국가, 사과, 회의, and 전문가). Outer particles can still be removed from these forms, so 국가의 becomes 국가 and 사과를 becomes 사과. This is a targeted ambiguity guard, not a full Korean morphological analyzer; uncommon words may still require future corpus-driven evaluation.
