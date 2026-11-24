@@ -10,7 +10,7 @@ on:
       - "quantum-inference/tests/test_experimental_benchmark.py"
       - ".github/workflows/quantum-candidate-retrieval-experiments.yml"
   pull_request:
-    branches: [quantum-candidate-retrieval-experiments]
+    branches: [quantum-candidate-security-hardening]
     paths:
       - "quantum-inference/experimental_retrieval.py"
       - "quantum-inference/benchmark_experimental_retrieval.py"
