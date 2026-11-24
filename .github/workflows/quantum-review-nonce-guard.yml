@@ -1,0 +1,36 @@
+name: Quantum Candidate review nonce replay guard
+
+on:
+  push:
+    branches:
+      - quantum-candidate-review-attestation-replay-guard
+    paths:
+      - "cloudflare-workers/review_nonce_store.mjs"
+      - "cloudflare-workers/tests/review-nonce-store.test.mjs"
+      - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
+      - "cloudflare-workers/REVIEW_NONCE_REPLAY_GUARD.md"
+      - ".github/workflows/quantum-review-nonce-guard.yml"
+  pull_request:
+    branches:
+      - quantum-candidate-review-attestation-issuer
+      - quantum-candidate-review-attestation-replay-guard
+    paths:
+      - "cloudflare-workers/review_nonce_store.mjs"
+      - "cloudflare-workers/tests/review-nonce-store.test.mjs"
+      - "cloudflare-workers/migrations/0002_review_attestation_nonces.sql"
+      - "cloudflare-workers/REVIEW_NONCE_REPLAY_GUARD.md"
+      - ".github/workflows/quantum-review-nonce-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  nonce-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test D1 nonce replay guard
+        run: node --test cloudflare-workers/tests/review-nonce-store.test.mjs
