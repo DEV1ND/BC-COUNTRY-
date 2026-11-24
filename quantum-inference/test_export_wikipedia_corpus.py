@@ -26,6 +26,7 @@ def document(**overrides):
         "status": "pending_review",
         "reviewer_note": "",
         "reviewed_at": None,
+        "provenance_review": None,
     }
     row.update(overrides)
     return row
@@ -107,7 +108,13 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             self.assertFalse(destination.exists())
 
     def test_manual_corpus_requires_manual_approval_marker(self):
-        bad = document(status="approved", reviewer_note="AUTO_REVIEW: passed", reviewed_at="2026-11-23T10:00:00Z")
+        bad = document(status="approved", reviewer_note="AUTO_REVIEW: passed", reviewed_at="2026-11-23T10:00:00Z", provenance_review={
+            "approved": True, "reviewer": "reviewer@example.org",
+            "reviewer_subject": "cloudflare-subject-001",
+            "identity_provider": "cloudflare_access",
+            "reviewer_identity_verified": True,
+            "reviewed_at": "2026-11-23T10:00:00.000Z",
+        })
         with tempfile.TemporaryDirectory() as temp_dir:
             destination = Path(temp_dir) / "corpus.jsonl"
             with patch("export_wikipedia_corpus.fetch_page", return_value={
@@ -135,6 +142,13 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             status="approved",
             reviewer_note="MANUAL_APPROVAL: independent source checked",
             reviewed_at="2026-11-23 10:00:00",
+            provenance_review={
+            "approved": True, "reviewer": "reviewer@example.org",
+            "reviewer_subject": "cloudflare-subject-001",
+            "identity_provider": "cloudflare_access",
+            "reviewer_identity_verified": True,
+            "reviewed_at": "2026-11-23T10:00:00.000Z",
+        },
         )
         with tempfile.TemporaryDirectory() as temp_dir:
             destination = Path(temp_dir) / "corpus.jsonl"
@@ -150,6 +164,13 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
             status="approved",
             reviewer_note="MANUAL_APPROVAL: independent source checked",
             reviewed_at="2026-11-23T10:00:00.000Z",
+            provenance_review={
+            "approved": True, "reviewer": "reviewer@example.org",
+            "reviewer_subject": "cloudflare-subject-001",
+            "identity_provider": "cloudflare_access",
+            "reviewer_identity_verified": True,
+            "reviewed_at": "2026-11-23T10:00:00.000Z",
+        },
         )
         count, path = self.export_with_pages([
             {"documents": [row], "has_more": False, "next_after": None}
@@ -157,6 +178,23 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
         exported = json.loads(path.read_text(encoding="utf-8").strip())
         self.assertEqual(count, 1)
         self.assertEqual(exported["reviewed_at"], "2026-11-23T10:00:00.000Z")
+        self.assertTrue(exported["provenance_review"]["reviewer_identity_verified"])
+
+
+    def test_manual_corpus_rejects_legacy_approval_without_verified_identity(self):
+        row = document(
+            status="approved",
+            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewed_at="2026-11-23T10:00:00.000Z",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            destination = Path(temp_dir) / "corpus.jsonl"
+            with patch("export_wikipedia_corpus.fetch_page", return_value={
+                "documents": [row], "has_more": False, "next_after": None
+            }):
+                with self.assertRaisesRegex(RuntimeError, "verified reviewer identity"):
+                    export_corpus("https://example.workers.dev", "token", "manual", destination)
+            self.assertFalse(destination.exists())
 
     def test_duplicate_page_ids_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:
