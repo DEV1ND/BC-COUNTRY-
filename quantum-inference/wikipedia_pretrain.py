@@ -52,7 +52,7 @@ class BPECandidate(nn.Module):
 def load_corpus(path, allow_unverified):
     docs, seen = [], set()
     rejected = {"invalid_json": 0, "invalid_metadata": 0, "duplicate": 0,
-                "excluded": 0, "unverified_not_allowed": 0}
+                "excluded": 0, "unverified_not_allowed": 0, "unsupported_status": 0}
     with Path(path).open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle, 1):
             if not line.strip():
@@ -76,7 +76,35 @@ def load_corpus(path, allow_unverified):
             if status == "excluded":
                 rejected["excluded"] += 1
                 continue
-            manually_verified = status == "approved" and note.startswith("MANUAL_APPROVAL:")
+            if status not in ("approved", "pending_review"):
+                rejected["unsupported_status"] += 1
+                continue
+            review = row.get("provenance_review")
+            reviewed_at = row.get("reviewed_at")
+            identity_verified = (
+                status == "approved"
+                and note.startswith("MANUAL_APPROVAL: ")
+                and isinstance(review, dict)
+                and review.get("approved") is True
+                and review.get("reviewer_identity_verified") is True
+                and review.get("identity_provider") == "cloudflare_access"
+                and isinstance(review.get("reviewer"), str)
+                and bool(review["reviewer"].strip())
+                and isinstance(review.get("reviewer_subject"), str)
+                and bool(review["reviewer_subject"].strip())
+                and isinstance(reviewed_at, str)
+                and _valid_timezone_aware_timestamp(reviewed_at)
+                and review.get("reviewed_at") == reviewed_at
+            )
+            if status == "approved" and not identity_verified:
+                rejected["invalid_metadata"] += 1
+                continue
+            if status == "pending_review" and (
+                note or reviewed_at is not None or review is not None
+            ):
+                rejected["invalid_metadata"] += 1
+                continue
+            manually_verified = identity_verified
             if not manually_verified and not allow_unverified:
                 rejected["unverified_not_allowed"] += 1
                 continue
@@ -107,7 +135,11 @@ def load_corpus(path, allow_unverified):
                 "page_id": page_id, "title": title, "url": url,
                 "revision_id": revision_id, "content_hash": digest,
                 "license": LICENSE, "attribution": attribution,
-                "trust": "manually_verified" if manually_verified else "unverified_experimental",
+                "trust": "identity_verified_human_review" if manually_verified else "unverified_experimental",
+                "reviewed_at": reviewed_at if manually_verified else None,
+                "reviewer": review.get("reviewer") if manually_verified else None,
+                "reviewer_subject": review.get("reviewer_subject") if manually_verified else None,
+                "identity_provider": review.get("identity_provider") if manually_verified else None,
                 "text": title + "\n" + text,
             })
     if len(docs) < 2:
@@ -315,6 +347,9 @@ def main():
         "page_id": d["page_id"], "title": d["title"], "url": d["url"],
         "revision_id": d["revision_id"], "content_hash": d["content_hash"],
         "license": d["license"], "attribution": d["attribution"], "trust": d["trust"],
+        "reviewed_at": d.get("reviewed_at"), "reviewer": d.get("reviewer"),
+        "reviewer_subject": d.get("reviewer_subject"),
+        "identity_provider": d.get("identity_provider"),
     } for d in docs]
     metadata = {
         "objective": "causal_next_token_prediction",
@@ -324,6 +359,8 @@ def main():
         "train_token_count": train_tokens, "validation_token_count": valid_tokens,
         "tokenizer_usage": tokenizer_usage,
         "trust_counts": trust_counts, "rejected_rows": rejected,
+        "reviewer_identity_provider": "cloudflare_access",
+        "reviewer_identity_verified_document_count": trust_counts["identity_verified_human_review"],
         "license": LICENSE, "attribution_manifest": manifest,
         "unverified_corpus_is_fact_checked": False,
         "production_model_touched": False,
