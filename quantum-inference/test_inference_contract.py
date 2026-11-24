@@ -200,6 +200,37 @@ class InferenceContractTests(unittest.TestCase):
         self.assertFalse(result["model_invoked"])
         self.assertFalse(result["model_training"])
 
+    def test_knowledge_search_exposes_rejected_source_and_integrity_counters(self):
+        retrieval = {
+            "documents": [],
+            "status": "document_metadata_invalid",
+            "used_fallback": True,
+            "rejected_source_rows": 3,
+            "rejected_integrity_rows": 2,
+        }
+
+        class FakeRequest:
+            async def json(self):
+                return {"question": "태양계 행성"}
+
+        with patch.object(quantum_app, "require_admin"):
+            with patch.object(
+                quantum_app, "retrieve_knowledge_diagnostic", return_value=retrieval
+            ):
+                result = asyncio.run(
+                    quantum_app.knowledge_search(
+                        FakeRequest(), authorization="Bearer candidate-test-token"
+                    )
+                )
+
+        self.assertEqual(result["retrieval_status"], "document_metadata_invalid")
+        self.assertTrue(result["used_fallback"])
+        self.assertEqual(result["count"], 0)
+        self.assertEqual(result["rejected_source_rows"], 3)
+        self.assertEqual(result["rejected_integrity_rows"], 2)
+        self.assertFalse(result["model_invoked"])
+        self.assertFalse(result["model_training"])
+
     def test_generation_suppresses_citations_when_knowledge_context_is_truncated(self):
         class FakeTokenizer:
             vocab = ["a", "b", "c"]
