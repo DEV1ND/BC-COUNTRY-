@@ -1,11 +1,11 @@
 """Apply a completed human provenance review to a separate dataset copy.
 
-This checks structure and explicit review fields; it cannot prove that claims are true.
-It never infers provenance or approves records automatically.
+This checks structure and explicit review fields; it cannot prove that claims are true
+or authenticate the reviewer. The output remains ineligible for training until a
+trusted cryptographic identity verifier validates every reviewer attestation.
 """
 import argparse
 import copy
-import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -101,8 +101,8 @@ def apply_review(source_rows, template):
         output[index]["provenance_review"] = review
 
     audit = audit_rows(output)
-    if not audit["training_release_eligible"]:
-        raise ValueError("적용 후 provenance audit가 학습 적격 판정을 내리지 않았습니다.")
+    if audit["approved_records"] == 0 or not audit["metadata_review_complete"]:
+        raise ValueError("적용 후 provenance 메타데이터 검증이 완료되지 않았습니다.")
     return output
 
 
@@ -129,6 +129,7 @@ def main():
         "output": str(output_path),
         "approved_records": report["approved_records"],
         "metadata_complete_records": report["metadata_complete_records"],
+        "metadata_review_complete": report["metadata_review_complete"],
         "training_release_eligible": report["training_release_eligible"],
         "source_dataset_modified": False,
         "human_review_truth_independently_verified": False,
