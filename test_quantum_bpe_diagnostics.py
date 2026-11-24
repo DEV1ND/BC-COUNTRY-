@@ -8,7 +8,7 @@ class BPEDiagnosticsTests(unittest.TestCase):
     def setUp(self):
         self.tokenizer = BPETokenizer(
             merges=[("안", "녕"), ("하", "세"), ("하세", "요")],
-            initial_symbols=list("안녕하세요 세계!"),
+            initial_symbols=sorted(set("안녕하세요 세계!")),
         )
 
     def test_reports_roundtrip_and_counts(self):
