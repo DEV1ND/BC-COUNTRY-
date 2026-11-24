@@ -15,6 +15,7 @@ on:
   pull_request:
     branches:
       - quantum-candidate-identity-release-gate
+      - quantum-candidate-generation-quality-audit
     paths:
       - "quantum_generation_quality_audit.py"
       - "test_quantum_generation_quality_audit.py"
