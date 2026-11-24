@@ -9,8 +9,10 @@ from bpe_tokenizer import BPETokenizer
 from wikipedia_pretrain import batch_windows, load_corpus, make_windows, split_documents
 
 
-def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source"):
+def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source", reviewed_at=None):
     text = ("한국어 문서 내용입니다. " * 20).strip()
+    if reviewed_at is None and status == "approved" and note.startswith("MANUAL_APPROVAL:"):
+        reviewed_at = "2026-11-23T10:00:00Z"
     return {
         "page_id": page_id, "title": "테스트 문서",
         "url": "https://ko.wikipedia.org/wiki/테스트",
@@ -18,7 +20,7 @@ def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against sour
         "content_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "text": text, "license": "CC BY-SA 4.0",
         "attribution": "위키백과 contributors", "status": status,
-        "reviewer_note": note,
+        "reviewer_note": note, "reviewed_at": reviewed_at,
     }
 
 
@@ -34,8 +36,59 @@ class CorpusValidationTests(unittest.TestCase):
     def test_manual_approval_is_accepted(self):
         docs, rejected = load_corpus(self.write_rows([row("1"), row("2")]), False)
         self.assertEqual(len(docs), 2)
-        self.assertEqual(docs[0]["trust"], "manually_verified")
+        self.assertEqual(docs[0]["trust"], "manual_review_metadata_present_identity_unverified")
+        self.assertFalse(docs[0]["reviewer_identity_verified"])
+        self.assertEqual(docs[0]["reviewed_at"], "2026-11-23T10:00:00Z")
         self.assertEqual(rejected["invalid_metadata"], 0)
+        self.assertFalse(rejected["invalid_review_metadata"])
+
+
+    def test_approved_row_requires_timezone_aware_review_timestamp(self):
+        for timestamp in (None, "2026-11-23T10:00:00", "not-a-date", 123):
+            with self.subTest(timestamp=timestamp):
+                docs_path = self.write_rows([
+                    row("1", reviewed_at=timestamp),
+                    row("2", reviewed_at=timestamp),
+                ])
+                with self.assertRaises(ValueError):
+                    load_corpus(docs_path, False)
+
+    def test_empty_manual_approval_note_is_rejected(self):
+        docs_path = self.write_rows([
+            row("1", note="MANUAL_APPROVAL:"),
+            row("2", note="MANUAL_APPROVAL:"),
+        ])
+        with self.assertRaises(ValueError):
+            load_corpus(docs_path, False)
+
+    def test_approved_auto_review_cannot_be_downgraded_to_unverified(self):
+        docs_path = self.write_rows([
+            row("1", note="AUTO_REVIEW: structural triage"),
+            row("2", note="AUTO_REVIEW: structural triage"),
+        ])
+        with self.assertRaises(ValueError):
+            load_corpus(docs_path, True)
+
+    def test_only_pending_review_rows_can_use_unverified_opt_in(self):
+        docs_path = self.write_rows([
+            row("1", status="unknown_status", note=""),
+            row("2", status="unknown_status", note=""),
+        ])
+        with self.assertRaises(ValueError):
+            load_corpus(docs_path, True)
+
+    def test_pending_rows_cannot_carry_manual_review_metadata(self):
+        for note, reviewed_at in (
+            ("MANUAL_APPROVAL: reviewed", None),
+            ("", "2026-11-23T10:00:00Z"),
+        ):
+            with self.subTest(note=note, reviewed_at=reviewed_at):
+                docs_path = self.write_rows([
+                    row("1", status="pending_review", note=note, reviewed_at=reviewed_at),
+                    row("2", status="pending_review", note=note, reviewed_at=reviewed_at),
+                ])
+                with self.assertRaises(ValueError):
+                    load_corpus(docs_path, True)
 
     def test_legacy_auto_review_is_not_accepted_by_default(self):
         docs_path = self.write_rows([
