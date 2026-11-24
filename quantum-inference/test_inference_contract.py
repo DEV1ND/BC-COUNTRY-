@@ -59,7 +59,8 @@ class InferenceContractTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as raised:
             asyncio.run(quantum_app.read_bounded_json(request, 16))
         self.assertEqual(raised.exception.status_code, 413)
-        self.assertEqual(request.consumed, 2)
+        # Stop immediately after the first chunk crosses the byte ceiling.
+        self.assertEqual(request.consumed, 1)
 
     def test_bounded_json_accepts_valid_body_at_exact_byte_limit(self):
         payload = b'{"question":"ok"}'
