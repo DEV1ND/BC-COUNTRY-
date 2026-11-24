@@ -16,7 +16,7 @@ function normalizeIssuer(value) {
   if (typeof value !== "string" || !value.trim()) return null;
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password ||
+    if (url.protocol !== "https:" || url.username || url.password || url.port ||
         url.search || url.hash || !url.hostname.endsWith(".cloudflareaccess.com") ||
         (url.pathname !== "/" && url.pathname !== "")) return null;
     return url.origin;
@@ -66,6 +66,8 @@ export async function verifyCloudflareAccessIdentity(
   if (!audiences.includes(audience))
     return { ok: false, error: "access_jwt_audience_mismatch" };
   if (!Number.isFinite(claims?.exp) || claims.exp <= nowSeconds ||
+      !Number.isFinite(claims?.iat) || claims.iat > nowSeconds + 60 ||
+      claims.exp <= claims.iat || claims.exp - claims.iat > 86400 ||
       (claims?.nbf !== undefined && (!Number.isFinite(claims.nbf) || claims.nbf > nowSeconds + 60)))
     return { ok: false, error: "access_jwt_time_invalid" };
   const email = typeof claims?.email === "string" ? claims.email.trim().toLowerCase() : "";
