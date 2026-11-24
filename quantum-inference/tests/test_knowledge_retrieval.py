@@ -63,6 +63,55 @@ class KnowledgeRetrievalTests(unittest.TestCase):
             with self.subTest(attached=attached):
                 self.assertEqual(query_terms(attached), [expected])
 
+    def test_common_lexical_nouns_are_not_stripped_as_particles(self):
+        examples = {
+            "종이는": "종이",
+            "사이에서": "사이",
+            "차이가": "차이",
+            "고양이는": "고양이",
+            "길이는": "길이",
+            "높이가": "높이",
+            "깊이는": "깊이",
+            "먹이를": "먹이",
+            "놀이를": "놀이",
+            "추이는": "추이",
+            "정의의": "정의",
+            "강의에서": "강의",
+            "합의가": "합의",
+            "건의는": "건의",
+            "질의에": "질의",
+            "논의에서": "논의",
+            "동의가": "동의",
+            "주의를": "주의",
+            "편의로": "편의",
+            "임의로": "임의",
+            "협의는": "협의",
+            "항의가": "항의",
+            "심의에서": "심의",
+            "결의가": "결의",
+            "상의는": "상의",
+            "성과가": "성과",
+            "학과에서": "학과",
+            "전과는": "전과",
+            "도로로": "도로",
+            "가로로": "가로",
+            "세로로": "세로",
+            "난로에": "난로",
+            "경로를": "경로",
+            "진로는": "진로",
+            "회로의": "회로",
+            "통로로": "통로",
+            "미로에서": "미로",
+            "피로가": "피로",
+            "마을에서": "마을",
+            "가을에": "가을",
+            "바늘이": "바늘",
+            "마늘을": "마늘",
+        }
+        for attached, expected in examples.items():
+            with self.subTest(attached=attached):
+                self.assertEqual(query_terms(attached), [expected])
+
     def test_additional_korean_postpositions_are_removed_conservatively(self):
         examples = {
             "국가로부터": "국가",
