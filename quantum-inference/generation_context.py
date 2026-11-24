@@ -25,6 +25,9 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
         tokenizer.encode("질문:" + question.strip() + "\n답변:"),
         "질문", tokenizer,
     )
+    question_text_ids = _validate_token_ids(
+        tokenizer.encode(question.strip()), "질문 본문", tokenizer,
+    )
     if not question_ids:
         raise ValueError("질문 토큰을 생성하지 못했습니다.")
     if len(question_ids) > block_size:
@@ -48,7 +51,8 @@ def build_generation_context(tokenizer, knowledge_context, question, block_size=
         return prompt_ids, truncated
     diagnostics = {
         "block_size": block_size,
-        "question_tokens": len(question_ids),
+        "question_text_tokens": len(question_text_ids),
+        "question_prompt_tokens": len(question_ids),
         "retrieved_context_tokens": retrieved_context_tokens,
         "included_context_tokens": len(context_ids),
         "dropped_context_tokens": retrieved_context_tokens - len(context_ids),
