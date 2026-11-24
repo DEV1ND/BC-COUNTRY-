@@ -1,6 +1,7 @@
 """Dataset integrity checks for Quantum training and independent evaluation."""
 import json
 import re
+import unicodedata
 import unittest
 from pathlib import Path
 
@@ -13,7 +14,8 @@ def load_json(name):
 
 
 def normalize_question(value):
-    return re.sub(r"[^0-9a-z가-힣]+", "", str(value).lower())
+    normalized = unicodedata.normalize("NFC", str(value)).casefold()
+    return re.sub(r"[^0-9a-z가-힣]+", "", normalized)
 
 
 class TrainingDataQualityTests(unittest.TestCase):
@@ -51,7 +53,7 @@ class TrainingDataQualityTests(unittest.TestCase):
 
     def test_independent_evaluation_is_nonempty_and_well_formed(self):
         self.assertIsInstance(self.evaluation, list)
-        self.assertGreaterEqual(len(self.evaluation), 10)
+        self.assertGreaterEqual(len(self.evaluation), 20)
         for index, row in enumerate(self.evaluation):
             with self.subTest(index=index):
                 self.assertIsInstance(row.get("question"), str)
@@ -59,6 +61,31 @@ class TrainingDataQualityTests(unittest.TestCase):
                 self.assertIsInstance(row.get("answer"), str)
                 self.assertTrue(row["answer"].strip())
 
+
+
+    def test_independent_answers_do_not_overlap_training_answers(self):
+        training_answers = {
+            normalize_question(row["answer"])
+            for row in self.training if row.get("approved") is True
+        }
+        for index, row in enumerate(self.evaluation):
+            with self.subTest(index=index):
+                self.assertNotIn(normalize_question(row["answer"]), training_answers)
+
+    def test_independent_questions_are_unique_after_unicode_normalization(self):
+        normalized = [normalize_question(row["question"]) for row in self.evaluation]
+        self.assertEqual(len(normalized), len(set(normalized)))
+
+    def test_independent_answers_are_unique_after_unicode_normalization(self):
+        normalized = [normalize_question(row["answer"]) for row in self.evaluation]
+        self.assertEqual(len(normalized), len(set(normalized)))
+
+    def test_independent_evaluation_rows_are_objects(self):
+        for index, row in enumerate(self.evaluation):
+            with self.subTest(index=index):
+                self.assertIsInstance(row, dict)
+                self.assertIsInstance(row.get("question"), str)
+                self.assertIsInstance(row.get("answer"), str)
 
     def row(self, question="질문입니다", answer="충분히 설명하는 답변입니다.", approved=True):
         return {"question": question, "answer": answer, "approved": approved}
