@@ -1,6 +1,8 @@
 import { reviewCandidate, validateManualApproval } from "./auto_review.mjs";
 import { planMissingPageIds, isCandidateInferenceTarget, buildSyncPreview } from "./knowledge_sync_plan.mjs";
 import { verifyCloudflareAccessIdentity, makeVerifiedReviewNote, parseVerifiedReviewNote } from "./access_identity.mjs";
+import { createReviewAttestation, verifyReviewAttestation, validateHumanReviewPayload } from "./review_attestation.mjs";
+import { recordVerifiedReviewNonce } from "./review_nonce_store.mjs";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 const WIKI_API = "https://ko.wikipedia.org/w/api.php";
 const USER_AGENT = "QuantumWikiResearch/1.0 (https://github.com/DEV1ND/BC-COUNTRY-)";
@@ -311,6 +313,15 @@ async function approvePage(request,env,identity){
   return json({ok:true,id,status:"approved",reviewer:{provider:identity.provider,email:identity.email,identity_verified:true},license:page.license_name,revision_id:page.revision_id,notice:"Cloudflare Access 인증 검토자와 독립 출처가 기록되었습니다. 사실의 진실성은 별도 검토 대상입니다."});
 }
 function authorized(request,env){return !!env.ADMIN_TOKEN&&request.headers.get("authorization")==="Bearer "+env.ADMIN_TOKEN;}
+async function readReviewJson(request){
+  const declared=request.headers.get("content-length");
+  if(declared!==null&&(!/^\\d+$/.test(declared)||Number(declared)>1024*1024))
+    return {ok:false,error:"review_payload_too_large"};
+  let raw;
+  try{raw=await request.text();}catch{return {ok:false,error:"invalid_json"};}
+  if(new TextEncoder().encode(raw).length>1024*1024)return {ok:false,error:"review_payload_too_large"};
+  try{return {ok:true,value:JSON.parse(raw)};}catch{return {ok:false,error:"invalid_json"};}
+}
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
@@ -407,6 +418,42 @@ export default {
       const verification=await verifyCloudflareAccessIdentity(request,env);
       if(!verification.ok)return json({error:verification.error},403);
       return approvePage(request,env,verification.identity);
+    }
+    if(request.method==="POST"&&url.pathname==="/candidate-review/attest"){
+      const verification=await verifyCloudflareAccessIdentity(request,env);
+      if(!verification.ok)return json({error:verification.error},403);
+      const parsed=await readReviewJson(request);
+      if(!parsed.ok)return json({error:parsed.error},400);
+      const review=parsed.value?.review;
+      if(!validateHumanReviewPayload(review,verification.identity.email))
+        return json({error:"invalid_or_incomplete_human_review"},422);
+      try{
+        const signed=await createReviewAttestation(review,verification.identity,env);
+        return json({ok:true,review:signed,reviewer_identity_verified:true});
+      }catch(error){
+        return json({error:error.message==="review_attestation_secret_not_configured"
+          ?"review_attestation_signing_unavailable":"review_attestation_signing_failed"},503);
+      }
+    }
+    if(request.method==="POST"&&url.pathname==="/candidate-review/consume"){
+      const parsed=await readReviewJson(request);
+      if(!parsed.ok)return json({error:parsed.error},400);
+      const review=parsed.value?.review;
+      if(!validateHumanReviewPayload(review)||
+          !await verifyReviewAttestation(review,env.QUANTUM_REVIEW_ATTESTATION_SECRET))
+        return json({error:"review_attestation_invalid"},403);
+      try{
+        const consumed=await recordVerifiedReviewNonce(env.DB,review.identity_attestation);
+        if(!consumed)return json({error:"review_attestation_replayed"},409);
+        return json({
+          ok:true,
+          reviewer:{provider:"cloudflare_access",email:review.identity_attestation.reviewer_email,
+            subject:review.identity_attestation.reviewer_subject,identity_verified:true},
+          nonce_consumed:true
+        });
+      }catch(error){
+        return json({error:"review_attestation_consume_unavailable"},503);
+      }
     }
     if(request.method==="GET"&&url.pathname==="/sync-preview")return json(await previewApprovedSync(env));
     if(request.method==="POST"&&url.pathname==="/sync-approved")return json(await syncApproved(env));
