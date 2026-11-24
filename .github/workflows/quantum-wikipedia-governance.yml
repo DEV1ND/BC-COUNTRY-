@@ -6,6 +6,10 @@ on:
       - quantum-candidate-security-hardening
     paths:
       - "cloudflare-workers/**"
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/export_wikipedia_corpus.py"
+      - "quantum-inference/test_export_wikipedia_corpus.py"
       - "quantum-inference/app.py"
       - "quantum-inference/wikipedia_seed.py"
       - "quantum-inference/tests/test_wikipedia_seed.py"
@@ -35,6 +39,7 @@ jobs:
       - name: Check Worker JavaScript syntax
         run: |
           node --check cloudflare-workers/juckex-quantum-wikipedia-explorer.mjs
+          node --check cloudflare-workers/access_identity.mjs
           node --check cloudflare-workers/auto_review.mjs
           node --check cloudflare-workers/knowledge_sync_plan.mjs
       - name: Test human review and sync contracts
