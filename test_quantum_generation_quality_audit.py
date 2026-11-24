@@ -20,7 +20,7 @@ class GenerationQualityAuditTests(unittest.TestCase):
         self.assertIn("empty_output", report["samples"][0]["flags"])
 
     def test_short_output_is_flagged_but_not_called_wrong(self):
-        report = audit_generation_report({"samples": [self.sample("질문", "목성입니다.")]})
+        report = audit_generation_report({"samples": [self.sample("질문", "목성입니다.", "이것은 길이가 충분히 긴 기준 답변으로, 짧은 출력을 확인하기 위한 테스트 문장입니다.")]})
         self.assertIn("too_short_for_general_qa_review", report["samples"][0]["flags"])
         self.assertIn("much_shorter_than_reference", report["samples"][0]["flags"])
 
