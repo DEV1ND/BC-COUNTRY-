@@ -10,6 +10,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from quantum_review_attestation_client import build_worker_identity_verifier
+
 from quantum_review_attestation import verify_hmac_review_attestation
 
 DIMENSIONS = ("factuality", "relevance", "completeness", "korean_naturalness")
