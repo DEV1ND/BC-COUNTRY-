@@ -645,13 +645,13 @@ class KnowledgeRetrievalTests(unittest.TestCase):
         )
 
         row = {
-            "title": "가" * MAX_DOCUMENT_TITLE_CHARS,
+            "title": "검색" + "가" * (MAX_DOCUMENT_TITLE_CHARS - len("검색")),
             "text": "나" * MAX_DOCUMENT_BODY_CHARS,
             "url": "https://example.test/" + "a" * (MAX_DOCUMENT_URL_CHARS - len("https://example.test/")),
         }
         # A single title hit is sufficient evidence; the test only checks that
         # exact configured boundaries are accepted rather than rejected.
-        ranked = rank_documents("가", [row], min_score=0.0)
+        ranked = rank_documents("검색", [row], min_score=0.0)
         self.assertEqual(len(ranked), 1)
 
 
