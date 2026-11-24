@@ -183,7 +183,7 @@ def search_knowledge_index(conn, question, limit=3, min_score=0.18):
                    FROM knowledge_fts f
                    JOIN knowledge_docs d ON d.page_id=f.page_id
                    WHERE knowledge_fts MATCH ?
-                   ORDER BY bm25(knowledge_fts) LIMIT 50""",
+                   ORDER BY bm25(knowledge_fts) LIMIT 100""",
                 (match,),
             ).fetchall()
         except sqlite3.OperationalError:
