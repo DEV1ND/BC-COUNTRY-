@@ -1,0 +1,44 @@
+name: Quantum Candidate provenance hardening
+
+on:
+  push:
+    branches: [quantum-candidate-provenance-hardening]
+    paths:
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/QUANTUM_CANDIDATE_TRAINING.md"
+      - ".github/workflows/quantum-candidate-provenance-hardening.yml"
+  pull_request:
+    branches: [quantum-candidate-security-hardening]
+    paths:
+      - "quantum-inference/wikipedia_pretrain.py"
+      - "quantum-inference/test_wikipedia_pretrain.py"
+      - "quantum-inference/WIKIPEDIA_PRETRAINING.md"
+      - "quantum-inference/QUANTUM_CANDIDATE_TRAINING.md"
+      - ".github/workflows/quantum-candidate-provenance-hardening.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  provenance-and-training-input-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile isolated Candidate training modules
+        run: python -m py_compile quantum-inference/wikipedia_pretrain.py quantum-inference/export_wikipedia_corpus.py quantum-inference/bpe_tokenizer.py
+      - name: Install CPU-only test dependencies
+        run: |
+          python -m pip install numpy==2.2.1 fastapi==0.115.6 cryptography==46.0.3
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
+      - name: Test strict corpus state and review timestamp gates
+        run: python -m unittest discover -s quantum-inference -p 'test_wikipedia_pretrain.py' -v
+      - name: Test tokenizer integrity
+        run: python -m unittest discover -s quantum-inference -p 'test_bpe_tokenizer_integrity.py' -v
+      - name: Test private Wikipedia export contract
+        run: python -m unittest discover -s quantum-inference -p 'test_export_wikipedia_corpus.py' -v
