@@ -9,6 +9,9 @@ import unicodedata
 
 from knowledge_provenance import has_valid_content_integrity, has_valid_wikipedia_attribution
 
+MAX_QUERY_CHARS = 2000
+MAX_QUERY_TERMS = 64
+
 _STOP = {
     "무엇", "무엇인가요", "무엇인가", "어떤", "어느", "누구", "언제", "어디", "어떻게", "왜",
     "뜻", "의미", "설명", "알려줘", "해주세요", "인가", "이란",
@@ -68,10 +71,16 @@ def _expand_domain_terms(terms):
 
 
 def query_terms(value):
-    """Return deduplicated Korean/Latin terms with particles and safe aliases."""
+    """Return bounded, deduplicated Korean/Latin terms with safe aliases."""
+    if not isinstance(value, str):
+        raise TypeError("검색 텍스트는 문자열이어야 합니다.")
+    if len(value) > MAX_QUERY_CHARS:
+        raise ValueError(f"검색 질문은 {MAX_QUERY_CHARS}자를 초과할 수 없습니다.")
     raw = re.findall(r"[0-9a-z]+|[가-힣]+", _norm(value))
     result = []
     for token in raw:
+        if len(result) >= MAX_QUERY_TERMS:
+            break
         stem = token
         # Remove at most two recognized outer endings. This handles stacked
         # forms such as "국가에서는" without introducing an unbounded stemmer.
