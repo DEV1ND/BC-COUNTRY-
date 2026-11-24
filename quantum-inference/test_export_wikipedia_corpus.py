@@ -140,7 +140,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
     def test_manual_corpus_requires_timezone_aware_review_timestamp(self):
         bad = document(
             status="approved",
-            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewer_note="MANUAL_APPROVAL_V2: independent source checked",
             reviewed_at="2026-11-23 10:00:00",
             provenance_review={
             "approved": True, "reviewer": "reviewer@example.org",
@@ -162,7 +162,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
     def test_valid_manual_corpus_preserves_review_timestamp(self):
         row = document(
             status="approved",
-            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewer_note="MANUAL_APPROVAL_V2: independent source checked",
             reviewed_at="2026-11-23T10:00:00.000Z",
             provenance_review={
             "approved": True, "reviewer": "reviewer@example.org",
@@ -184,7 +184,7 @@ class ExportWikipediaCorpusTests(unittest.TestCase):
     def test_manual_corpus_rejects_legacy_approval_without_verified_identity(self):
         row = document(
             status="approved",
-            reviewer_note="MANUAL_APPROVAL: independent source checked",
+            reviewer_note="MANUAL_APPROVAL_V2: independent source checked",
             reviewed_at="2026-11-23T10:00:00.000Z",
         )
         with tempfile.TemporaryDirectory() as temp_dir:
