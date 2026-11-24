@@ -85,8 +85,10 @@ class CorpusValidationTests(unittest.TestCase):
             ("reviewer_identity_verified", False),
             ("identity_provider", "shared_admin_token"),
             ("reviewer_subject", ""),
+            ("reviewer", "not-an-email"),
             ("review_note", "짧음"),
             ("reference_url", "https://ko.wikipedia.org/wiki/가짜"),
+            ("reference_url", "https://"),
         ):
             with self.subTest(field=field):
                 bad = row("bad-" + field)
