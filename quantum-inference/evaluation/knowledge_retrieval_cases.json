@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "scope": "retrieval_only",
-  "description": "32개 분야의 검색 평가 기준. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
+  "description": "44개 분야의 검색 평가 기준. 일부 사례는 명시적 hard_negative_titles를 포함해 알려진 무관 문서 반환을 별도로 측정한다. expected_titles는 검색 평가용이며 답변 정답 데이터나 모델 학습 데이터가 아니다.",
   "cases": [
     {
       "id": "daily-life",
@@ -247,6 +247,146 @@
       "domain": "가상 지리 검증",
       "question": "가상의 제타쿼크 왕국 수도 인구와 행정구역",
       "expected_titles": []
+    },
+    {
+      "id": "network-spacing-variant",
+      "domain": "네트워크 띄어쓰기 변형",
+      "question": "컴퓨터 네트워크의 기본 구조와 역할",
+      "expected_titles": [
+        "컴퓨터 네트워크"
+      ],
+      "hard_negative_titles": [
+        "운영 체제"
+      ]
+    },
+    {
+      "id": "atom-element-contrast",
+      "domain": "원자·원소 구분",
+      "question": "원자 구조와 화학 원소의 차이",
+      "expected_titles": [
+        "원자",
+        "화학 원소"
+      ],
+      "hard_negative_titles": [
+        "세포"
+      ]
+    },
+    {
+      "id": "operating-system-role",
+      "domain": "운영체제 질문 변형",
+      "question": "컴퓨터에서 운영 체제가 담당하는 역할",
+      "expected_titles": [
+        "운영 체제"
+      ],
+      "hard_negative_titles": [
+        "프로그래밍 언어"
+      ]
+    },
+    {
+      "id": "database-software",
+      "domain": "데이터베이스 질문 변형",
+      "question": "소프트웨어로서 데이터베이스가 하는 일",
+      "expected_titles": [
+        "데이터베이스",
+        "소프트웨어"
+      ],
+      "hard_negative_titles": [
+        "컴퓨터 네트워크"
+      ]
+    },
+    {
+      "id": "rights-constitution",
+      "domain": "인권·헌법 구분",
+      "question": "헌법에 명시된 인권의 기본 개념",
+      "expected_titles": [
+        "인권",
+        "헌법"
+      ],
+      "hard_negative_titles": [
+        "선거"
+      ]
+    },
+    {
+      "id": "electricity-energy",
+      "domain": "전기·에너지 구분",
+      "question": "전기와 에너지의 기본 원리",
+      "expected_titles": [
+        "전기",
+        "에너지"
+      ],
+      "hard_negative_titles": [
+        "화학 원소"
+      ]
+    },
+    {
+      "id": "solar-system-planets",
+      "domain": "태양계 질문 변형",
+      "question": "태양계 안에서 행성이 가지는 특징",
+      "expected_titles": [
+        "태양계",
+        "행성"
+      ],
+      "hard_negative_titles": [
+        "달"
+      ]
+    },
+    {
+      "id": "cell-genetics",
+      "domain": "세포·유전학 구분",
+      "question": "세포 안의 유전 정보와 유전학",
+      "expected_titles": [
+        "세포",
+        "유전학"
+      ],
+      "hard_negative_titles": [
+        "컴퓨터"
+      ]
+    },
+    {
+      "id": "climate-energy",
+      "domain": "기후·에너지 구분",
+      "question": "기후 변화와 에너지 문제의 관계",
+      "expected_titles": [
+        "기후 변화",
+        "에너지"
+      ],
+      "hard_negative_titles": [
+        "선거"
+      ]
+    },
+    {
+      "id": "linguistics-language",
+      "domain": "언어학 질문 변형",
+      "question": "인간 언어의 구조를 연구하는 언어학",
+      "expected_titles": [
+        "언어학"
+      ],
+      "hard_negative_titles": [
+        "프로그래밍 언어"
+      ]
+    },
+    {
+      "id": "security-database",
+      "domain": "정보보안 질문 변형",
+      "question": "정보 보안의 기본 원칙과 보호 대상",
+      "expected_titles": [
+        "정보 보안"
+      ],
+      "hard_negative_titles": [
+        "데이터베이스"
+      ]
+    },
+    {
+      "id": "internet-network",
+      "domain": "인터넷·네트워크 구분",
+      "question": "인터넷과 컴퓨터 네트워크의 작동 구조",
+      "expected_titles": [
+        "인터넷",
+        "컴퓨터 네트워크"
+      ],
+      "hard_negative_titles": [
+        "운영 체제"
+      ]
     }
   ]
 }
