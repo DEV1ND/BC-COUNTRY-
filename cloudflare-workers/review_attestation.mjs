@@ -120,3 +120,66 @@ export async function createReviewAttestation(
   attestation.signature = bytesToHex(new Uint8Array(signature));
   return { ...reviewPayload, identity_attestation: attestation };
 }
+
+
+/** Verify an attestation against the exact review payload before nonce consumption. */
+export async function verifyReviewAttestation(
+  reviewPayload,
+  secret,
+  { cryptoImpl = globalThis.crypto, now = Date.now() } = {}
+) {
+  if (typeof secret !== "string" || new TextEncoder().encode(secret).length < 32 ||
+      !cryptoImpl?.subtle || !reviewPayload || typeof reviewPayload !== "object" ||
+      Array.isArray(reviewPayload)) return false;
+  const attestation = reviewPayload.identity_attestation;
+  if (!attestation || typeof attestation !== "object" ||
+      attestation.schema !== ATTESTATION_SCHEMA ||
+      attestation.provider !== "cloudflare_access" ||
+      typeof attestation.reviewer_email !== "string" ||
+      typeof attestation.reviewer_subject !== "string" ||
+      !attestation.reviewer_subject.trim() ||
+      !/^[A-Za-z0-9_-]{16,128}$/.test(attestation.nonce || "") ||
+      !/^[0-9a-f]{64}$/.test(attestation.signature || "") ||
+      !/^[0-9a-f]{64}$/.test(attestation.review_payload_sha256 || "")) return false;
+  const reviewer = reviewPayload.reviewer;
+  if (typeof reviewer !== "string" ||
+      reviewer.trim().toLowerCase() !== attestation.reviewer_email.trim().toLowerCase()) return false;
+  const issuedAt = parseTimezoneTimestamp(attestation.issued_at);
+  const expiresAt = parseTimezoneTimestamp(attestation.expires_at);
+  const reviewedAt = parseTimezoneTimestamp(reviewPayload.reviewed_at);
+  if (issuedAt === null || expiresAt === null || reviewedAt === null ||
+      !Number.isFinite(now) || issuedAt > now + 60_000 || expiresAt <= now ||
+      expiresAt <= issuedAt || expiresAt - issuedAt > MAX_TTL_SECONDS * 1000 ||
+      reviewedAt > issuedAt + 60_000) return false;
+  let digest;
+  try {
+    digest = await reviewPayloadDigest(reviewPayload, cryptoImpl);
+  } catch {
+    return false;
+  }
+  if (digest !== attestation.review_payload_sha256) return false;
+  const signed = {
+    schema: attestation.schema,
+    provider: attestation.provider,
+    reviewer_email: attestation.reviewer_email,
+    reviewer_subject: attestation.reviewer_subject,
+    issued_at: attestation.issued_at,
+    expires_at: attestation.expires_at,
+    review_payload_sha256: attestation.review_payload_sha256,
+    nonce: attestation.nonce
+  };
+  try {
+    const key = await cryptoImpl.subtle.importKey(
+      "raw", new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
+    );
+    const signature = Uint8Array.from(
+      attestation.signature.match(/../g), pair => parseInt(pair, 16)
+    );
+    return await cryptoImpl.subtle.verify(
+      "HMAC", key, signature, new TextEncoder().encode(canonicalize(signed))
+    );
+  } catch {
+    return false;
+  }
+}
