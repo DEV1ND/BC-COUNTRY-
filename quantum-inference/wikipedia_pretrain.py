@@ -341,7 +341,7 @@ def main():
     model.load_state_dict(best_state)
     trust_counts = {
         label: sum(1 for doc in docs if doc["trust"] == label)
-        for label in ("manually_verified", "unverified_experimental")
+        for label in ("identity_verified_human_review", "unverified_experimental")
     }
     manifest = [{
         "page_id": d["page_id"], "title": d["title"], "url": d["url"],
