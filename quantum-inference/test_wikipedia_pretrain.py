@@ -68,7 +68,11 @@ class CorpusValidationTests(unittest.TestCase):
         legacy = row("legacy", note="MANUAL_APPROVAL_V2: reviewed against source")
         legacy.pop("provenance_review")
         legacy.pop("reviewed_at")
-        path = self.write_rows([legacy, row("valid-2"), row("valid-3")])
+        path = self.write_rows([
+            legacy,
+            row("valid-2", status="pending_review", note=""),
+            row("valid-3", status="pending_review", note=""),
+        ])
         docs, rejected = load_corpus(path, True)
         self.assertEqual(len(docs), 2)
         self.assertEqual(rejected["invalid_metadata"], 1)
