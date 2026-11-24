@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Optional
 import torch
 import torch.nn as nn
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
+from inference_health import inference_health_status
 from auth_policy import generation_auth_error
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, StrictInt, validator
@@ -369,11 +370,15 @@ def public_wikipedia_seed_status(status):
 
 
 @app.get("/health")
-def health():
+def health(response: Response):
     conn = knowledge_db()
     try: knowledge_count = conn.execute("SELECT COUNT(*) FROM knowledge_docs").fetchone()[0]
     finally: conn.close()
-    return {"ok": True, "model_loaded": model is not None,
+    ready = model is not None and MODEL_METADATA["generation_ready"] is True
+    response.status_code = inference_health_status(
+        model is not None, MODEL_METADATA["generation_ready"]
+    )
+    return {"ok": ready, "inference_ready": ready, "model_loaded": model is not None,
             "generation_ready": MODEL_METADATA["generation_ready"],
             "checkpoint_status": "loaded" if model is not None else ("restore_failed" if CHECKPOINT_LOAD_ERROR else "missing"),
             "model": "Quantum BPE Candidate" if model is not None else "Quantum BPE Candidate (checkpoint missing)",
