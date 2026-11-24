@@ -1,7 +1,7 @@
 """Output-shape diagnostics for visibly fragmented Candidate generations."""
 import unittest
 
-from run_generation_benchmark import diagnose_answer_output
+from generation_output_diagnostics import diagnose_answer_output
 
 
 class GenerationOutputDiagnosticsTests(unittest.TestCase):
