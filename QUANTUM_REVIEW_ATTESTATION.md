@@ -1,6 +1,6 @@
 # Quantum Candidate human-review attestation protocol
 
-Status: verifier implementation only; no production issuer is connected.
+Status: Candidate verifier and isolated Worker signing helper exist; no review endpoint is connected and no production issuer is deployed.
 
 ## Purpose
 
@@ -42,7 +42,18 @@ The top-level `reviewer` field must equal the attested email, case-insensitively
 The review timestamp must be timezone-aware and no later than the attestation issue
 time plus the configured 60-second clock-skew allowance.
 
-## Required issuer behavior (not implemented yet)
+## Current implementation boundary
+
+The isolated Worker helper `cloudflare-workers/review_attestation.mjs` now creates the
+HMAC envelope only when passed an identity object marked as verified by the existing
+Cloudflare Access verifier. It binds the signature to the exact review payload and
+uses a short expiry plus a random nonce. Its unit tests verify the signature with
+WebCrypto.
+
+The helper is not called by a route yet. It does not authenticate raw JWTs, persist
+nonces, or prevent replay on its own. No live Worker secret has been configured.
+
+## Required issuer integration (not implemented yet)
 
 1. Validate the Cloudflare Access JWT signature, issuer, audience, expiry and
    allowlisted email using the existing Worker identity verifier.
