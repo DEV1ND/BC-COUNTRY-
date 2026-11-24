@@ -7,6 +7,8 @@ on:
     paths:
       - "quantum_generation_quality_audit.py"
       - "test_quantum_generation_quality_audit.py"
+      - "quantum_human_review.py"
+      - "test_quantum_human_review.py"
       - "bpe_generation_seed_*.json"
       - "quantum_decoding_sweep.json"
       - ".github/workflows/quantum-generation-quality-audit.yml"
@@ -33,9 +35,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile audit and tests
-        run: python -m py_compile quantum_generation_quality_audit.py test_quantum_generation_quality_audit.py
-      - name: Run audit unit tests
-        run: python -m unittest -v test_quantum_generation_quality_audit.py
+        run: python -m py_compile quantum_generation_quality_audit.py test_quantum_generation_quality_audit.py quantum_human_review.py test_quantum_human_review.py
+      - name: Run generation and human-review identity gate tests
+        run: python -m unittest -v test_quantum_generation_quality_audit.py test_quantum_human_review.py
       - name: Audit committed generation samples when present
         run: |
           python - <<'PY'
