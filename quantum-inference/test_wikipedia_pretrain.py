@@ -9,7 +9,7 @@ from bpe_tokenizer import BPETokenizer
 from wikipedia_pretrain import batch_windows, load_corpus, make_windows, split_documents
 
 
-def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against source"):
+def row(page_id, status="approved", note="MANUAL_APPROVAL_V2: reviewed against source"):
     text = ("한국어 문서 내용입니다. " * 20).strip()
     return {
         "page_id": page_id, "title": "테스트 문서",
@@ -26,7 +26,7 @@ def row(page_id, status="approved", note="MANUAL_APPROVAL: reviewed against sour
             "identity_provider": "cloudflare_access",
             "reviewer_identity_verified": True,
             "reviewed_at": "2026-11-24T12:00:00.000Z",
-        } if status == "approved" and note.startswith("MANUAL_APPROVAL:") else None),
+        } if status == "approved" and note.startswith("MANUAL_APPROVAL_V2:") else None),
     }
 
 
@@ -65,7 +65,7 @@ class CorpusValidationTests(unittest.TestCase):
 
 
     def test_legacy_manual_note_without_authenticated_identity_is_rejected(self):
-        legacy = row("legacy", note="MANUAL_APPROVAL: reviewed against source")
+        legacy = row("legacy", note="MANUAL_APPROVAL_V2: reviewed against source")
         legacy.pop("provenance_review")
         legacy.pop("reviewed_at")
         path = self.write_rows([legacy, row("valid-2"), row("valid-3")])
