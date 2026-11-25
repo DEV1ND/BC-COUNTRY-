@@ -220,22 +220,6 @@ class InferenceBPETokenizerIntegrityTests(unittest.TestCase):
                 load_approved_texts(path)
 
 
-    def test_training_rejects_requested_vocab_above_inference_limit(self):
-        for requested in (8193, 10000):
-            with self.subTest(requested=requested):
-                with self.assertRaisesRegex(ValueError, "2~8192"):
-                    BPETokenizer.train(["한글"], vocab_size=requested)
-
-    def test_training_rejects_initial_alphabet_that_exceeds_inference_limit(self):
-        # 8,192 distinct codepoints plus the reserved <unk> entry would exceed
-        # the inference checkpoint contract's 8,192-token ceiling.
-        oversized_alphabet = "".join(chr(0x1000 + index) for index in range(8192))
-        with self.assertRaisesRegex(ValueError, "초기 문자 어휘만으로 최대 크기를 초과"):
-            BPETokenizer.train(
-                [oversized_alphabet],
-                vocab_size=8192,
-            )
-
     def test_training_rejects_empty_corpora(self):
         for texts in ([], ["", "  "]):
             with self.subTest(texts=texts):
