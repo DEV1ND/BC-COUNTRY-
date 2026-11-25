@@ -7,8 +7,8 @@ class QuantumEvalCandidateQueueTests(unittest.TestCase):
     def test_queue_is_not_mistaken_for_a_scored_benchmark(self):
         path = Path(__file__).resolve().parent / "quantum_eval_candidate_queue.json"
         rows = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual(len(rows), 80)
-        self.assertEqual(len({row["question"] for row in rows}), 80)
+        self.assertEqual(len(rows), 160)
+        self.assertEqual(len({row["question"] for row in rows}), 160)
         categories = {row["category"] for row in rows}
         self.assertEqual(len(categories), 16)
         for row in rows:
