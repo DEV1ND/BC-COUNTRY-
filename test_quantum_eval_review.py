@@ -45,6 +45,11 @@ class QuantumEvalReviewTests(unittest.TestCase):
         self.assertEqual(report["accepted_additions"][0]["answer"], "검토된 기준 답변")
         self.assertIn("덮어쓰지 않습니다", report["warning"])
 
+    def test_null_reference_answer_is_rejected(self):
+        report = review_eval_candidates([{**self.base, "reference_answer": None}], [], [])
+        self.assertEqual(report["accepted_count"], 0)
+        self.assertEqual(report["rejected_rows"][0]["reason"], "missing_reference_answer")
+
     def test_non_array_input_fails_closed(self):
         with self.assertRaises(ValueError):
             review_eval_candidates({}, [], [])
