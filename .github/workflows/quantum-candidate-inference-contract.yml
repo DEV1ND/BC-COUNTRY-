@@ -25,6 +25,7 @@ on:
       - quantum-candidate-no-fake-snapshot-fallback
     paths:
       - "quantum-inference/**"
+      - "quantum-lab-worker/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
 
 permissions:
