@@ -1,12 +1,17 @@
-"""Exercise the real FastAPI generation handler against the loaded local checkpoint."""
+"""Exercise real FastAPI generation against the loaded local 10M checkpoint."""
 import json
 import os
 
 os.environ.setdefault("QUANTUM_CHECKPOINT_PATH", "bpe_candidate_checkpoint.pt")
-from app import API_TOKEN, GenerateRequest, generate, model
+from app import API_TOKEN, GenerateRequest, generate, health, model, tokenizer
 
 if model is None:
     raise SystemExit("CHECKPOINT_NOT_LOADED")
+
+status = health()
+parameter_count = status.get("parameter_count", 0)
+if not 9_800_000 <= parameter_count <= 10_200_000:
+    raise SystemExit(f"UNEXPECTED_PARAMETER_COUNT: {parameter_count}")
 
 authorization = f"Bearer {API_TOKEN}" if API_TOKEN else None
 questions = [
@@ -16,6 +21,9 @@ questions = [
     "오늘 날씨 어때?",
 ]
 for question in questions:
+    prompt_text = "질문:" + question + "\\n답변:"
+    if tokenizer.decode(tokenizer.encode(prompt_text)) != prompt_text:
+        raise SystemExit(f"TOKENIZER_PROMPT_ROUNDTRIP_FAILED: {question}")
     result = generate(
         GenerateRequest(prompt=question, max_new_tokens=64, temperature=0.0),
         authorization=authorization,
@@ -29,6 +37,7 @@ for question in questions:
         "model": result.get("model"),
         "response_mode": result.get("response_mode"),
         "generated_token_count": result.get("generated_token_count"),
+        "parameter_count": parameter_count,
         "answer": result.get("answer"),
         "knowledge_sources": result.get("knowledge_sources", []),
     }, ensure_ascii=False))
