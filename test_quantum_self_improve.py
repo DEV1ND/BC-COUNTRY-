@@ -37,7 +37,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
         })
         self.assertIn("형광펜은 중요한 문장을 표시하는 필기구입니다.", prompt)
         self.assertIn("이전 답변을 정답으로 가정하지 마라", prompt)
-        self.assertIn("\\n", prompt)
+        self.assertIn("\n", prompt)
 
     def test_revision_prompt_keeps_draft_unverified(self):
         prompt = build_revision_prompt(
@@ -47,7 +47,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertIn("검토 내용", prompt)
         self.assertIn("검증 전 초안", prompt)
         self.assertIn("형광펜은 표시 도구입니다.", prompt)
-        self.assertIn("\\n", prompt)
+        self.assertIn("\n", prompt)
 
     def test_candidate_state_checksum_verified(self):
         with tempfile.TemporaryDirectory() as directory:
