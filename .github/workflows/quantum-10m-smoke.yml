@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 18 * * 0' # Monday 03:00 KST, weekly bounded run
+    - cron: '0 18 * * *' # Daily 03:00 KST, bounded run
   push:
     branches: [main, quantum-candidate-autonomous-diagnostics]
     paths:
@@ -30,7 +30,7 @@ concurrency:
 jobs:
   architecture-smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
