@@ -281,6 +281,7 @@ def main():
         and row.get("approved") is True
         and str(row.get("reviewed_by", "")).strip()
         and str(row.get("correction_source", "")).strip()
+        and str(row.get("source", "")).strip()
     ]
     rows = clean_pairs(source_rows + reviewed_feedback)
     if len(rows) < 10:
@@ -438,7 +439,7 @@ def main():
         "live_model_changed": False,
         "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
         "validation_scope": "deterministic_holdout_from_approved_training_extra",
-        "independent_evaluation_scope": "fixed_20_question_set_never_used_for_gradient_updates_or_bpe_merge_counts",
+        "independent_evaluation_scope": "bpe_independent_eval_never_used_for_gradient_updates_or_bpe_merge_counts",
         "independent_evaluation_pairs": len(independent_clean),
         "independent_bpe_bits_per_character": round(independent_bpe_bpc, 5),
         "independent_live_char_bits_per_character": round(independent_live_bpc, 5),
@@ -448,6 +449,7 @@ def main():
         "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
         "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),
+        "approved_feedback_pairs": len(reviewed_feedback),
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
         "bpe_merge_count": len(tokenizer.merges),
