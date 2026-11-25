@@ -12,6 +12,8 @@ on:
       - 'bpe_candidate_train.py'
       - 'quantum_feedback_approved.json'
       - 'quantum_self_improve.py'
+      - 'quantum_r2_checkpoint.py'
+      - 'quantum_storage_requirements.txt'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
