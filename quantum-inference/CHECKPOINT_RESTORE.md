@@ -4,7 +4,9 @@
 
 - Training produces a Candidate-only checkpoint.
 - The workflow encrypts `quantum-candidate.pt` with AES-256-GCM before upload.
-- Only `quantum-candidate.pt.enc` is attached to a GitHub Release. This repository is public, so the release asset is publicly downloadable ciphertext, never plaintext model weights.
+- `quantum-candidate.pt.enc` and `quantum-candidate-manifest.json` are attached to the same GitHub Release. The manifest records the ciphertext byte size and SHA-256 digest, and explicitly marks the artifact Candidate-only.
+- Render downloads the manifest and ciphertext from the same pinned tag, checks the exact asset name, schema, Candidate role, size, and SHA-256 before AES-GCM decryption. AES-GCM authentication remains the cryptographic integrity boundary; the manifest digest is an additional corruption/mismatch check.
+- This repository is public, so the release asset is publicly downloadable ciphertext, never plaintext model weights.
 - The AES-256-GCM key is not committed, written to release notes, or uploaded as an asset.
 - The release tag is pinned as `quantum-candidate-<GitHub run ID>`; the inference service does not follow a floating `latest` pointer.
 - Render downloads the selected encrypted asset at startup, authenticates and decrypts it in memory, then loads it with PyTorch `weights_only=True`.
@@ -29,7 +31,8 @@ The service must remain Candidate-only. Do not add these variables to the Produc
 
 - Missing release tag: the API reports the model as not loaded, preserving the current safe fallback.
 - Configured tag with missing key, missing asset, invalid URL, oversized asset, wrong key, or altered ciphertext: startup fails closed. It does not silently claim that the model loaded.
-- Only the exact encrypted asset name is accepted from the pinned release.
+- Only the exact manifest and encrypted asset names are accepted from the pinned release.
+- Missing, oversized, malformed, non-Candidate, size-mismatched, or digest-mismatched manifests fail closed before decryption.
 - Release assets are public ciphertext. Anyone can download them, but AES-256-GCM authentication prevents loading altered data and the key remains separate.
 - No R2 bucket, paid Render disk, Production service, Cloudflare Worker, D1, or KV mutation is required.
 
