@@ -57,6 +57,8 @@ class TokenizerCoverageAuditTests(unittest.TestCase):
             self.assertFalse(report["model_training_performed"])
             self.assertFalse(report["production_model_touched"])
             self.assertEqual(len(report["per_case"]), 2)
+            self.assertEqual(report["category_diagnostics"]["language"]["cases"], 2)
+            self.assertGreater(report["category_diagnostics"]["language"]["unknown_tokens"], 0)
             self.assertGreater(report["cases_with_unknown_tokens"], 0)
             self.assertTrue(output.exists())
 
