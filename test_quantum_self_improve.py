@@ -33,6 +33,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
         })
         self.assertIn("형광펜은 중요한 문장을 표시하는 필기구입니다.", prompt)
         self.assertIn("이전 답변을 정답으로 가정하지 마라", prompt)
+        self.assertIn("\\n", prompt)
 
     def test_probe_deduplication(self):
         rows = [
