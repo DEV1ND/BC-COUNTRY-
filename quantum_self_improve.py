@@ -7,6 +7,9 @@ to training data automatically.
 import argparse
 import json
 import re
+import os
+import shutil
+import hashlib
 import subprocess
 import sys
 import time
@@ -154,7 +157,33 @@ def main():
         "--parameter-tolerance", "0.02",
         "--seed", str(args.seed),
     ]
+    state_dir_value = os.environ.get("QUANTUM_CANDIDATE_STATE_DIR", "").strip()
+    state_dir = Path(state_dir_value).expanduser() if state_dir_value else None
+    state_checkpoint = state_dir / "candidate_latest.pt" if state_dir else None
+    resumed_checkpoint = bool(state_checkpoint and state_checkpoint.is_file())
+    if resumed_checkpoint:
+        command.extend(["--resume-checkpoint", str(state_checkpoint.resolve())])
     subprocess.run(command, cwd=ROOT, check=True)
+
+    checkpoint_source = ROOT / "bpe_candidate_checkpoint.pt"
+    persisted_checkpoint_sha256 = None
+    if state_dir is not None:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        temporary_checkpoint = state_dir / "candidate_latest.pt.tmp"
+        shutil.copy2(checkpoint_source, temporary_checkpoint)
+        temporary_checkpoint.replace(state_checkpoint)
+        persisted_checkpoint_sha256 = hashlib.sha256(state_checkpoint.read_bytes()).hexdigest()
+        state_manifest = {
+            "format": "juckex-quantum-candidate-state-v1",
+            "checkpoint": state_checkpoint.name,
+            "sha256": persisted_checkpoint_sha256,
+            "created_at_unix": int(time.time()),
+            "resumed_from_previous": resumed_checkpoint,
+            "note": "Candidate only; never a Production model pointer.",
+        }
+        temporary_manifest = state_dir / "candidate_latest.manifest.json.tmp"
+        temporary_manifest.write_text(json.dumps(state_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary_manifest.replace(state_dir / "candidate_latest.manifest.json")
 
     train_report = json.loads((ROOT / "bpe_candidate_report.json").read_text(encoding="utf-8"))
     generation_path = ROOT / f"bpe_generation_seed_{args.seed}.json"
@@ -215,6 +244,10 @@ def main():
         "duration_seconds": round(time.time() - started, 2),
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
+        "resumed_from_previous_candidate": resumed_checkpoint,
+        "persistent_candidate_state_configured": state_dir is not None,
+        "persisted_checkpoint_sha256": persisted_checkpoint_sha256,
+        "cumulative_training_steps": train_report.get("cumulative_training_steps"),
         "training_pairs": len(approved),
         "approved_feedback_pairs": len(approved_feedback),
         "independent_evaluation_questions": len(evaluation),
