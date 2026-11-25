@@ -59,6 +59,6 @@ jobs:
             test_review_generation_evaluation.py \
             test_export_generation_review_template.py \
             test_enrich_generation_report.py \
-            test_generation_benchmark_v2.py
+            test_generation_benchmark_v2.py \
             test_tokenizer_coverage.py \
             test_audit_tokenizer_coverage.py
