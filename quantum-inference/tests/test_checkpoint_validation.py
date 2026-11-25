@@ -120,7 +120,7 @@ class CheckpointValidationTests(unittest.TestCase):
 
     def test_rejects_training_architecture_mismatch(self):
         payload = valid_payload(self.tokenizer)
-        payload["training_metadata"]["architecture"]["layers"] = 3
+        payload["training_metadata"]["architecture"] = dict(payload["architecture"], layers=3)
         with self.assertRaisesRegex(ValueError, "architecture"):
             validate_candidate_checkpoint(payload, self.model, self.tokenizer)
 
