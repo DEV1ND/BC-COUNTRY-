@@ -17,6 +17,7 @@
 자기비판과 수정 초안은 독립적인 사실 검증이 아닙니다. 생성 답변은 자동으로 학습 데이터에 추가하지 않습니다.
 
 ## 학습 데이터 보호
+- `training_extra.json`의 학습 행은 `approved: true`와 비어 있지 않은 `source`가 모두 있어야 학습에 포함됩니다.
 - `quantum_feedback_approved.json`에는 사람이 실제로 수정하고 검토한 답변만 추가합니다.
 - 피드백 행에는 `approved: true`, `reviewed_by`, `correction_source`, `source`, `question`, `answer`가 필요합니다.
 - 승인된 피드백만 후보 학습에 반영합니다.
