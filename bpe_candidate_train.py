@@ -258,6 +258,10 @@ def candidate_non_regression_vs_parent(parent_bpc, candidate_bpc):
         return False
     return candidate_value <= parent_value + 1e-6
 
+def candidate_learning_rate(resumed):
+    """Use a smaller update when continuing an existing Candidate checkpoint."""
+    return 3e-5 if resumed else 3e-4
+
 
 def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
     prompt = "질문:" + question + "\n답변:"
@@ -433,7 +437,8 @@ def main():
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
-    optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
+    learning_rate = candidate_learning_rate(resume_payload is not None)
+    optimizer = torch.optim.AdamW(candidate.parameters(), lr=learning_rate, weight_decay=0.01)
     candidate.train()
     losses = []
     validation_curve = []
@@ -442,7 +447,7 @@ def main():
     best_state = None
     stale_evaluations = 0
     total_steps = max(1, min(args.steps, 5000))
-    eval_interval = 100
+    eval_interval = 50
     for step in range(1, total_steps + 1):
         x, y = make_batch(train_examples, batch_size=8)
         optimizer.zero_grad(set_to_none=True)
@@ -465,7 +470,7 @@ def main():
                 stale_evaluations = 0
             else:
                 stale_evaluations += 1
-            if stale_evaluations >= 5:
+            if stale_evaluations >= 4:
                 break
 
     if best_state is None:
@@ -555,6 +560,9 @@ def main():
         "bpe_merge_count": len(tokenizer.merges),
         "steps": len(losses),
         "best_step": best_step,
+        "learning_rate": learning_rate,
+        "evaluation_interval": eval_interval,
+        "early_stopping_patience": 4,
         "seed": args.seed,
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
