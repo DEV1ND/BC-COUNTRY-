@@ -10,11 +10,6 @@ from pydantic import BaseModel, Field
 from bpe_tokenizer import BPETokenizer
 from wikipedia_seed import seed_wikipedia
 
-# Reuse the project's conservative, local-only retrieval over reviewed Q&A.
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from quantum_retrieval import retrieve as retrieve_approved_qa
-
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
     try:
@@ -155,7 +150,10 @@ def health():
     return {"ok": True, "model_loaded": model is not None,
             "model": "Quantum BPE 10M candidate", "checkpoint_steps": checkpoint_meta.get("steps") if checkpoint_meta else None,
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
-            "approved_qa_pairs": len(APPROVED_QA_ROWS), "qa_retrieval_enabled": bool(APPROVED_QA_ROWS),
+            "approved_qa_pairs_available_for_training": len(APPROVED_QA_ROWS),
+            "qa_answer_shortcut_enabled": False,
+            "parameter_count": sum(p.numel() for p in model.parameters()) if model is not None else 0,
+            "checkpoint_architecture": checkpoint_meta.get("architecture") if checkpoint_meta else None,
             "wikipedia_seed": wikipedia_seed_status,
             "production_model_touched": False}
 
@@ -223,22 +221,6 @@ def training_status(authorization: Optional[str] = Header(default=None)):
 def generate(req: GenerateRequest, authorization: Optional[str] = Header(default=None)):
     if API_TOKEN and authorization != "Bearer " + API_TOKEN:
         raise HTTPException(401, "인증이 필요합니다.")
-    # Prefer a high-confidence answer from Quantum's own reviewed dataset.
-    # Intent and margin checks prevent a loose topic match from returning an unrelated answer.
-    qa_match = retrieve_approved_qa(req.prompt, APPROVED_QA_ROWS)
-    if qa_match.get("matched"):
-        return {
-            "answer": qa_match["answer"],
-            "model": "quantum-approved-knowledge",
-            "is_live_inference": True,
-            "response_mode": "approved_qa_retrieval",
-            "retrieval_match": {
-                "question": qa_match.get("question"),
-                "score": qa_match.get("score"),
-                "margin": qa_match.get("margin"),
-            },
-            "quality_warning": "검수된 Quantum 자체 Q&A 자료에서 검색한 답변입니다.",
-        }
     if model is None:
         raise HTTPException(503, "Quantum 체크포인트가 아직 연결되지 않았습니다.")
     knowledge = retrieve_knowledge(req.prompt, limit=3)
