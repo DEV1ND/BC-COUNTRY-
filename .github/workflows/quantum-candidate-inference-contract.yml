@@ -5,6 +5,7 @@ on:
     branches:
       - quantum-candidate-security-hardening
       - quantum-candidate-tokenizer-coverage-audit
+      - quantum-candidate-tokenizer-vocab-cap
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
@@ -17,6 +18,7 @@ on:
       - quantum-candidate-model-tokenizer-contract
       - quantum-candidate-evaluation-provenance-v2
       - quantum-candidate-evaluation-benchmark-v2
+      - quantum-candidate-tokenizer-coverage-audit
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
