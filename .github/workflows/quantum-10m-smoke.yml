@@ -21,6 +21,8 @@ on:
       - 'test_quantum_training_data.py'
       - 'quantum_eval_candidate_queue.json'
       - 'test_quantum_eval_candidate_queue.py'
+      - 'quantum_eval_review.py'
+      - 'test_quantum_eval_review.py'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
@@ -61,7 +63,7 @@ jobs:
       - name: Audit datasets and run regression tests
         run: |
           python quantum_dataset_audit.py
-          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_quantum_training_data.py test_quantum_eval_candidate_queue.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
+          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_quantum_training_data.py test_quantum_eval_candidate_queue.py test_quantum_eval_review.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
       - name: Verify and smoke-train Quantum 10M
         env:
           QUANTUM_CANDIDATE_STATE_DIR: ${{ github.workspace }}/.quantum-candidate-state
