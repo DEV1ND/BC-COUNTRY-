@@ -12,8 +12,6 @@ on:
       - 'bpe_candidate_train.py'
       - 'quantum_feedback_approved.json'
       - 'quantum_self_improve.py'
-      - 'quantum_r2_checkpoint.py'
-      - 'quantum_storage_requirements.txt'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
@@ -23,13 +21,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  QUANTUM_R2_ACCOUNT_ID: ${{ secrets.QUANTUM_R2_ACCOUNT_ID }}
-  QUANTUM_R2_ACCESS_KEY_ID: ${{ secrets.QUANTUM_R2_ACCESS_KEY_ID }}
-  QUANTUM_R2_SECRET_ACCESS_KEY: ${{ secrets.QUANTUM_R2_SECRET_ACCESS_KEY }}
-  QUANTUM_R2_BUCKET: ${{ secrets.QUANTUM_R2_BUCKET }}
-  QUANTUM_R2_CONFIGURED: ${{ secrets.QUANTUM_R2_ACCOUNT_ID != '' && secrets.QUANTUM_R2_ACCESS_KEY_ID != '' && secrets.QUANTUM_R2_SECRET_ACCESS_KEY != '' && secrets.QUANTUM_R2_BUCKET != '' }}
 
 concurrency:
   group: juckex-quantum-10m-smoke
@@ -52,22 +43,28 @@ jobs:
       - name: Install CPU training dependencies
         run: pip install -r requirements.txt
 
-      - name: Install optional private R2 checkpoint client
-        if: ${{ env.QUANTUM_R2_CONFIGURED == 'true' }}
-        run: pip install -r quantum_storage_requirements.txt
+      # Candidate weights stay in the repository's free 10 GB Actions cache.
+      # The cache is best-effort and expires after 7 days without access.
+      - name: Restore previous Candidate checkpoint from free cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/quantum-candidate-state
+          key: quantum-candidate-state-${{ github.run_id }}
+          restore-keys: |
+            quantum-candidate-state-
 
-      - name: Restore previous Candidate from private R2
-        if: ${{ env.QUANTUM_R2_CONFIGURED == 'true' }}
-        run: python quantum_r2_checkpoint.py download --state-dir "${{ runner.temp }}/quantum-candidate-state"
+      - name: Prepare Candidate state directory
+        run: mkdir -p "${{ runner.temp }}/quantum-candidate-state"
 
       - name: Run regression tests
         run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py
 
       - name: Verify and smoke-train Quantum 10M
         env:
-          QUANTUM_CANDIDATE_STATE_DIR: ${{ env.QUANTUM_R2_CONFIGURED == 'true' && format('{0}/quantum-candidate-state', runner.temp) || '' }}
+          QUANTUM_CANDIDATE_STATE_DIR: ${{ runner.temp }}/quantum-candidate-state
+          QUANTUM_CANDIDATE_STATE_BACKEND: github-actions-cache-best-effort
         run: |
-          python quantum_self_improve.py --steps 500 --vocab-size 1024 --seed 20261125
+          python quantum_self_improve.py --steps 500 --vocab-size 1024 --seed ${{ github.run_number }}
           python - <<'PY'
           import json
           from pathlib import Path
@@ -84,12 +81,14 @@ jobs:
           }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Persist latest Candidate to private R2
-        if: ${{ env.QUANTUM_R2_CONFIGURED == 'true' }}
-        run: python quantum_r2_checkpoint.py upload --state-dir "${{ runner.temp }}/quantum-candidate-state"
+      - name: Save improved Candidate checkpoint to free cache
+        if: ${{ success() }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/quantum-candidate-state
+          key: quantum-candidate-state-${{ github.run_id }}
 
-      # This repository is public. Never attach model weights to its workflow artifacts.
-      # Keep only non-weight experiment metadata here until a private checkpoint store is verified.
+      # This repository is public. Never attach model checkpoint weights to artifacts.
       - name: Upload experiment reports only (no model checkpoint)
         uses: actions/upload-artifact@v4
         with:
@@ -105,4 +104,4 @@ jobs:
             quantum_self_reflection.json
             quantum_next_cycle_probes.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
