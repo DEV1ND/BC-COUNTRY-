@@ -50,6 +50,15 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
         self.assertEqual(new_model.token.weight.shape[0], len(new_tokenizer.vocab))
         self.assertEqual(new_model.output.weight.shape[0], len(new_tokenizer.vocab))
 
+    def test_tokenizer_does_not_add_evaluation_only_characters(self):
+        tokenizer = BPETokenizer.train(
+            ["훈련 질문과 답변"],
+            vocab_size=32,
+            min_pair_frequency=2,
+        )
+        self.assertNotIn("평", tokenizer.stoi)
+        self.assertEqual(tokenizer.encode("평"), [0])
+
     def test_resume_rejects_removed_old_token(self):
         old_tokenizer = BPETokenizer.train(["abc"], vocab_size=16)
         old_model = BPECandidate(len(old_tokenizer.vocab), width=16, heads=4, layers=1)
