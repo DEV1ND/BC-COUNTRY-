@@ -133,7 +133,7 @@ def summarize_generation_diagnostics(samples):
         bucket["too_short_count"] += int(len(answer.strip()) < 12)
         bucket["overlong_count"] += int(len(answer) > 800)
         bucket["mean_characters"] += len(answer)
-        normalized = re.sub(r"\\s+", "", answer).casefold()
+        normalized = re.sub(r"\s+", "", answer).casefold()
         if normalized:
             normalized_answers.setdefault(normalized, 0)
             normalized_answers[normalized] += 1
@@ -164,7 +164,7 @@ def summarize_probe_variation(probe_samples):
         groups.setdefault(base, []).append(str(sample.get("generated_answer", "")))
     results = []
     for question, answers in sorted(groups.items()):
-        normalized = [re.sub(r"\\s+", "", answer).casefold() for answer in answers]
+        normalized = [re.sub(r"\s+", "", answer).casefold() for answer in answers]
         nonempty = [answer for answer in normalized if answer]
         results.append({
             "question": question,
