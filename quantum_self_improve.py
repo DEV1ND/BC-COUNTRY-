@@ -180,26 +180,6 @@ def main():
     checkpoint_source = ROOT / "bpe_candidate_checkpoint.pt"
     persisted_checkpoint_sha256 = None
     persisted_checkpoint_updated = False
-    if state_dir is not None and train_report.get("candidate_better_on_independent_set") is True:
-        state_dir.mkdir(parents=True, exist_ok=True)
-        state_checkpoint = state_dir / "candidate_latest.pt"
-        temporary_checkpoint = state_dir / "candidate_latest.pt.tmp"
-        shutil.copy2(checkpoint_source, temporary_checkpoint)
-        temporary_checkpoint.replace(state_checkpoint)
-        persisted_checkpoint_sha256 = hashlib.sha256(state_checkpoint.read_bytes()).hexdigest()
-        state_manifest = {
-            "format": "juckex-quantum-candidate-state-v1",
-            "checkpoint": state_checkpoint.name,
-            "sha256": persisted_checkpoint_sha256,
-            "created_at_unix": int(time.time()),
-            "resumed_from_previous": resumed_checkpoint,
-            "cumulative_training_steps": train_report.get("cumulative_training_steps"),
-            "note": "Candidate only; never a Production model pointer.",
-        }
-        temporary_manifest = state_dir / "candidate_latest.manifest.json.tmp"
-        temporary_manifest.write_text(json.dumps(state_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary_manifest.replace(state_dir / "candidate_latest.manifest.json")
-        persisted_checkpoint_updated = True
     generation_path = ROOT / f"bpe_generation_seed_{args.seed}.json"
     generation_report = json.loads(generation_path.read_text(encoding="utf-8"))
     samples = generation_report.get("samples", [])
@@ -278,6 +258,46 @@ def main():
         )
     review_queue.extend(reflection_review_queue)
 
+    # Cache a Candidate only when both the independent loss comparison and
+    # reference-answer generation diagnostics pass. Self-play probes and
+    # self-critiques are not treated as ground truth.
+    reference_review_queue = build_review_queue(samples)
+    reference_count = len(samples)
+    reference_nonempty = sum(1 for sample in samples if str(sample.get("generated_answer", "")).strip())
+    reference_replacements = sum(1 for sample in samples if "�" in str(sample.get("generated_answer", "")))
+    reference_flagged = len(reference_review_queue)
+    reference_flag_limit = max(1, math.ceil(reference_count * 0.25))
+    reference_generation_quality_passed = (
+        reference_count > 0
+        and reference_nonempty / reference_count >= 0.95
+        and reference_replacements == 0
+        and reference_flagged <= reference_flag_limit
+    )
+    candidate_cache_eligible = (
+        train_report.get("candidate_better_on_independent_set") is True
+        and reference_generation_quality_passed
+    )
+    if state_dir is not None and candidate_cache_eligible:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        state_checkpoint = state_dir / "candidate_latest.pt"
+        temporary_checkpoint = state_dir / "candidate_latest.pt.tmp"
+        shutil.copy2(checkpoint_source, temporary_checkpoint)
+        temporary_checkpoint.replace(state_checkpoint)
+        persisted_checkpoint_sha256 = hashlib.sha256(state_checkpoint.read_bytes()).hexdigest()
+        state_manifest = {
+            "format": "juckex-quantum-candidate-state-v1",
+            "checkpoint": state_checkpoint.name,
+            "sha256": persisted_checkpoint_sha256,
+            "created_at_unix": int(time.time()),
+            "resumed_from_previous": resumed_checkpoint,
+            "cumulative_training_steps": train_report.get("cumulative_training_steps"),
+            "note": "Candidate only; never a Production model pointer.",
+        }
+        temporary_manifest = state_dir / "candidate_latest.manifest.json.tmp"
+        temporary_manifest.write_text(json.dumps(state_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary_manifest.replace(state_dir / "candidate_latest.manifest.json")
+        persisted_checkpoint_updated = True
+
     report = {
         "created_at_unix": int(time.time()),
         "duration_seconds": round(time.time() - started, 2),
@@ -287,6 +307,13 @@ def main():
         "candidate_state_backend": state_backend if state_dir is not None else "ephemeral-local",
         "persistent_candidate_state_configured": state_dir is not None and state_backend == "persistent",
         "candidate_checkpoint_cache_updated": persisted_checkpoint_updated,
+        "candidate_cache_eligible": candidate_cache_eligible,
+        "reference_generation_quality_passed": reference_generation_quality_passed,
+        "reference_generation_count": reference_count,
+        "reference_generation_nonempty_count": reference_nonempty,
+        "reference_generation_replacement_count": reference_replacements,
+        "reference_generation_flagged_count": reference_flagged,
+        "reference_generation_flag_limit": reference_flag_limit,
         "persisted_checkpoint_sha256": persisted_checkpoint_sha256,
         "cumulative_training_steps": train_report.get("cumulative_training_steps"),
         "training_pairs": len(approved),
