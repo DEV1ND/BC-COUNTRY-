@@ -76,6 +76,16 @@ class QuantumSelfImproveTests(unittest.TestCase):
             checkpoint.write_bytes(b"tampered")
             with self.assertRaises(RuntimeError):
                 verify_candidate_state(root)
+    def test_empty_candidate_state_starts_fresh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertIsNone(verify_candidate_state(Path(directory)))
+
+    def test_orphan_checkpoint_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "candidate_latest.pt").write_bytes(b"orphan")
+            with self.assertRaises(RuntimeError):
+                verify_candidate_state(root)
     def test_probe_deduplication(self):
         rows = [
             {"question": "태양계란 무엇인가요?"},
