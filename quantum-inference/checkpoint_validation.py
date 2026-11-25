@@ -19,6 +19,20 @@ def _strict_int(value, name, minimum=1, maximum=None):
     return value
 
 
+def validate_architecture(architecture, block_size=256):
+    if not isinstance(architecture, dict):
+        raise ValueError("Candidate checkpoint architecture metadata is missing.")
+    width = _strict_int(architecture.get("width"), "width", 8, 4096)
+    heads = _strict_int(architecture.get("heads"), "heads", 1, 64)
+    layers = _strict_int(architecture.get("layers"), "layers", 1, 8)
+    declared_block = _strict_int(architecture.get("block"), "block", 1, 4096)
+    if width % heads:
+        raise ValueError("Candidate checkpoint width must be divisible by heads.")
+    if declared_block != block_size:
+        raise ValueError("Candidate checkpoint block size does not match inference BLOCK.")
+    return {"width": width, "heads": heads, "layers": layers, "block": declared_block}
+
+
 def validate_candidate_checkpoint(payload, model, tokenizer, block_size=256):
     """Reject checkpoints whose declared architecture or tokenizer disagrees with loaded tensors."""
     if not isinstance(payload, dict):
@@ -29,16 +43,11 @@ def validate_candidate_checkpoint(payload, model, tokenizer, block_size=256):
         raise ValueError("Candidate checkpoint requires a constructed model and tokenizer.")
 
     architecture = payload.get("architecture")
-    if not isinstance(architecture, dict):
-        raise ValueError("Candidate checkpoint architecture metadata is missing.")
-    width = _strict_int(architecture.get("width"), "width", 8)
-    heads = _strict_int(architecture.get("heads"), "heads")
-    layers = _strict_int(architecture.get("layers"), "layers", 1, 8)
-    declared_block = _strict_int(architecture.get("block"), "block")
-    if width % heads:
-        raise ValueError("Candidate checkpoint width must be divisible by heads.")
-    if declared_block != block_size:
-        raise ValueError("Candidate checkpoint block size does not match inference BLOCK.")
+    validated_architecture = validate_architecture(architecture, block_size)
+    width = validated_architecture["width"]
+    heads = validated_architecture["heads"]
+    layers = validated_architecture["layers"]
+    declared_block = validated_architecture["block"]
 
     training = payload.get("training_metadata")
     if not isinstance(training, dict):
