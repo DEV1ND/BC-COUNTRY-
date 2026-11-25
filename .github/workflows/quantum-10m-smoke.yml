@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *' # Every 6 hours; bounded run, not continuous inference
+    - cron: '0 */6 * * *' # Runs only when this workflow exists on the default branch
   push:
     branches: [main, quantum-candidate-autonomous-diagnostics]
     paths:
@@ -15,6 +15,8 @@ on:
       - 'test_bpe_candidate_resume.py'
       - 'quantum_feedback_approved.json'
       - 'quantum_self_improve.py'
+      - 'quantum_dataset_audit.py'
+      - 'test_quantum_dataset_audit.py'
       - 'quantum_training_data.py'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
@@ -47,8 +49,8 @@ jobs:
       - name: Install CPU training dependencies
         run: pip install -r requirements.txt
 
-      # Candidate weights stay in the repository's free 10 GB Actions cache.
-      # The cache is best-effort and expires after 7 days without access.
+      # Candidate weights stay in the repository's free Actions cache.
+      # The cache is best-effort and expires after inactivity.
       - name: Restore previous Candidate checkpoint from free cache
         uses: actions/cache/restore@v4
         with:
@@ -60,8 +62,10 @@ jobs:
       - name: Prepare Candidate state directory
         run: mkdir -p "${{ github.workspace }}/.quantum-candidate-state"
 
-      - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
+      - name: Audit datasets and run regression tests
+        run: |
+          python quantum_dataset_audit.py
+          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
 
       - name: Verify and smoke-train Quantum 10M
         env:
@@ -102,6 +106,7 @@ jobs:
             bpe_candidate.json
             bpe_generation_seed_*.json
             quantum_self_improvement_report.json
+            quantum_dataset_audit_report.json
             quantum_review_queue.json
             quantum_reflection_review_queue.json
             quantum_probe_answers.json
