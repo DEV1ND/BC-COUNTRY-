@@ -11,7 +11,7 @@ from pathlib import Path
 import torch
 
 from bpe_tokenizer import BPETokenizer
-from checkpoint_validation import validate_tokenizer_payload, tokenizer_fingerprint
+from checkpoint_validation import validate_tokenizer_payload, tokenizer_fingerprint, validate_architecture
 from run_generation_benchmark import validate_benchmark_dataset
 from tokenizer_diagnostics import summarize_tokenizer_coverage
 
@@ -28,9 +28,16 @@ def audit_checkpoint_tokenizer(checkpoint_path, benchmark_path, output_path):
     payload = torch.load(checkpoint_file, map_location="cpu", weights_only=True)
     if not isinstance(payload, dict) or payload.get("checkpoint_schema_version") != 1:
         raise ValueError("A schema-v1 Candidate checkpoint is required.")
+    architecture = validate_architecture(payload.get("architecture"), block_size=256)
+    training = payload.get("training_metadata")
+    if not isinstance(training, dict) or training.get("architecture") != payload.get("architecture"):
+        raise ValueError("Candidate checkpoint training architecture metadata is inconsistent.")
     tokenizer_payload = payload.get("tokenizer")
     validate_tokenizer_payload(tokenizer_payload)
     tokenizer = BPETokenizer.from_dict(tokenizer_payload)
+    actual_tokenizer_hash = tokenizer_fingerprint(tokenizer)
+    if training.get("tokenizer_sha256") != actual_tokenizer_hash:
+        raise ValueError("Candidate checkpoint tokenizer fingerprint does not match tokenizer payload.")
 
     dataset_raw = benchmark_file.read_bytes()
     dataset = json.loads(dataset_raw.decode("utf-8"))
@@ -57,7 +64,6 @@ def audit_checkpoint_tokenizer(checkpoint_path, benchmark_path, output_path):
             "exceeds_model_block": diagnostic["encoded_tokens"] > 256,
         })
 
-    training = payload.get("training_metadata", {})
     report_doc = {
         "report_schema": "juckex-quantum-tokenizer-coverage-v1",
         "benchmark_id": dataset["benchmark_id"],
@@ -72,7 +78,7 @@ def audit_checkpoint_tokenizer(checkpoint_path, benchmark_path, output_path):
             "architecture": training.get("architecture"),
         },
         "vocab_size": len(tokenizer.vocab),
-        "model_block_size": 256,
+        "model_block_size": architecture["block"],
         "coverage": {key: value for key, value in report.items() if key != "per_text"},
         "per_case": per_case,
         "cases_with_unknown_tokens": sum(1 for item in per_case if item["unknown_tokens"]),
