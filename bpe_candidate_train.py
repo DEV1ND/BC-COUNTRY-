@@ -375,7 +375,7 @@ def main():
             raise RuntimeError(f"체크포인트 구조 불일치: saved={saved_arch}, requested={expected_arch}")
         known_chars = set(tokenizer.initial_symbols)
         unseen_chars = sorted({
-            char for row in rows + independent_clean for char in row["text"]
+            char for row in train_rows for char in row["text"]
             if char not in known_chars
         })
         if unseen_chars:
@@ -392,7 +392,6 @@ def main():
             [row["text"] for row in train_rows],
             vocab_size=args.vocab_size,
             min_pair_frequency=2,
-            extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
         )
     train_sequences = encode_rows(train_rows, tokenizer)
     augmented_train_rows = augment_training_rows(train_rows)
@@ -403,9 +402,9 @@ def main():
     independent_bpe = encode_rows(independent_clean, tokenizer)
     independent_char = [live.encode_text(row["text"])[0] for row in independent_clean]
 
-    roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows)
-    if roundtrip_passed != len(rows):
-        raise RuntimeError(f"BPE 왕복 변환 검증 실패: {roundtrip_passed}/{len(rows)}")
+    roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in train_rows)
+    if roundtrip_passed != len(train_rows):
+        raise RuntimeError(f"BPE 학습 데이터 왕복 변환 검증 실패: {roundtrip_passed}/{len(train_rows)}")
     tokenizer_payload = tokenizer.to_dict()
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
@@ -416,7 +415,7 @@ def main():
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
         "roundtrip_passed": roundtrip_passed,
-        "roundtrip_total": len(rows),
+        "roundtrip_total": len(train_rows),
         "live_model_changed": False,
     }
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
