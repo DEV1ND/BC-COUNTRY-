@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, summarize_generation_diagnostics, summarize_probe_variation, summarize_revision_effect, verify_candidate_state
+from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, summarize_generation_diagnostics, summarize_probe_variation, summarize_revision_effect, summarize_review_queue_counts, verify_candidate_state
 from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
@@ -173,6 +173,22 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertEqual(result["empty_revision_count"], 1)
         self.assertEqual(result["by_category"]["과학"]["count"], 2)
         self.assertIn("정확성", result["metric_warning"])
+
+
+    def test_review_queue_counts_are_separated_by_generation_stage(self):
+        reference = [{"question": "R", "generated_answer": "짧음"}]
+        probes = [{"question": "P", "generated_answer": ""}]
+        reflections = [
+            {"question": "R", "generated_answer": "짧음", "diagnostic_stage": "self_reflection"},
+            {"question": "R", "generated_answer": "충분히 긴 수정 답변입니다.", "diagnostic_stage": "self_revision"},
+        ]
+        result = summarize_review_queue_counts(reference, probes, reflections)
+        self.assertEqual(result["reference_answers"], 1)
+        self.assertEqual(result["follow_up_probes"], 1)
+        self.assertEqual(result["self_reflections"], 1)
+        self.assertEqual(result["self_revisions"], 0)
+        self.assertEqual(result["total_flagged_outputs"], 3)
+        self.assertIn("정확도", result["metric_warning"])
 
     def test_independent_evaluation_has_broad_domain_coverage(self):
         rows = json.loads((Path(__file__).resolve().parent / "bpe_independent_eval.json").read_text(encoding="utf-8"))
