@@ -6,6 +6,8 @@ on:
     paths:
       - 'quantum_self_improve.py'
       - 'test_quantum_self_improve.py'
+      - 'quantum_dataset_audit.py'
+      - 'test_quantum_dataset_audit.py'
       - 'quantum_feedback_approved.json'
       - 'bpe_candidate_train.py'
       - 'test_bpe_tokenizer.py'
@@ -19,6 +21,8 @@ on:
     paths:
       - 'quantum_self_improve.py'
       - 'test_quantum_self_improve.py'
+      - 'quantum_dataset_audit.py'
+      - 'test_quantum_dataset_audit.py'
       - 'quantum_feedback_approved.json'
       - 'bpe_candidate_train.py'
       - 'bpe_tokenizer.py'
@@ -42,6 +46,8 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile self-improvement and training modules
-        run: python -m py_compile quantum_self_improve.py bpe_candidate_train.py bpe_tokenizer.py quantum_training_data.py
-      - name: Test bounded self-play safety
-        run: python -m unittest test_quantum_self_improve.py test_bpe_tokenizer.py
+        run: python -m py_compile quantum_self_improve.py quantum_dataset_audit.py bpe_candidate_train.py bpe_tokenizer.py quantum_training_data.py
+      - name: Audit training and evaluation datasets
+        run: python quantum_dataset_audit.py
+      - name: Test bounded self-play and dataset integrity
+        run: python -m unittest test_quantum_self_improve.py test_quantum_dataset_audit.py test_bpe_tokenizer.py
