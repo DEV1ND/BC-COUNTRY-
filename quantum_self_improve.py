@@ -96,6 +96,24 @@ def assess_reference_generation(samples, max_flagged_ratio=0.25):
     }
 
 
+def summarize_category_metrics(samples):
+    buckets = {}
+    for sample in samples:
+        category = str(sample.get("category", "미분류")).strip() or "미분류"
+        score = sample.get("reference_char_bigram_f1_proxy")
+        if not isinstance(score, (int, float)):
+            continue
+        buckets.setdefault(category, []).append(float(score))
+    return {
+        category: {
+            "count": len(scores),
+            "mean_reference_char_bigram_f1_proxy": round(sum(scores) / len(scores), 5),
+            "metric_warning": "문자 bigram 유사도 참고치이며 의미적 정답률이 아닙니다.",
+        }
+        for category, scores in sorted(buckets.items())
+    }
+
+
 def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
     answer = str(sample.get("generated_answer", "")).strip()[:500]
@@ -316,8 +334,10 @@ def main():
         temporary_manifest.replace(state_dir / "candidate_latest.manifest.json")
         persisted_checkpoint_updated = True
 
+    category_metrics = summarize_category_metrics(samples)
     report = {
         "created_at_unix": int(time.time()),
+        "evaluation_category_metrics": category_metrics,
         "duration_seconds": round(time.time() - started, 2),
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
