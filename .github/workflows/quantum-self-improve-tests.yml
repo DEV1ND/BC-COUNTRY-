@@ -1,0 +1,28 @@
+name: Quantum self-improvement safety tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'quantum_self_improve.py'
+      - 'test_quantum_self_improve.py'
+      - 'quantum_feedback_approved.json'
+      - 'bpe_candidate_train.py'
+      - 'bpe_independent_eval.json'
+      - 'QUANTUM_SELF_IMPROVEMENT.md'
+      - '.github/workflows/quantum-self-improve-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  self-improve-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test bounded self-play safety
+        run: python -m unittest test_quantum_self_improve.py
