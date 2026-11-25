@@ -106,7 +106,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
 
     def test_generation_quality_gate_rejects_many_flagged_answers(self):
         samples = [
-            {"question": f"Q{i}", "generated_answer": "짧음"}
+            {"question": f"Q{i}", "generated_answer": "짧음", "reference_char_bigram_f1_proxy": 0.0}
             for i in range(8)
         ]
         result = assess_reference_generation(samples)
@@ -115,16 +115,26 @@ class QuantumSelfImproveTests(unittest.TestCase):
 
     def test_generation_quality_gate_accepts_clean_reference_answers(self):
         samples = [
-            {"question": f"Q{i}", "generated_answer": "이 답변은 검토 기준을 통과하는 충분한 길이의 문장입니다."}
+            {"question": f"Q{i}", "generated_answer": "이 답변은 검토 기준을 통과하는 충분한 길이의 문장입니다.", "reference_char_bigram_f1_proxy": 0.35}
             for i in range(8)
         ]
         result = assess_reference_generation(samples)
         self.assertTrue(result["passed"])
         self.assertEqual(result["replacement_count"], 0)
 
+    def test_generation_quality_gate_rejects_low_question_answer_overlap(self):
+        samples = [
+            {"question": f"Q{i}", "generated_answer": "충분히 긴 무관한 답변입니다.", "reference_char_bigram_f1_proxy": 0.05}
+            for i in range(8)
+        ]
+        result = assess_reference_generation(samples)
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["lexical_overlap_gate_passed"])
+        self.assertEqual(result["mean_reference_char_bigram_f1_proxy"], 0.05)
+
     def test_generation_quality_gate_rejects_replacement_characters(self):
         samples = [
-            {"question": f"Q{i}", "generated_answer": "이 답변에는 � 대체 문자가 포함되어 있습니다."}
+            {"question": f"Q{i}", "generated_answer": "이 답변에는 � 대체 문자가 포함되어 있습니다.", "reference_char_bigram_f1_proxy": 0.35}
             for i in range(8)
         ]
         self.assertFalse(assess_reference_generation(samples)["passed"])
@@ -176,7 +186,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
 
 
     def test_review_queue_counts_are_separated_by_generation_stage(self):
-        reference = [{"question": "R", "generated_answer": "짧음"}]
+        reference = [{"question": "R", "generated_answer": "짧음", "reference_char_bigram_f1_proxy": 0.0}]
         probes = [{"question": "P", "generated_answer": ""}]
         reflections = [
             {"question": "R", "generated_answer": "짧음", "diagnostic_stage": "self_reflection"},
