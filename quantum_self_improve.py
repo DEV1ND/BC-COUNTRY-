@@ -211,7 +211,10 @@ def main():
     (ROOT / "quantum_review_queue.json").write_text(
         json.dumps(review_queue, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (ROOT / "quantum_self_reflection.json").write_text(\n        json.dumps(reflections, ensure_ascii=False, indent=2), encoding="utf-8"\n    )\n    (ROOT / "quantum_next_cycle_probes.json").write_text(
+    (ROOT / "quantum_self_reflection.json").write_text(
+        json.dumps(reflections, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (ROOT / "quantum_next_cycle_probes.json").write_text(
         json.dumps(probes, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
