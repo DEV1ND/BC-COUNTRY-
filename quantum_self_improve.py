@@ -146,11 +146,10 @@ def main():
     generation_path = ROOT / f"bpe_generation_seed_{args.seed}.json"
     generation_report = json.loads(generation_path.read_text(encoding="utf-8"))
     samples = generation_report.get("samples", [])
-    review_queue = build_review_queue(samples)
     probes = build_probes(evaluation)
 
-    # One bounded self-reflection pass: each candidate answer becomes context
-    # for exactly one follow-up generation. Reflection is diagnostic only.
+    # Ask the candidate every generated follow-up probe as well. These probes
+    # have no reference answers and remain diagnostic-only, never training data.
     import torch
     torch.set_num_threads(1)
     from bpe_candidate_train import BPECandidate, generate_answer
@@ -166,8 +165,23 @@ def main():
     )
     model.load_state_dict(checkpoint["state_dict"], strict=True)
     model.eval()
+    probe_samples = []
+    for probe in probes:
+        answer = generate_answer(model, tokenizer, probe["question"], max_new_tokens=96)
+        probe_samples.append({
+            "question": probe["question"],
+            "reference_answer": None,
+            "generated_answer": answer,
+            "probe_only": True,
+            "eligible_for_training": False,
+        })
+    diagnostic_samples = samples + probe_samples
+    review_queue = build_review_queue(diagnostic_samples)
+
+    # One bounded self-reflection pass: each candidate answer becomes context
+    # for exactly one follow-up generation. Reflection is diagnostic only.
     reflections = []
-    for sample in samples:
+    for sample in diagnostic_samples:
         prompt = build_reflection_prompt(sample)
         reflection = generate_answer(model, tokenizer, prompt, max_new_tokens=48)
         reflections.append({
@@ -192,7 +206,9 @@ def main():
         "best_step": train_report.get("best_step"),
         "independent_answer_only_bpc": train_report.get("independent_answer_only_bpc"),
         "candidate_better_on_independent_set": train_report.get("candidate_better_on_independent_set"),
-        "generated_answer_count": len(samples),
+        "generated_answer_count": len(diagnostic_samples),
+        "independent_reference_answer_count": len(samples),
+        "follow_up_probe_answer_count": len(probe_samples),
         "flagged_answer_count": len(review_queue),
         "next_cycle_probe_count": len(probes),
         "self_reflection_count": len(reflections),
@@ -211,7 +227,7 @@ def main():
     (ROOT / "quantum_review_queue.json").write_text(
         json.dumps(review_queue, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (ROOT / "quantum_self_reflection.json").write_text(
+    (ROOT / "quantum_probe_answers.json").write_text(\n        json.dumps(probe_samples, ensure_ascii=False, indent=2), encoding="utf-8"\n    )\n    (ROOT / "quantum_self_reflection.json").write_text(
         json.dumps(reflections, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (ROOT / "quantum_next_cycle_probes.json").write_text(
