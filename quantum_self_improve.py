@@ -52,6 +52,17 @@ def build_review_queue(samples):
     return queue
 
 
+def build_reflection_prompt(sample):
+    question = str(sample.get("question", "")).strip()
+    answer = str(sample.get("generated_answer", "")).strip()
+    return (
+        "이전 질문: " + question + "\\n"
+        "내가 생성한 답변: " + answer + "\\n"
+        "이 답변에서 근거가 부족하거나 사실 확인이 필요한 부분을 찾아라. "
+        "확실하지 않으면 검증할 수 없다고 말하라. 이전 답변을 정답으로 가정하지 마라."
+    )
+
+
 def build_probes(evaluation):
     probes = []
     seen = set()
@@ -138,6 +149,35 @@ def main():
     review_queue = build_review_queue(samples)
     probes = build_probes(evaluation)
 
+    # One bounded self-reflection pass: each candidate answer becomes context
+    # for exactly one follow-up generation. Reflection is diagnostic only.
+    import torch
+    from bpe_candidate_train import BPECandidate, generate_answer
+    from bpe_tokenizer import BPETokenizer
+    checkpoint = torch.load(ROOT / "bpe_candidate_checkpoint.pt", map_location="cpu", weights_only=False)
+    tokenizer = BPETokenizer.from_dict(checkpoint["tokenizer"])
+    architecture = checkpoint["architecture"]
+    model = BPECandidate(
+        len(tokenizer.vocab),
+        width=int(architecture["width"]),
+        heads=int(architecture["heads"]),
+        layers=int(architecture["layers"]),
+    )
+    model.load_state_dict(checkpoint["state_dict"], strict=True)
+    model.eval()
+    reflections = []
+    for sample in samples:
+        prompt = build_reflection_prompt(sample)
+        reflection = generate_answer(model, tokenizer, prompt, max_new_tokens=48)
+        reflections.append({
+            "question": sample.get("question", ""),
+            "original_candidate_answer": sample.get("generated_answer", ""),
+            "self_reflection": reflection,
+            "is_verified": False,
+            "eligible_for_training": False,
+            "warning": "모델의 자기평가는 독립적인 사실 검증이 아닙니다.",
+        })
+
     report = {
         "created_at_unix": int(time.time()),
         "duration_seconds": round(time.time() - started, 2),
@@ -154,6 +194,7 @@ def main():
         "generated_answer_count": len(samples),
         "flagged_answer_count": len(review_queue),
         "next_cycle_probe_count": len(probes),
+        "self_reflection_count": len(reflections),
         "self_generated_answers_added_to_training": 0,
         "automatic_promotion": False,
         "production_model_changed": False,
@@ -169,7 +210,7 @@ def main():
     (ROOT / "quantum_review_queue.json").write_text(
         json.dumps(review_queue, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (ROOT / "quantum_next_cycle_probes.json").write_text(
+    (ROOT / "quantum_self_reflection.json").write_text(\n        json.dumps(reflections, ensure_ascii=False, indent=2), encoding="utf-8"\n    )\n    (ROOT / "quantum_next_cycle_probes.json").write_text(
         json.dumps(probes, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
