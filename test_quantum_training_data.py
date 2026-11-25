@@ -20,6 +20,13 @@ class QuantumTrainingDataTests(unittest.TestCase):
         unreviewed = {**valid, "reviewed_by": ""}
         self.assertEqual(select_approved_feedback_rows([valid, incomplete, unreviewed]), [valid])
 
+    def test_null_fields_are_not_treated_as_text(self):
+        rows = [{"question": None, "answer": "답", "approved": True, "source": "검토"}]
+        self.assertEqual(select_approved_training_rows(rows), [])
+        feedback = [{"question": "Q", "answer": "A", "approved": True,
+                     "reviewed_by": None, "correction_source": "manual", "source": "reviewed"}]
+        self.assertEqual(select_approved_feedback_rows(feedback), [])
+
     def test_non_array_inputs_are_rejected(self):
         with self.assertRaises(ValueError):
             select_approved_training_rows({})
