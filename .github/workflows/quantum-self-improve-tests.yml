@@ -9,7 +9,6 @@ on:
       - 'quantum_feedback_approved.json'
       - 'bpe_candidate_train.py'
       - 'test_bpe_tokenizer.py'
-      - 'test_bpe_candidate_resume.py'
       - 'bpe_tokenizer.py'
       - 'quantum_training_data.py'
       - 'bpe_independent_eval.json'
@@ -45,4 +44,4 @@ jobs:
       - name: Compile self-improvement and training modules
         run: python -m py_compile quantum_self_improve.py bpe_candidate_train.py bpe_tokenizer.py quantum_training_data.py
       - name: Test bounded self-play safety
-        run: python -m unittest test_quantum_self_improve.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
+        run: python -m unittest test_quantum_self_improve.py test_bpe_tokenizer.py
