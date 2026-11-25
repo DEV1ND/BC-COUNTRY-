@@ -12,7 +12,7 @@ on:
       - quantum-data-repair
       - quantum-candidate-inference-readiness-guard
       - quantum-candidate-inference-health-status-v2
-      - quantum-candidate-model-tokenizer-contract
+      - quantum-candidate-release-manifest-integrity
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
