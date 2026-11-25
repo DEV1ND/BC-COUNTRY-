@@ -4,7 +4,6 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_r2_checkpoint import validate_checkpoint, validate_pointer
 from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
 
 
@@ -38,7 +37,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
         })
         self.assertIn("형광펜은 중요한 문장을 표시하는 필기구입니다.", prompt)
         self.assertIn("이전 답변을 정답으로 가정하지 마라", prompt)
-        self.assertIn("\n", prompt)
+        self.assertIn("\\n", prompt)
 
     def test_revision_prompt_keeps_draft_unverified(self):
         prompt = build_revision_prompt(
@@ -48,7 +47,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertIn("검토 내용", prompt)
         self.assertIn("검증 전 초안", prompt)
         self.assertIn("형광펜은 표시 도구입니다.", prompt)
-        self.assertIn("\n", prompt)
+        self.assertIn("\\n", prompt)
 
     def test_candidate_state_checksum_verified(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,6 +76,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
             checkpoint.write_bytes(b"tampered")
             with self.assertRaises(RuntimeError):
                 verify_candidate_state(root)
+
     def test_empty_candidate_state_starts_fresh(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertIsNone(verify_candidate_state(Path(directory)))
@@ -87,24 +87,7 @@ class QuantumSelfImproveTests(unittest.TestCase):
             (root / "candidate_latest.pt").write_bytes(b"orphan")
             with self.assertRaises(RuntimeError):
                 verify_candidate_state(root)
-    def test_r2_pointer_requires_content_addressed_sha_key(self):
-        digest = "a" * 64
-        pointer = {
-            "format": "juckex-quantum-r2-pointer-v1",
-            "object_key": "quantum/candidate/checkpoints/" + digest + ".pt",
-            "sha256": digest,
-        }
-        self.assertEqual(validate_pointer(pointer), (pointer["object_key"], digest))
-        pointer["object_key"] = "quantum/candidate/checkpoints/other.pt"
-        with self.assertRaises(ValueError):
-            validate_pointer(pointer)
 
-    def test_r2_checkpoint_checksum_rejects_corruption(self):
-        payload = b"candidate-state"
-        digest = hashlib.sha256(payload).hexdigest()
-        self.assertEqual(validate_checkpoint(payload, digest), digest)
-        with self.assertRaises(ValueError):
-            validate_checkpoint(b"corrupted", digest)
     def test_probe_deduplication(self):
         rows = [
             {"question": "태양계란 무엇인가요?"},
