@@ -1,6 +1,6 @@
 import unittest
 
-from quantum_self_improve import build_probes, build_reflection_prompt, build_review_queue, normalize_question, repeated_phrase
+from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase
 
 
 class QuantumSelfImproveTests(unittest.TestCase):
@@ -34,6 +34,16 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertIn("형광펜은 중요한 문장을 표시하는 필기구입니다.", prompt)
         self.assertIn("이전 답변을 정답으로 가정하지 마라", prompt)
         self.assertIn("\n", prompt)
+
+    def test_revision_prompt_keeps_draft_unverified(self):
+        prompt = build_revision_prompt(
+            {"question": "형광펜이 뭐야?", "generated_answer": "형광펜은 표시 도구입니다."},
+            "근거를 더 확인해야 합니다.",
+        )
+        self.assertIn("검토 내용", prompt)
+        self.assertIn("검증 전 초안", prompt)
+        self.assertIn("형광펜은 표시 도구입니다.", prompt)
+        self.assertIn("\\n", prompt)
 
     def test_probe_deduplication(self):
         rows = [
