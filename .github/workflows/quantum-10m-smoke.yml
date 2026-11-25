@@ -3,6 +3,8 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   schedule:
+    - cron: '0 18 * * 0' # Monday 03:00 KST, weekly bounded run
+  schedule:
     - cron: '0 18 * * 0' # Every Monday 03:00 KST
   push:
     branches: [main]
@@ -10,6 +12,7 @@ on:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
+      - 'quantum_feedback_approved.json'
       - 'quantum_self_improve.py'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
@@ -43,7 +46,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_self_improve.py
 
       - name: Verify and smoke-train Quantum 10M
         run: |
