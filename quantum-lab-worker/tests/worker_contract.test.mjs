@@ -27,3 +27,15 @@ test("knowledge source metadata is passed through and displayed", () => {
   assert.ok(worker.includes("esc(s.title"));
   assert.ok(worker.includes("esc(s.attribution"));
 });
+
+test("Quantum never substitutes a saved or synthetic answer when live inference fails", () => {
+  assert.doesNotMatch(worker, /saved-greedy-snapshot|match\.a|match\.gold|SAMPLES\s*=|snapshot-fallback/);
+  assert.doesNotMatch(worker, /"gold":|"a":/);
+  assert.match(worker, /mode:"unavailable"/);
+  assert.match(worker, /Quantum 실시간 추론에 실패했습니다/);
+});
+
+test("Question count metadata does not depend on fallback answer fixtures", () => {
+  assert.match(worker, /questions:SAMPLE_QUESTIONS/);
+  assert.match(worker, /const SAMPLE_QUESTIONS=20/);
+});

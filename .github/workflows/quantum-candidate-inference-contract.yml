@@ -6,8 +6,10 @@ on:
       - quantum-candidate-security-hardening
       - quantum-candidate-tokenizer-coverage-audit
       - quantum-candidate-tokenizer-vocab-cap
+      - quantum-candidate-no-fake-snapshot-fallback
     paths:
       - "quantum-inference/**"
+      - "quantum-lab-worker/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
   pull_request:
     branches:
@@ -19,8 +21,11 @@ on:
       - quantum-candidate-evaluation-provenance-v2
       - quantum-candidate-evaluation-benchmark-v2
       - quantum-candidate-tokenizer-coverage-audit
+      - quantum-candidate-tokenizer-vocab-cap
+      - quantum-candidate-no-fake-snapshot-fallback
     paths:
       - "quantum-inference/**"
+      - "quantum-lab-worker/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
 
 permissions:
@@ -66,3 +71,14 @@ jobs:
             test_tokenizer_coverage.py \
             test_audit_tokenizer_coverage.py \
             test_tokenizer_vocab_cap.py
+
+  worker-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run isolated Quantum Lab Worker contract tests
+        run: node --test quantum-lab-worker/tests/worker_contract.test.mjs
