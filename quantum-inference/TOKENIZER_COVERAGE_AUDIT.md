@@ -34,7 +34,7 @@ training metadata before inspecting benchmark text.
 - Unknown-token count and ratio over all benchmark input tokens.
 - Unknown Unicode codepoints and their frequency (for example, unseen emoji,
   punctuation, compatibility characters, or uncommon symbols).
-- Per-case token counts, unknown-token counts, and single-codepoint token ratio.
+- Per-case and per-category token counts, unknown-token counts, and single-codepoint token ratio.
 - Number of cases whose encoded input exceeds the model's 256-token context block.
 
 ## Interpretation
