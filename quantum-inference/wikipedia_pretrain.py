@@ -308,8 +308,10 @@ def main():
         parser.error("--steps는 1~5000 범위여야 합니다.")
     if args.batch_size < 1 or args.batch_size > 16:
         parser.error("--batch-size는 1~16 범위여야 합니다.")
-    if args.width < 8 or args.heads < 1 or args.width % args.heads:
-        parser.error("width는 8 이상이며 heads로 나누어져야 합니다.")
+    if args.width < 8 or args.width > 512 or args.heads < 1 or args.heads > 32 or args.width % args.heads:
+        parser.error("width는 8~512, heads는 1~32 범위이며 width로 나누어져야 합니다.")
+    if args.vocab_size < 2 or args.vocab_size > 8192:
+        parser.error("--vocab-size는 2~8192 범위여야 합니다.")
     if args.layers < 1 or args.layers > 8:
         parser.error("--layers는 1~8 범위여야 합니다.")
 
@@ -383,8 +385,16 @@ def main():
         "reviewer_subject": d.get("reviewer_subject"),
         "identity_provider": d.get("identity_provider"),
     } for d in docs]
+    architecture = {"width": args.width, "heads": args.heads,
+                   "layers": args.layers, "block": BLOCK}
+    tokenizer_sha256 = hashlib.sha256(json.dumps(
+        tokenizer.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
     metadata = {
         "objective": "causal_next_token_prediction",
+        "architecture": architecture,
+        "parameter_count": parameter_count,
+        "tokenizer_sha256": tokenizer_sha256,
         "dataset": "private_wikipedia_jsonl_export",
         "document_count": len(docs), "train_document_count": len(train_docs),
         "validation_document_count": len(valid_docs),
@@ -400,8 +410,8 @@ def main():
     payload = {
         "state_dict": model.state_dict(),
         "tokenizer": tokenizer.to_dict(),
-        "architecture": {"width": args.width, "heads": args.heads,
-                         "layers": args.layers, "block": BLOCK},
+        "checkpoint_schema_version": 1,
+        "architecture": architecture,
         "steps": args.steps,
         "training_metadata": metadata,
     }

@@ -30,6 +30,7 @@ from generation_sources import build_knowledge_context, serialize_knowledge_sour
 from knowledge_index_status import build_index_status, rebuild_knowledge_fts
 from model_metadata import build_model_metadata
 from checkpoint_storage import download_release_checkpoint
+from checkpoint_validation import validate_architecture, validate_candidate_checkpoint, validate_tokenizer_payload
 
 APPROVED_QA_PATH = Path(__file__).resolve().parent.parent / "training_extra.json"
 def load_approved_qa():
@@ -87,10 +88,13 @@ def load_model():
         payload = torch.load(io.BytesIO(encrypted_checkpoint), map_location=DEVICE, weights_only=True)
     else:
         return None, None, None
-    arch = payload["architecture"]
-    tokenizer = BPETokenizer.from_dict(payload["tokenizer"])
-    model = BPECandidate(len(tokenizer.vocab), int(arch["width"]), int(arch["heads"]), int(arch["layers"]))
-    model.load_state_dict(payload["state_dict"], strict=True)
+    arch = validate_architecture(payload.get("architecture"), BLOCK)
+    tokenizer_payload = payload.get("tokenizer")
+    validate_tokenizer_payload(tokenizer_payload)
+    tokenizer = BPETokenizer.from_dict(tokenizer_payload)
+    model = BPECandidate(len(tokenizer.vocab), arch["width"], arch["heads"], arch["layers"])
+    model.load_state_dict(payload.get("state_dict"), strict=True)
+    validate_candidate_checkpoint(payload, model, tokenizer, block_size=BLOCK)
     model.eval()
     return model, tokenizer, payload
 
