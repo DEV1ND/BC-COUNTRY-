@@ -19,6 +19,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 
+def verify_candidate_state(state_dir):
+    checkpoint_path = state_dir / "candidate_latest.pt"
+    manifest_path = state_dir / "candidate_latest.manifest.json"
+    if not checkpoint_path.exists() and not manifest_path.exists():
+        return None
+    if not checkpoint_path.is_file() or not manifest_path.is_file():
+        raise RuntimeError("후보 체크포인트 또는 무결성 매니페스트가 누락되었습니다.")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    actual = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+    if manifest.get("format") != "juckex-quantum-candidate-state-v1":
+        raise RuntimeError("지원하지 않는 후보 체크포인트 매니페스트입니다.")
+    if manifest.get("checkpoint") != checkpoint_path.name or manifest.get("sha256") != actual:
+        raise RuntimeError("후보 체크포인트 SHA-256 검증에 실패했습니다.")
+    return checkpoint_path
+
+
 def normalize_question(value):
     value = unicodedata.normalize("NFC", str(value)).casefold()
     return re.sub(r"[^0-9a-z가-힣]", "", value)
@@ -159,8 +175,8 @@ def main():
     ]
     state_dir_value = os.environ.get("QUANTUM_CANDIDATE_STATE_DIR", "").strip()
     state_dir = Path(state_dir_value).expanduser() if state_dir_value else None
-    state_checkpoint = state_dir / "candidate_latest.pt" if state_dir else None
-    resumed_checkpoint = bool(state_checkpoint and state_checkpoint.is_file())
+    state_checkpoint = verify_candidate_state(state_dir) if state_dir else None
+    resumed_checkpoint = state_checkpoint is not None
     if resumed_checkpoint:
         command.extend(["--resume-checkpoint", str(state_checkpoint.resolve())])
     subprocess.run(command, cwd=ROOT, check=True)
