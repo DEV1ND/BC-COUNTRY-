@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: '0 18 * * 0' # Monday 03:00 KST, weekly bounded run
   push:
-    branches: [main]
+    branches: [main, quantum-candidate-autonomous-diagnostics]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
