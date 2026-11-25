@@ -73,6 +73,29 @@ def build_review_queue(samples):
     return queue
 
 
+def assess_reference_generation(samples, max_flagged_ratio=0.25):
+    """Conservative generation gate based only on held-out reference questions."""
+    count = len(samples)
+    queue = build_review_queue(samples)
+    nonempty = sum(1 for sample in samples if str(sample.get("generated_answer", "")).strip())
+    replacements = sum(1 for sample in samples if "�" in str(sample.get("generated_answer", "")))
+    flag_limit = max(1, int(count * max_flagged_ratio + 0.999999))
+    passed = (
+        count > 0
+        and nonempty / count >= 0.95
+        and replacements == 0
+        and len(queue) <= flag_limit
+    )
+    return {
+        "passed": passed,
+        "count": count,
+        "nonempty_count": nonempty,
+        "replacement_count": replacements,
+        "flagged_count": len(queue),
+        "flag_limit": flag_limit,
+    }
+
+
 def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
     answer = str(sample.get("generated_answer", "")).strip()[:500]
@@ -261,18 +284,13 @@ def main():
     # Cache a Candidate only when both the independent loss comparison and
     # reference-answer generation diagnostics pass. Self-play probes and
     # self-critiques are not treated as ground truth.
-    reference_review_queue = build_review_queue(samples)
-    reference_count = len(samples)
-    reference_nonempty = sum(1 for sample in samples if str(sample.get("generated_answer", "")).strip())
-    reference_replacements = sum(1 for sample in samples if "�" in str(sample.get("generated_answer", "")))
-    reference_flagged = len(reference_review_queue)
-    reference_flag_limit = max(1, math.ceil(reference_count * 0.25))
-    reference_generation_quality_passed = (
-        reference_count > 0
-        and reference_nonempty / reference_count >= 0.95
-        and reference_replacements == 0
-        and reference_flagged <= reference_flag_limit
-    )
+    reference_quality = assess_reference_generation(samples)
+    reference_generation_quality_passed = reference_quality["passed"]
+    reference_count = reference_quality["count"]
+    reference_nonempty = reference_quality["nonempty_count"]
+    reference_replacements = reference_quality["replacement_count"]
+    reference_flagged = reference_quality["flagged_count"]
+    reference_flag_limit = reference_quality["flag_limit"]
     candidate_cache_eligible = (
         train_report.get("candidate_better_on_independent_set") is True
         and reference_generation_quality_passed
