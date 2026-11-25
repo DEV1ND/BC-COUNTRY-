@@ -65,3 +65,4 @@ jobs:
             test_generation_benchmark_v2.py \
             test_tokenizer_coverage.py \
             test_audit_tokenizer_coverage.py
+            test_tokenizer_vocab_cap.py
