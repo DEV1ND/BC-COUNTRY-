@@ -195,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="quantum-candidate-${GITHUB_RUN_ID}"
-          gh release create "$tag" /tmp/quantum-candidate.pt.enc \
+          gh release create "$tag" /tmp/quantum-candidate.pt.enc /tmp/quantum-candidate-manifest.json \
             --repo "$GITHUB_REPOSITORY" \
             --target "$(git rev-parse HEAD)" \
             --title "$tag" \
