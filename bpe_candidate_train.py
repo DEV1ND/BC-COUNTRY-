@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import time
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -261,6 +262,7 @@ def main():
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--target-parameters", type=int, default=0)
     parser.add_argument("--parameter-tolerance", type=float, default=0.02)
+    parser.add_argument("--resume-checkpoint", type=str, default="")
     args = parser.parse_args()
     if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
         parser.error("width와 heads는 양수여야 하며 width는 heads로 나누어져야 합니다.")
@@ -312,12 +314,37 @@ def main():
     leaked_questions = sorted(x for x in training_question_set & evaluation_question_set if x)
     if leaked_questions:
         raise RuntimeError(f"학습/독립 평가 질문 중복: {leaked_questions[:5]}")
-    tokenizer = BPETokenizer.train(
-        [row["text"] for row in train_rows],
-        vocab_size=args.vocab_size,
-        min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
-    )
+    resume_payload = None
+    resume_sha256 = None
+    if args.resume_checkpoint:
+        resume_path = Path(args.resume_checkpoint).expanduser().resolve()
+        if not resume_path.is_file():
+            raise RuntimeError(f"재개 체크포인트를 찾을 수 없습니다: {resume_path}")
+        resume_sha256 = hashlib.sha256(resume_path.read_bytes()).hexdigest()
+        resume_payload = torch.load(resume_path, map_location="cpu", weights_only=False)
+        tokenizer = BPETokenizer.from_dict(resume_payload["tokenizer"])
+        saved_arch = resume_payload.get("architecture", {})
+        expected_arch = {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK}
+        if saved_arch != expected_arch:
+            raise RuntimeError(f"체크포인트 구조 불일치: saved={saved_arch}, requested={expected_arch}")
+        known_chars = set(tokenizer.initial_symbols)
+        unseen_chars = sorted({
+            char for row in rows + independent_clean for char in row["text"]
+            if char not in known_chars
+        })
+        if unseen_chars:
+            preview = "".join(unseen_chars[:30])
+            raise RuntimeError(
+                "재개 체크포인트 토크나이저에 새 문자가 있습니다. "
+                f"안전한 토크나이저 확장 후 재개해야 합니다: {preview!r}"
+            )
+    else:
+        tokenizer = BPETokenizer.train(
+            [row["text"] for row in train_rows],
+            vocab_size=args.vocab_size,
+            min_pair_frequency=2,
+            extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
+        )
     train_sequences = encode_rows(train_rows, tokenizer)
     augmented_train_rows = augment_training_rows(train_rows)
     train_examples = encode_training_examples(augmented_train_rows, tokenizer)
@@ -346,6 +373,8 @@ def main():
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
+    if resume_payload is not None:
+        candidate.load_state_dict(resume_payload["state_dict"], strict=True)
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
@@ -430,9 +459,17 @@ def main():
     )):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     candidate_path = OUT
-    torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
-                "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
-                "steps": len(losses)}, candidate_path)
+    torch.save({
+        "format": "juckex-quantum-candidate-v1",
+        "state_dict": candidate.state_dict(),
+        "tokenizer": tokenizer.to_dict(),
+        "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
+        "steps": len(losses),
+        "cumulative_steps": int((resume_payload or {}).get("cumulative_steps", 0)) + len(losses),
+        "parent_checkpoint_sha256": resume_sha256,
+        "resumed_from_checkpoint": bool(resume_payload is not None),
+        "created_at": int(time.time()),
+    }, candidate_path)
     report = {
         "created_at": int(time.time()),
         "status": "evaluated_not_promoted",
@@ -468,6 +505,9 @@ def main():
         "training_objective": "question_context_preserved_answer_tokens_only",
         "promotion": "보류: 실제 생성 품질의 사람 검토와 독립 평가가 완료되기 전 자동 승격하지 않음",
         "candidate_checkpoint": str(candidate_path.name),
+        "resumed_from_checkpoint": bool(resume_payload is not None),
+        "parent_checkpoint_sha256": resume_sha256,
+        "cumulative_training_steps": int((resume_payload or {}).get("cumulative_steps", 0)) + len(losses),
         "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
     REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
