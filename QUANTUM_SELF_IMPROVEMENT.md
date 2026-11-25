@@ -2,7 +2,7 @@
 
 ## 실행 및 무료 저장
 - GitHub Actions 수동 실행: `JUCKEX Quantum 10M extended training experiment`
-- 자동 실행: 매일 03:00 KST
+- 자동 실행: 6시간마다 1회 (UTC 00·06·12·18시, 한국시간 09·15·21·03시). 각 실행은 독립된 제한 시간 작업이며 상시 실행이나 즉시 응답을 보장하지 않습니다.
 - 한 번의 실행은 최대 500 step의 격리된 10M 후보 학습과 고정 독립 평가를 수행합니다.
 - 표준 GitHub-hosted Ubuntu runner만 사용합니다. 유료 대형 runner, GPU 임대, 외부 AI API는 사용하지 않습니다.
 - 후보 체크포인트는 GitHub Actions의 기본 무료 캐시(저장 한도 10GB)를 사용해 다음 실행에 전달합니다. R2 버킷이나 별도 유료 저장소는 사용하지 않습니다.
