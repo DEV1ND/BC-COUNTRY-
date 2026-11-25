@@ -107,6 +107,7 @@ def main():
         and row.get("approved") is True
         and str(row.get("reviewed_by", "")).strip()
         and str(row.get("correction_source", "")).strip()
+        and str(row.get("source", "")).strip()
     ]
     approved = [row for row in training if isinstance(row, dict) and row.get("approved") is True]
     approved.extend(approved_feedback)
