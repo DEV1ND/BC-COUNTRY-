@@ -88,7 +88,7 @@ def enrich_generation_report(report, benchmark_bytes, generation_config=None):
         seen.add(case_id)
 
         prompt_material = (
-            (result.get("context") + "\\n\\n") if result.get("context") else ""
+            (result.get("context") + "\n\n") if result.get("context") else ""
         ) + result["prompt"]
         item = dict(result)
         item["provenance"] = {
@@ -187,7 +187,7 @@ def main():
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
-        json.dumps(enriched, ensure_ascii=False, indent=2) + "\\n",
+        json.dumps(enriched, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     print(json.dumps({
