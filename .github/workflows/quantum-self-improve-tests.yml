@@ -33,5 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compile self-improvement and training modules
+        run: python -m py_compile quantum_self_improve.py bpe_candidate_train.py bpe_tokenizer.py
       - name: Test bounded self-play safety
         run: python -m unittest test_quantum_self_improve.py
