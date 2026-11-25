@@ -26,6 +26,60 @@ def repeated_phrase(answer):
     return bool(re.search(r"(.{3,24}?)\1{2,}", compact))
 
 
+def build_review_queue(samples):
+    queue = []
+    for sample in samples:
+        answer = str(sample.get("generated_answer", ""))
+        reasons = []
+        if not answer.strip():
+            reasons.append("empty_answer")
+        if "�" in answer:
+            reasons.append("replacement_character")
+        if len(answer.strip()) < 12:
+            reasons.append("too_short")
+        if repeated_phrase(answer):
+            reasons.append("repeated_phrase")
+        if len(answer) > 800:
+            reasons.append("possible_runaway_generation")
+        if reasons:
+            queue.append({
+                "question": sample.get("question", ""),
+                "candidate_answer": answer,
+                "failure_signals": reasons,
+                "requires_human_correction": True,
+                "eligible_for_training": False,
+            })
+    return queue
+
+
+def build_probes(evaluation):
+    probes = []
+    seen = set()
+    prefixes = (
+        "쉽게 설명해 주세요: ",
+        "구체적인 예시를 들어 설명해 주세요: ",
+        "핵심 원인과 결과를 설명해 주세요: ",
+    )
+    for row in evaluation:
+        if not isinstance(row, dict):
+            continue
+        question = str(row.get("question", "")).strip()
+        if not question:
+            continue
+        for prefix in prefixes:
+            probe = prefix + question
+            key = normalize_question(probe)
+            if key and key not in seen:
+                seen.add(key)
+                probes.append({
+                    "question": probe,
+                    "reference_answer": None,
+                    "evaluation_status": "probe_only_no_reference",
+                    "eligible_for_training": False,
+                })
+    return probes
+
+
 def load_rows(path):
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, list):
@@ -71,53 +125,8 @@ def main():
     generation_path = ROOT / f"bpe_generation_seed_{args.seed}.json"
     generation_report = json.loads(generation_path.read_text(encoding="utf-8"))
     samples = generation_report.get("samples", [])
-    review_queue = []
-    for sample in samples:
-        answer = str(sample.get("generated_answer", ""))
-        reasons = []
-        if not answer.strip():
-            reasons.append("empty_answer")
-        if "�" in answer:
-            reasons.append("replacement_character")
-        if len(answer.strip()) < 12:
-            reasons.append("too_short")
-        if repeated_phrase(answer):
-            reasons.append("repeated_phrase")
-        if len(answer) > 800:
-            reasons.append("possible_runaway_generation")
-        if reasons:
-            review_queue.append({
-                "question": sample.get("question", ""),
-                "candidate_answer": answer,
-                "failure_signals": reasons,
-                "requires_human_correction": True,
-                "eligible_for_training": False,
-            })
-
-    probes = []
-    seen = set()
-    prefixes = (
-        "쉽게 설명해 주세요: ",
-        "구체적인 예시를 들어 설명해 주세요: ",
-        "핵심 원인과 결과를 설명해 주세요: ",
-    )
-    for row in evaluation:
-        if not isinstance(row, dict):
-            continue
-        question = str(row.get("question", "")).strip()
-        if not question:
-            continue
-        for prefix in prefixes:
-            probe = prefix + question
-            key = normalize_question(probe)
-            if key and key not in seen:
-                seen.add(key)
-                probes.append({
-                    "question": probe,
-                    "reference_answer": None,
-                    "evaluation_status": "probe_only_no_reference",
-                    "eligible_for_training": False,
-                })
+    review_queue = build_review_queue(samples)
+    probes = build_probes(evaluation)
 
     report = {
         "created_at_unix": int(time.time()),
