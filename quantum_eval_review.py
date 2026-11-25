@@ -34,11 +34,17 @@ def review_eval_candidates(queue_rows, existing_eval, training_rows):
             reason = "unknown_category"
         else:
             for field in REQUIRED_REVIEW_FIELDS:
-                if not str(row.get(field, "")).strip():
+                value = row.get(field)
+                if not isinstance(value, str) or not value.strip():
                     reason = "missing_" + field
                     break
         if reason is None:
-            key = normalize_question(row.get("question", ""))
+            question_value = row.get("question")
+            if not isinstance(question_value, str) or not question_value.strip():
+                reason = "empty_question"
+                key = ""
+            else:
+                key = normalize_question(question_value)
             if not key:
                 reason = "empty_question"
             elif key in seen:
