@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
+from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
 from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
@@ -103,6 +103,31 @@ class QuantumSelfImproveTests(unittest.TestCase):
             (root / "candidate_latest.pt").write_bytes(b"orphan")
             with self.assertRaises(RuntimeError):
                 verify_candidate_state(root)
+
+    def test_generation_quality_gate_rejects_many_flagged_answers(self):
+        samples = [
+            {"question": f"Q{i}", "generated_answer": "짧음"}
+            for i in range(8)
+        ]
+        result = assess_reference_generation(samples)
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["flagged_count"], 8)
+
+    def test_generation_quality_gate_accepts_clean_reference_answers(self):
+        samples = [
+            {"question": f"Q{i}", "generated_answer": "이 답변은 검토 기준을 통과하는 충분한 길이의 문장입니다."}
+            for i in range(8)
+        ]
+        result = assess_reference_generation(samples)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["replacement_count"], 0)
+
+    def test_generation_quality_gate_rejects_replacement_characters(self):
+        samples = [
+            {"question": f"Q{i}", "generated_answer": "이 답변에는 � 대체 문자가 포함되어 있습니다."}
+            for i in range(8)
+        ]
+        self.assertFalse(assess_reference_generation(samples)["passed"])
 
     def test_probe_deduplication(self):
         rows = [
