@@ -260,7 +260,11 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
         if step >= 5 and "\n\n" in decoded:
             break
     answer = tokenizer.decode(generated).split("\n\n", 1)[0].strip()[:1600]
+    if not answer:
+        raise HTTPException(502, "Quantum Transformer가 빈 응답을 생성했습니다.")
     return {"answer": answer, "model": "quantum-bpe-10m-candidate",
             "is_live_inference": True,
+            "response_mode": "transformer_generation",
+            "generated_token_count": len(generated),
             "knowledge_sources": [{"title": x["title"], "url": x["url"], "license": x["license"], "attribution": x["attribution"]} for x in knowledge],
             "quality_warning": "실험 후보 모델이며 답변의 사실 정확성이 보장되지 않습니다."}
