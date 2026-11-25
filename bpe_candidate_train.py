@@ -30,6 +30,9 @@ DEVICE = torch.device("cpu")
 def load_candidate_state_preserving_vocab(candidate, saved_state, old_tokenizer, new_tokenizer):
     """Load prior weights while preserving old token rows and initializing appended tokens."""
     target_state = candidate.state_dict()
+    for token, old_id in old_tokenizer.stoi.items():
+        if new_tokenizer.stoi.get(token) != old_id:
+            raise RuntimeError(f"기존 토큰 ID가 변경되었거나 토큰이 사라졌습니다: {token!r}")
     if set(saved_state) != set(target_state):
         missing = sorted(set(target_state) - set(saved_state))
         unexpected = sorted(set(saved_state) - set(target_state))
