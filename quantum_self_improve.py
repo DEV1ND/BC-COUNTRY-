@@ -175,16 +175,19 @@ def main():
     ]
     state_dir_value = os.environ.get("QUANTUM_CANDIDATE_STATE_DIR", "").strip()
     state_dir = Path(state_dir_value).expanduser() if state_dir_value else None
-    state_checkpoint = verify_candidate_state(state_dir) if state_dir else None
-    resumed_checkpoint = state_checkpoint is not None
+    previous_checkpoint = verify_candidate_state(state_dir) if state_dir else None
+    resumed_checkpoint = previous_checkpoint is not None
     if resumed_checkpoint:
-        command.extend(["--resume-checkpoint", str(state_checkpoint.resolve())])
+        command.extend(["--resume-checkpoint", str(previous_checkpoint.resolve())])
     subprocess.run(command, cwd=ROOT, check=True)
 
+    train_report = json.loads((ROOT / "bpe_candidate_report.json").read_text(encoding="utf-8"))
     checkpoint_source = ROOT / "bpe_candidate_checkpoint.pt"
     persisted_checkpoint_sha256 = None
-    if state_dir is not None:
+    persisted_checkpoint_updated = False
+    if state_dir is not None and train_report.get("candidate_better_on_independent_set") is True:
         state_dir.mkdir(parents=True, exist_ok=True)
+        state_checkpoint = state_dir / "candidate_latest.pt"
         temporary_checkpoint = state_dir / "candidate_latest.pt.tmp"
         shutil.copy2(checkpoint_source, temporary_checkpoint)
         temporary_checkpoint.replace(state_checkpoint)
@@ -195,13 +198,13 @@ def main():
             "sha256": persisted_checkpoint_sha256,
             "created_at_unix": int(time.time()),
             "resumed_from_previous": resumed_checkpoint,
+            "cumulative_training_steps": train_report.get("cumulative_training_steps"),
             "note": "Candidate only; never a Production model pointer.",
         }
         temporary_manifest = state_dir / "candidate_latest.manifest.json.tmp"
         temporary_manifest.write_text(json.dumps(state_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary_manifest.replace(state_dir / "candidate_latest.manifest.json")
-
-    train_report = json.loads((ROOT / "bpe_candidate_report.json").read_text(encoding="utf-8"))
+        persisted_checkpoint_updated = True
     generation_path = ROOT / f"bpe_generation_seed_{args.seed}.json"
     generation_report = json.loads(generation_path.read_text(encoding="utf-8"))
     samples = generation_report.get("samples", [])
@@ -262,6 +265,7 @@ def main():
         "candidate_parameters": train_report.get("candidate_parameters"),
         "resumed_from_previous_candidate": resumed_checkpoint,
         "persistent_candidate_state_configured": state_dir is not None,
+        "persistent_checkpoint_updated": persisted_checkpoint_updated,
         "persisted_checkpoint_sha256": persisted_checkpoint_sha256,
         "cumulative_training_steps": train_report.get("cumulative_training_steps"),
         "training_pairs": len(approved),
