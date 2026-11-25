@@ -294,7 +294,7 @@ def main():
             continue
         q, a = str(row.get("question", "")).strip(), str(row.get("answer", "")).strip()
         if len(q) >= 2 and len(a) >= 8:
-            independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
+            independent_clean.append({"question": q, "answer": a, "category": str(row.get("category", "미분류")), "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
     import re
@@ -415,6 +415,7 @@ def main():
         generated = generate_answer(candidate, tokenizer, row["question"])
         generation_samples.append({
             "question": row["question"],
+            "category": row.get("category", "미분류"),
             "reference_answer": row["answer"],
             "generated_answer": generated,
             "nonempty": bool(generated),
