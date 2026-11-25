@@ -48,6 +48,11 @@ class GenerationBenchmarkV2Tests(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(len(prompts), len(set(prompts)))
 
+    def test_long_context_cases_have_separate_context_passages(self):
+        cases = [case for case in self.dataset["cases"] if case["category"] == "long_context"]
+        self.assertEqual(len(cases), 6)
+        self.assertTrue(all(isinstance(case.get("context"), str) and len(case["context"]) >= 80 for case in cases))
+
     def test_fact_checking_and_uncertainty_categories_are_present(self):
         categories = set(self.dataset["categories"])
         self.assertIn("fact_checking", categories)
