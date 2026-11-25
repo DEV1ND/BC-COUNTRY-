@@ -63,6 +63,20 @@ def build_reflection_prompt(sample):
     )
 
 
+def build_revision_prompt(sample, reflection):
+    question = str(sample.get("question", "")).strip()
+    answer = str(sample.get("generated_answer", "")).strip()[:500]
+    critique = str(reflection).strip()[:500]
+    return (
+        "질문: " + question + "\\n"
+        "초안: " + answer + "\\n"
+        "자기검토: " + critique + "\\n"
+        "검토 내용을 반영해 더 명확한 답변 초안을 작성하라. "
+        "확인할 근거가 없으면 단정하지 말고 불확실성을 밝혀라. "
+        "이 답변은 검증 전 초안이며 정답으로 확정하지 마라."
+    )
+
+
 def build_probes(evaluation):
     probes = []
     seen = set()
@@ -184,13 +198,16 @@ def main():
     for sample in diagnostic_samples:
         prompt = build_reflection_prompt(sample)
         reflection = generate_answer(model, tokenizer, prompt, max_new_tokens=48)
+        revision_prompt = build_revision_prompt(sample, reflection)
+        revised = generate_answer(model, tokenizer, revision_prompt, max_new_tokens=96)
         reflections.append({
             "question": sample.get("question", ""),
             "original_candidate_answer": sample.get("generated_answer", ""),
             "self_reflection": reflection,
+            "revised_candidate_answer": revised,
             "is_verified": False,
             "eligible_for_training": False,
-            "warning": "모델의 자기평가는 독립적인 사실 검증이 아닙니다.",
+            "warning": "자기평가와 수정 답변은 독립적인 사실 검증이 아니며 학습 데이터로 자동 채택되지 않습니다.",
         })
 
     report = {
@@ -212,6 +229,7 @@ def main():
         "flagged_answer_count": len(review_queue),
         "next_cycle_probe_count": len(probes),
         "self_reflection_count": len(reflections),
+        "self_revision_count": len(reflections),
         "self_generated_answers_added_to_training": 0,
         "automatic_promotion": False,
         "production_model_changed": False,
