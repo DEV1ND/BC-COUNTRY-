@@ -56,8 +56,8 @@ def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
     answer = str(sample.get("generated_answer", "")).strip()
     return (
-        "이전 질문: " + question + "\\n"
-        "내가 생성한 답변: " + answer + "\\n"
+        "이전 질문: " + question + "\n"
+        "내가 생성한 답변: " + answer + "\n"
         "이 답변에서 근거가 부족하거나 사실 확인이 필요한 부분을 찾아라. "
         "확실하지 않으면 검증할 수 없다고 말하라. 이전 답변을 정답으로 가정하지 마라."
     )
