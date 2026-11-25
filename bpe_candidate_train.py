@@ -271,7 +271,18 @@ def main():
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
-    rows = clean_pairs(source_rows)
+    feedback_path = ROOT / "quantum_feedback_approved.json"
+    feedback_rows = json.loads(feedback_path.read_text(encoding="utf-8")) if feedback_path.exists() else []
+    if not isinstance(feedback_rows, list):
+        raise RuntimeError("승인 피드백 파일은 JSON 배열이어야 합니다.")
+    reviewed_feedback = [
+        row for row in feedback_rows
+        if isinstance(row, dict)
+        and row.get("approved") is True
+        and str(row.get("reviewed_by", "")).strip()
+        and str(row.get("correction_source", "")).strip()
+    ]
+    rows = clean_pairs(source_rows + reviewed_feedback)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
     train_rows, valid_rows = split_pairs(rows)
@@ -290,6 +301,16 @@ def main():
             independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
+    import re
+    import unicodedata
+    def normalized_question(value):
+        value = unicodedata.normalize("NFC", str(value)).casefold()
+        return re.sub(r"[^0-9a-z가-힣]", "", value)
+    training_question_set = {normalized_question(row["question"]) for row in rows}
+    evaluation_question_set = {normalized_question(row["question"]) for row in independent_clean}
+    leaked_questions = sorted(x for x in training_question_set & evaluation_question_set if x)
+    if leaked_questions:
+        raise RuntimeError(f"학습/독립 평가 질문 중복: {leaked_questions[:5]}")
     tokenizer = BPETokenizer.train(
         [row["text"] for row in train_rows],
         vocab_size=args.vocab_size,
@@ -312,6 +333,7 @@ def main():
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
         "training_pairs": len(train_rows),
+        "approved_feedback_pairs": len(reviewed_feedback),
         "augmented_training_examples": len(augmented_train_rows),
         "augmentation_factor": len(augmented_train_rows) / max(1, len(train_rows)),
         "validation_pairs": len(valid_rows),
