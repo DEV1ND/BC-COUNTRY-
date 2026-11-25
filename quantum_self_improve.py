@@ -68,9 +68,9 @@ def build_revision_prompt(sample, reflection):
     answer = str(sample.get("generated_answer", "")).strip()[:500]
     critique = str(reflection).strip()[:500]
     return (
-        "질문: " + question + "\\n"
-        "초안: " + answer + "\\n"
-        "자기검토: " + critique + "\\n"
+        "질문: " + question + "\n"
+        "초안: " + answer + "\n"
+        "자기검토: " + critique + "\n"
         "검토 내용을 반영해 더 명확한 답변 초안을 작성하라. "
         "확인할 근거가 없으면 단정하지 말고 불확실성을 밝혀라. "
         "이 답변은 검증 전 초안이며 정답으로 확정하지 마라."
