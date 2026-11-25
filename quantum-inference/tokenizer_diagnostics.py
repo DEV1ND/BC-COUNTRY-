@@ -167,3 +167,87 @@ def summarize_generated_tokens(tokenizer, token_ids):
             "Token granularity diagnostic only; not a fluency, correctness, or quality score."
         ),
     }
+
+def summarize_tokenizer_coverage(tokenizer, texts, label="evaluation"):
+    """Measure OOV and token granularity without requiring a lossless round trip.
+
+    Unlike summarize_tokenizer_usage(), this function is intended for held-out
+    prompts that may contain characters absent from the training corpus.
+    """
+    from collections import Counter
+
+    if not isinstance(label, str) or not label.strip():
+        raise ValueError("label must be a non-empty string")
+    if not isinstance(texts, (list, tuple)) or not texts:
+        raise ValueError("texts must be a non-empty list or tuple")
+    if any(not isinstance(text, str) for text in texts):
+        raise ValueError("every coverage text must be a string")
+
+    codepoints = 0
+    token_count = 0
+    unknown_count = 0
+    known_single_codepoint = 0
+    known_count = 0
+    unknown_chars = Counter()
+    per_text = []
+
+    for index, text in enumerate(texts):
+        ids = tokenizer.encode(text)
+        unknown_in_text = sum(1 for char in text if char not in tokenizer.initial_symbols)
+        for char in text:
+            if char not in tokenizer.initial_symbols:
+                unknown_chars[char] += 1
+        unknown_tokens_in_ids = sum(1 for token_id in ids if token_id == 0)
+        single_in_text = 0
+        known_in_text = 0
+        for token_id in ids:
+            if token_id == 0:
+                continue
+            known_count += 1
+            known_in_text += 1
+            piece = tokenizer.itos.get(token_id, "")
+            if len(piece) == 1:
+                known_single_codepoint += 1
+                single_in_text += 1
+        unknown_count += unknown_tokens_in_ids
+        codepoints += len(text)
+        token_count += len(ids)
+        per_text.append({
+            "index": index,
+            "unicode_codepoints": len(text),
+            "encoded_tokens": len(ids),
+            "unknown_tokens": unknown_tokens_in_ids,
+            "unknown_token_ratio": round(
+                unknown_tokens_in_ids / len(ids) if ids else 0.0, 6
+            ),
+            "unknown_codepoints": unknown_in_text,
+            "known_single_codepoint_token_ratio": round(
+                single_in_text / known_in_text if known_in_text else 0.0, 6
+            ),
+        })
+
+    return {
+        "label": label,
+        "documents": len(texts),
+        "unicode_codepoints": codepoints,
+        "encoded_tokens": token_count,
+        "unknown_tokens": unknown_count,
+        "unknown_token_ratio": round(
+            unknown_count / token_count if token_count else 0.0, 6
+        ),
+        "known_tokens": known_count,
+        "known_single_codepoint_tokens": known_single_codepoint,
+        "known_single_codepoint_token_ratio": round(
+            known_single_codepoint / known_count if known_count else 0.0, 6
+        ),
+        "unique_unknown_codepoints": len(unknown_chars),
+        "unknown_codepoint_frequency": [
+            {"codepoint": "U+" + format(ord(char), "04X"), "character": char, "count": count}
+            for char, count in unknown_chars.most_common(50)
+        ],
+        "per_text": per_text,
+        "interpretation_limit": (
+            "OOV coverage and token granularity only; not a fluency, correctness, or quality score."
+        ),
+    }
+
