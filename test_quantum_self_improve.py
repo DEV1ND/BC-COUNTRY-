@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, verify_candidate_state
+from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, summarize_generation_diagnostics, summarize_probe_variation, verify_candidate_state
 from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
@@ -138,6 +138,28 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertEqual(metrics["수학"]["count"], 2)
         self.assertEqual(metrics["수학"]["mean_reference_char_bigram_f1_proxy"], 0.6)
         self.assertIn("의미적 정답률이 아닙니다", metrics["수학"]["metric_warning"])
+
+    def test_generation_diagnostics_are_grouped_and_not_accuracy(self):
+        result = summarize_generation_diagnostics([
+            {"category": "수학", "generated_answer": "충분히 긴 답변입니다."},
+            {"category": "수학", "generated_answer": "충분히 긴 답변입니다."},
+            {"category": "과학", "generated_answer": "�"},
+        ])
+        self.assertEqual(result["by_category"]["수학"]["count"], 2)
+        self.assertEqual(result["exact_duplicate_answer_groups"], 1)
+        self.assertEqual(result["by_category"]["과학"]["replacement_count"], 1)
+        self.assertIn("사실 정확도", result["metric_warning"])
+
+    def test_probe_variation_reports_only_lexical_differences(self):
+        result = summarize_probe_variation([
+            {"question": "쉽게 설명해 주세요: 바다란?", "generated_answer": "바다는 큰 물입니다."},
+            {"question": "구체적인 예시를 들어 설명해 주세요: 바다란?", "generated_answer": "바다는 큰 물입니다."},
+            {"question": "핵심 원인과 결과를 설명해 주세요: 바다란?", "generated_answer": "바닷물이 넓게 모인 곳입니다."},
+        ])
+        self.assertEqual(result["question_groups"], 1)
+        self.assertEqual(result["groups"][0]["prompt_variants"], 3)
+        self.assertEqual(result["groups"][0]["unique_normalized_answers"], 2)
+        self.assertIn("의미적 일관성", result["metric_warning"])
 
     def test_independent_evaluation_has_broad_domain_coverage(self):
         rows = json.loads((Path(__file__).resolve().parent / "bpe_independent_eval.json").read_text(encoding="utf-8"))
