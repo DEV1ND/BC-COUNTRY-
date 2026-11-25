@@ -18,6 +18,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
+from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
+
 
 def verify_candidate_state(state_dir):
     checkpoint_path = state_dir / "candidate_latest.pt"
@@ -145,16 +147,8 @@ def main():
     training = load_rows(ROOT / "training_extra.json")
     evaluation = load_rows(ROOT / "bpe_independent_eval.json")
     feedback = load_rows(ROOT / "quantum_feedback_approved.json")
-    approved_feedback = [
-        row for row in feedback
-        if isinstance(row, dict)
-        and row.get("approved") is True
-        and str(row.get("reviewed_by", "")).strip()
-        and str(row.get("correction_source", "")).strip()
-        and str(row.get("source", "")).strip()
-    ]
-    approved = [row for row in training if isinstance(row, dict) and row.get("approved") is True]
-    approved.extend(approved_feedback)
+    approved_feedback = select_approved_feedback_rows(feedback)
+    approved = select_approved_training_rows(training) + approved_feedback
     train_questions = {normalize_question(row.get("question", "")) for row in approved}
     eval_questions = {normalize_question(row.get("question", "")) for row in evaluation if isinstance(row, dict)}
     overlap = sorted(x for x in train_questions & eval_questions if x)
