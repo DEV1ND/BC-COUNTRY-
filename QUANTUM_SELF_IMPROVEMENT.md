@@ -13,7 +13,7 @@
 ## 학습 데이터 보호
 - 모델이 생성한 답변은 자동으로 학습 데이터에 추가하지 않습니다.
 - `quantum_feedback_approved.json`에는 사람이 실제로 수정하고 검토한 답변만 추가할 수 있습니다.
-- 각 피드백 행에는 `approved: true`, `reviewed_by`, `correction_source`, `question`, `answer`가 필요합니다.
+- 각 피드백 행에는 `approved: true`, `reviewed_by`, `correction_source`, `source`, `question`, `answer`가 필요합니다.
 - 승인된 피드백만 후보 학습 데이터에 합쳐집니다.
 - 독립 평가 질문과 학습 질문이 정규화 기준으로 겹치면 학습을 중단합니다.
 
@@ -26,7 +26,8 @@
     "answer": "형광펜은 문서에서 중요한 부분을 형광색으로 표시하는 필기구입니다.",
     "approved": true,
     "reviewed_by": "human-review",
-    "correction_source": "reviewed-user-correction"
+    "correction_source": "reviewed-user-correction",
+    "source": "human-reviewed"
   }
 ]
 ```
