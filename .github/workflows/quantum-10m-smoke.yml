@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   push:
-    branches: [main, quantum-generation-quality]
+    branches: [main, quantum-generation-quality, quantum-candidate-transformer-only-generation]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
@@ -12,6 +12,9 @@ on:
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
       - 'quantum_generation_eval.py'
+      - 'quantum-inference/app.py'
+      - 'quantum-inference/smoke_test.py'
+      - 'quantum-inference/README.md'
       - '.github/workflows/quantum-10m-smoke.yml'
 
 permissions:
@@ -59,6 +62,9 @@ jobs:
               "live_model_changed": False
           }, ensure_ascii=False, indent=2))
           PY
+
+      - name: Exercise actual FastAPI Transformer generation handler
+        run: python quantum-inference/smoke_test.py
 
       - name: Compare Quantum decoding strategies on independent questions
         run: python quantum_generation_eval.py --checkpoint bpe_candidate_checkpoint.pt --evaluation bpe_independent_eval.json --output quantum_decoding_sweep.json
