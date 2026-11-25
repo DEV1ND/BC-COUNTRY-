@@ -45,6 +45,7 @@ jobs:
         run: |
           python -m unittest -v \
             test_inference_contract.py \
+            tests/test_checkpoint_storage.py \
             tests/test_inference_health.py \
             test_bpe_tokenizer_integrity.py \
             test_generation_context.py \
