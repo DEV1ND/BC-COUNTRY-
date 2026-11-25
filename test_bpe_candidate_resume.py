@@ -5,12 +5,17 @@ import torch
 from bpe_candidate_train import (
     BPECandidate,
     candidate_non_regression_vs_parent,
+    candidate_learning_rate,
     load_candidate_state_preserving_vocab,
 )
 from bpe_tokenizer import BPETokenizer
 
 
 class CandidateResumeVocabularyTests(unittest.TestCase):
+    def test_resumed_candidate_uses_conservative_learning_rate(self):
+        self.assertEqual(candidate_learning_rate(True), 3e-5)
+        self.assertEqual(candidate_learning_rate(False), 3e-4)
+
     def test_parent_comparison_rejects_regression(self):
         self.assertTrue(candidate_non_regression_vs_parent(6.0, 5.9))
         self.assertTrue(candidate_non_regression_vs_parent(6.0, 6.0))
