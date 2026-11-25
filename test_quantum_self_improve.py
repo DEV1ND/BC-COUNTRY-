@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
+from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, verify_candidate_state
 from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
@@ -128,6 +128,16 @@ class QuantumSelfImproveTests(unittest.TestCase):
             for i in range(8)
         ]
         self.assertFalse(assess_reference_generation(samples)["passed"])
+
+    def test_category_metrics_are_reported_without_claiming_accuracy(self):
+        metrics = summarize_category_metrics([
+            {"category": "수학", "reference_char_bigram_f1_proxy": 0.5},
+            {"category": "수학", "reference_char_bigram_f1_proxy": 0.7},
+            {"category": "과학", "reference_char_bigram_f1_proxy": 0.4},
+        ])
+        self.assertEqual(metrics["수학"]["count"], 2)
+        self.assertEqual(metrics["수학"]["mean_reference_char_bigram_f1_proxy"], 0.6)
+        self.assertIn("의미적 정답률이 아닙니다", metrics["수학"]["metric_warning"])
 
     def test_independent_evaluation_has_broad_domain_coverage(self):
         rows = json.loads((Path(__file__).resolve().parent / "bpe_independent_eval.json").read_text(encoding="utf-8"))
