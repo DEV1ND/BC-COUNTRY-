@@ -70,3 +70,28 @@ report.
 - Human review remains required; factual claims require evidence.
 - Running this benchmark is inference only. It does not train, replace, or promote a model.
 - Production model, Worker, and D1 state are not modified by the runner.
+
+## Human review workflow
+
+After enrichment, export a blank template bound to the exact report fingerprint:
+
+```bash
+python quantum-inference/export_generation_review_template.py \
+  --report quantum-candidate-evaluation-v2-pilot-provenance.json \
+  --output quantum-candidate-evaluation-v2-review-template.json
+```
+
+A reviewer fills every case with 1–5 ratings, a timezone-aware review timestamp,
+notes, a hallucination flag, and evidence references for fact-checking cases.
+Then validate and summarize the completed review:
+
+```bash
+python quantum-inference/review_generation_evaluation.py \
+  --report quantum-candidate-evaluation-v2-pilot-provenance.json \
+  --reviews quantum-candidate-evaluation-v2-reviews.json \
+  --output quantum-candidate-evaluation-v2-human-review-summary.json
+```
+
+The review summarizer verifies that the reviews refer to the exact report hash.
+Human ratings are not an automatic promotion decision and do not make the report
+eligible for training.
