@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from run_generation_benchmark import validate_benchmark_dataset
+from enrich_generation_report import enrich_generation_report
 
 
 BENCHMARK = Path(__file__).resolve().parent / "evaluation" / "benchmark_v2.json"
@@ -52,6 +53,31 @@ class GenerationBenchmarkV2Tests(unittest.TestCase):
         cases = [case for case in self.dataset["cases"] if case["category"] == "long_context"]
         self.assertEqual(len(cases), 6)
         self.assertTrue(all(isinstance(case.get("context"), str) and len(case["context"]) >= 80 for case in cases))
+
+    def test_v2_case_is_compatible_with_provenance_enrichment(self):
+        case = self.dataset["cases"][0]
+        report = {
+            "benchmark_id": self.dataset["benchmark_id"],
+            "benchmark_version": self.dataset["version"],
+            "training_eligible": False,
+            "model_training": False,
+            "production_model_touched": False,
+            "results": [{
+                "id": case["id"],
+                "category": case["category"],
+                "prompt": case["prompt"],
+                "context": case.get("context") or None,
+                "answer": "검토용 예시 응답",
+                "response_mode": "model_generation",
+                "output_diagnostics": {
+                    "suspicious_fragmentation": False,
+                    "suspicious_repetition": False,
+                },
+            }],
+        }
+        enriched = enrich_generation_report(report, self.raw)
+        self.assertEqual(enriched["evaluation_provenance"]["evaluated_case_count"], 1)
+        self.assertEqual(enriched["report_schema"], "juckex-quantum-evaluation-provenance-v2")
 
     def test_fact_checking_and_uncertainty_categories_are_present(self):
         categories = set(self.dataset["categories"])
