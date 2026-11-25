@@ -17,6 +17,7 @@ import torch.nn.functional as F
 
 import app as live
 from bpe_tokenizer import BPETokenizer, encode_prompt_answer
+from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
@@ -275,17 +276,9 @@ def main():
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
     feedback_path = ROOT / "quantum_feedback_approved.json"
     feedback_rows = json.loads(feedback_path.read_text(encoding="utf-8")) if feedback_path.exists() else []
-    if not isinstance(feedback_rows, list):
-        raise RuntimeError("승인 피드백 파일은 JSON 배열이어야 합니다.")
-    reviewed_feedback = [
-        row for row in feedback_rows
-        if isinstance(row, dict)
-        and row.get("approved") is True
-        and str(row.get("reviewed_by", "")).strip()
-        and str(row.get("correction_source", "")).strip()
-        and str(row.get("source", "")).strip()
-    ]
-    rows = clean_pairs(source_rows + reviewed_feedback)
+    approved_source_rows = select_approved_training_rows(source_rows)
+    reviewed_feedback = select_approved_feedback_rows(feedback_rows)
+    rows = clean_pairs(approved_source_rows + reviewed_feedback)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
     train_rows, valid_rows = split_pairs(rows)
