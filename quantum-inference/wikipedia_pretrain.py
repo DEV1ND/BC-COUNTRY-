@@ -383,8 +383,16 @@ def main():
         "reviewer_subject": d.get("reviewer_subject"),
         "identity_provider": d.get("identity_provider"),
     } for d in docs]
+    architecture = {"width": args.width, "heads": args.heads,
+                   "layers": args.layers, "block": BLOCK}
+    tokenizer_sha256 = hashlib.sha256(json.dumps(
+        tokenizer.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")).hexdigest()
     metadata = {
         "objective": "causal_next_token_prediction",
+        "architecture": architecture,
+        "parameter_count": parameter_count,
+        "tokenizer_sha256": tokenizer_sha256,
         "dataset": "private_wikipedia_jsonl_export",
         "document_count": len(docs), "train_document_count": len(train_docs),
         "validation_document_count": len(valid_docs),
@@ -400,8 +408,8 @@ def main():
     payload = {
         "state_dict": model.state_dict(),
         "tokenizer": tokenizer.to_dict(),
-        "architecture": {"width": args.width, "heads": args.heads,
-                         "layers": args.layers, "block": BLOCK},
+        "checkpoint_schema_version": 1,
+        "architecture": architecture,
         "steps": args.steps,
         "training_metadata": metadata,
     }
