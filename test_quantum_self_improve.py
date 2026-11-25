@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, summarize_generation_diagnostics, summarize_probe_variation, verify_candidate_state
+from quantum_self_improve import assess_reference_generation, build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, summarize_category_metrics, summarize_generation_diagnostics, summarize_probe_variation, summarize_revision_effect, verify_candidate_state
 from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
@@ -160,6 +160,19 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertEqual(result["groups"][0]["prompt_variants"], 3)
         self.assertEqual(result["groups"][0]["unique_normalized_answers"], 2)
         self.assertIn("의미적 일관성", result["metric_warning"])
+
+    def test_revision_effect_reports_changes_without_claiming_quality(self):
+        result = summarize_revision_effect([
+            {"category": "과학", "original_candidate_answer": "초안입니다.", "revised_candidate_answer": "수정된 초안입니다."},
+            {"category": "수학", "original_candidate_answer": "같은 답변", "revised_candidate_answer": "같은 답변"},
+            {"category": "과학", "original_candidate_answer": "내용", "revised_candidate_answer": ""},
+        ])
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["changed_revision_count"], 1)
+        self.assertEqual(result["unchanged_revision_count"], 1)
+        self.assertEqual(result["empty_revision_count"], 1)
+        self.assertEqual(result["by_category"]["과학"]["count"], 2)
+        self.assertIn("정확성", result["metric_warning"])
 
     def test_independent_evaluation_has_broad_domain_coverage(self):
         rows = json.loads((Path(__file__).resolve().parent / "bpe_independent_eval.json").read_text(encoding="utf-8"))
