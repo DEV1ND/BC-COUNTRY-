@@ -8,6 +8,7 @@ on:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
+      - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
