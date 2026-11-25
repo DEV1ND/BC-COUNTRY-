@@ -3,7 +3,7 @@ name: JUCKEX Quantum 10M extended training experiment
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 18 * * *' # Daily 03:00 KST, bounded run
+    - cron: '0 */6 * * *' # Every 6 hours; bounded run, not continuous inference
   push:
     branches: [main, quantum-candidate-autonomous-diagnostics]
     paths:
