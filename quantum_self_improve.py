@@ -54,7 +54,7 @@ def build_review_queue(samples):
 
 def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
-    answer = str(sample.get("generated_answer", "")).strip()
+    answer = str(sample.get("generated_answer", "")).strip()[:500]
     return (
         "이전 질문: " + question + "\n"
         "내가 생성한 답변: " + answer + "\n"
@@ -152,6 +152,7 @@ def main():
     # One bounded self-reflection pass: each candidate answer becomes context
     # for exactly one follow-up generation. Reflection is diagnostic only.
     import torch
+    torch.set_num_threads(1)
     from bpe_candidate_train import BPECandidate, generate_answer
     from bpe_tokenizer import BPETokenizer
     checkpoint = torch.load(ROOT / "bpe_candidate_checkpoint.pt", map_location="cpu", weights_only=False)
