@@ -1,4 +1,9 @@
-"""Strict allow-list helpers for Quantum candidate training data."""
+"""Strict allow-list helpers for Quantum Candidate training data."""
+
+
+def _has_text_fields(row, fields):
+    return all(str(row.get(field, "")).strip() for field in fields)
+
 
 def select_approved_training_rows(rows):
     if not isinstance(rows, list):
@@ -7,7 +12,7 @@ def select_approved_training_rows(rows):
         row for row in rows
         if isinstance(row, dict)
         and row.get("approved") is True
-        and str(row.get("source", "")).strip()
+        and _has_text_fields(row, ("question", "answer", "source"))
     ]
 
 
@@ -18,7 +23,7 @@ def select_approved_feedback_rows(rows):
         row for row in rows
         if isinstance(row, dict)
         and row.get("approved") is True
-        and str(row.get("reviewed_by", "")).strip()
-        and str(row.get("correction_source", "")).strip()
-        and str(row.get("source", "")).strip()
+        and _has_text_fields(row, (
+            "reviewed_by", "correction_source", "source", "question", "answer"
+        ))
     ]
