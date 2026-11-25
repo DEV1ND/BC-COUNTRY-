@@ -29,6 +29,25 @@ def audit_checkpoint_tokenizer(checkpoint_path, benchmark_path, output_path):
     if not isinstance(payload, dict) or payload.get("checkpoint_schema_version") != 1:
         raise ValueError("A schema-v1 Candidate checkpoint is required.")
     architecture = validate_architecture(payload.get("architecture"), block_size=256)
+    category_totals = {}
+    for item in per_case:
+        stats = category_totals.setdefault(item["category"], {
+            "cases": 0, "unicode_codepoints": 0, "encoded_tokens": 0,
+            "unknown_tokens": 0, "cases_with_unknown_tokens": 0,
+            "cases_exceeding_model_block": 0,
+        })
+        stats["cases"] += 1
+        stats["unicode_codepoints"] += item["unicode_codepoints"]
+        stats["encoded_tokens"] += item["encoded_tokens"]
+        stats["unknown_tokens"] += item["unknown_tokens"]
+        stats["cases_with_unknown_tokens"] += int(item["unknown_tokens"] > 0)
+        stats["cases_exceeding_model_block"] += int(item["exceeds_model_block"])
+    for stats in category_totals.values():
+        stats["unknown_token_ratio"] = round(
+            stats["unknown_tokens"] / stats["encoded_tokens"]
+            if stats["encoded_tokens"] else 0.0, 6
+        )
+
     training = payload.get("training_metadata")
     if not isinstance(training, dict) or training.get("architecture") != payload.get("architecture"):
         raise ValueError("Candidate checkpoint training architecture metadata is inconsistent.")
@@ -80,6 +99,7 @@ def audit_checkpoint_tokenizer(checkpoint_path, benchmark_path, output_path):
         "vocab_size": len(tokenizer.vocab),
         "model_block_size": architecture["block"],
         "coverage": {key: value for key, value in report.items() if key != "per_text"},
+        "category_diagnostics": category_totals,
         "per_case": per_case,
         "cases_with_unknown_tokens": sum(1 for item in per_case if item["unknown_tokens"]),
         "cases_exceeding_model_block": sum(1 for item in per_case if item["exceeds_model_block"]),
