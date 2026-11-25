@@ -12,6 +12,7 @@ on:
       - quantum-data-repair
       - quantum-candidate-inference-readiness-guard
       - quantum-candidate-inference-health-status-v2
+      - quantum-candidate-release-manifest-integrity
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
@@ -46,6 +47,7 @@ jobs:
           python -m unittest -v \
             test_inference_contract.py \
             tests/test_checkpoint_storage.py \
+            tests/test_checkpoint_validation.py \
             tests/test_inference_health.py \
             test_bpe_tokenizer_integrity.py \
             test_generation_context.py \
