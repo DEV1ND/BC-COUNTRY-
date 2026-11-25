@@ -58,7 +58,7 @@ jobs:
         run: mkdir -p "${{ github.workspace }}/.quantum-candidate-state"
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_bpe_tokenizer.py
 
       - name: Verify and smoke-train Quantum 10M
         env:
