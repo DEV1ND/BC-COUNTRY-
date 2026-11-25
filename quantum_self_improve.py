@@ -174,6 +174,7 @@ def main():
         "--seed", str(args.seed),
     ]
     state_dir_value = os.environ.get("QUANTUM_CANDIDATE_STATE_DIR", "").strip()
+    state_backend = os.environ.get("QUANTUM_CANDIDATE_STATE_BACKEND", "ephemeral-local").strip() or "ephemeral-local"
     state_dir = Path(state_dir_value).expanduser() if state_dir_value else None
     previous_checkpoint = verify_candidate_state(state_dir) if state_dir else None
     resumed_checkpoint = previous_checkpoint is not None
@@ -289,8 +290,9 @@ def main():
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
         "resumed_from_previous_candidate": resumed_checkpoint,
-        "persistent_candidate_state_configured": state_dir is not None,
-        "persistent_checkpoint_updated": persisted_checkpoint_updated,
+        "candidate_state_backend": state_backend if state_dir is not None else "ephemeral-local",
+        "persistent_candidate_state_configured": state_dir is not None and state_backend == "persistent",
+        "candidate_checkpoint_cache_updated": persisted_checkpoint_updated,
         "persisted_checkpoint_sha256": persisted_checkpoint_sha256,
         "cumulative_training_steps": train_report.get("cumulative_training_steps"),
         "training_pairs": len(approved),
