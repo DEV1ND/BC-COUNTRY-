@@ -12,6 +12,9 @@ audit measures held-out inputs without requiring them to be lossless.
 
 ## Run
 
+The audit is intentionally separate from inference and training workflows.
+
+
 Use a local Candidate checkpoint that was generated under checkpoint schema v1:
 
 ```bash
