@@ -73,6 +73,30 @@ def build_review_queue(samples):
     return queue
 
 
+def summarize_review_queue_counts(reference_samples, probe_samples, reflection_diagnostics):
+    """Separate review signals by generation stage; counts are not accuracy scores."""
+    reflection_rows = [
+        row for row in reflection_diagnostics
+        if row.get("diagnostic_stage") == "self_reflection"
+    ]
+    revision_rows = [
+        row for row in reflection_diagnostics
+        if row.get("diagnostic_stage") == "self_revision"
+    ]
+    counts = {
+        "reference_answers": len(build_review_queue(reference_samples)),
+        "follow_up_probes": len(build_review_queue(probe_samples)),
+        "self_reflections": len(build_review_queue(reflection_rows)),
+        "self_revisions": len(build_review_queue(revision_rows)),
+    }
+    counts["total_flagged_outputs"] = sum(counts.values())
+    counts["metric_warning"] = (
+        "단계별 출력 형식 경고 수이며 사실 정확도나 의미적 정답률이 아닙니다. "
+        "각 단계의 전체 생성 수를 함께 비교해야 합니다."
+    )
+    return counts
+
+
 def assess_reference_generation(samples, max_flagged_ratio=0.25):
     """Conservative generation gate based only on held-out reference questions."""
     count = len(samples)
@@ -478,6 +502,8 @@ def main():
         "follow_up_probe_answer_count": len(probe_samples),
         "flagged_answer_count": len(review_queue),
         "flagged_reflection_or_revision_count": len(reflection_review_queue),
+        "review_queue_stage_counts": summarize_review_queue_counts(samples, probe_samples, reflection_diagnostics),
+        "flagged_answer_count_scope": "reference answers + follow-up probes + self-reflections + self-revisions; see review_queue_stage_counts for breakdown",
         "next_cycle_probe_count": len(probes),
         "self_reflection_count": len(reflections),
         "self_revision_count": len(reflections),
