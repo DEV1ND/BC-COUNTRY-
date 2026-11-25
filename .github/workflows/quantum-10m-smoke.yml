@@ -18,6 +18,7 @@ on:
       - 'quantum_dataset_audit.py'
       - 'test_quantum_dataset_audit.py'
       - 'quantum_training_data.py'
+      - 'test_quantum_training_data.py'
       - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
@@ -39,18 +40,13 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-
       - name: Install CPU training dependencies
         run: pip install -r requirements.txt
-
-      # Candidate weights stay in the repository's free Actions cache.
-      # The cache is best-effort and expires after inactivity.
       - name: Restore previous Candidate checkpoint from free cache
         uses: actions/cache/restore@v4
         with:
@@ -58,15 +54,12 @@ jobs:
           key: quantum-candidate-state-${{ github.run_id }}
           restore-keys: |
             quantum-candidate-state-
-
       - name: Prepare Candidate state directory
         run: mkdir -p "${{ github.workspace }}/.quantum-candidate-state"
-
       - name: Audit datasets and run regression tests
         run: |
           python quantum_dataset_audit.py
-          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
-
+          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_quantum_training_data.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
       - name: Verify and smoke-train Quantum 10M
         env:
           QUANTUM_CANDIDATE_STATE_DIR: ${{ github.workspace }}/.quantum-candidate-state
@@ -88,15 +81,12 @@ jobs:
               "live_model_changed": False
           }, ensure_ascii=False, indent=2))
           PY
-
       - name: Save improved Candidate checkpoint to free cache
         if: ${{ success() && hashFiles('.quantum-candidate-state/candidate_latest.pt') != '' }}
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}/.quantum-candidate-state
           key: quantum-candidate-state-${{ github.run_id }}
-
-      # This repository is public. Never attach model checkpoint weights to artifacts.
       - name: Upload experiment reports only (no model checkpoint)
         uses: actions/upload-artifact@v4
         with:
