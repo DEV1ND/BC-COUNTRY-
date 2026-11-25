@@ -1,6 +1,10 @@
 import unittest
+import hashlib
+import json
+import tempfile
+from pathlib import Path
 
-from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase
+from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
 
 
 class QuantumSelfImproveTests(unittest.TestCase):
@@ -45,6 +49,33 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertIn("형광펜은 표시 도구입니다.", prompt)
         self.assertIn("\n", prompt)
 
+    def test_candidate_state_checksum_verified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = root / "candidate_latest.pt"
+            checkpoint.write_bytes(b"candidate-checkpoint")
+            manifest = {
+                "format": "juckex-quantum-candidate-state-v1",
+                "checkpoint": checkpoint.name,
+                "sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            }
+            (root / "candidate_latest.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            self.assertEqual(verify_candidate_state(root), checkpoint)
+
+    def test_candidate_state_tampering_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checkpoint = root / "candidate_latest.pt"
+            checkpoint.write_bytes(b"original")
+            manifest = {
+                "format": "juckex-quantum-candidate-state-v1",
+                "checkpoint": checkpoint.name,
+                "sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            }
+            (root / "candidate_latest.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            checkpoint.write_bytes(b"tampered")
+            with self.assertRaises(RuntimeError):
+                verify_candidate_state(root)
     def test_probe_deduplication(self):
         rows = [
             {"question": "태양계란 무엇인가요?"},
