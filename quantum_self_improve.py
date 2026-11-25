@@ -100,7 +100,16 @@ def main():
 
     training = load_rows(ROOT / "training_extra.json")
     evaluation = load_rows(ROOT / "bpe_independent_eval.json")
+    feedback = load_rows(ROOT / "quantum_feedback_approved.json")
+    approved_feedback = [
+        row for row in feedback
+        if isinstance(row, dict)
+        and row.get("approved") is True
+        and str(row.get("reviewed_by", "")).strip()
+        and str(row.get("correction_source", "")).strip()
+    ]
     approved = [row for row in training if isinstance(row, dict) and row.get("approved") is True]
+    approved.extend(approved_feedback)
     train_questions = {normalize_question(row.get("question", "")) for row in approved}
     eval_questions = {normalize_question(row.get("question", "")) for row in evaluation if isinstance(row, dict)}
     overlap = sorted(x for x in train_questions & eval_questions if x)
@@ -134,6 +143,7 @@ def main():
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
         "training_pairs": len(approved),
+        "approved_feedback_pairs": len(approved_feedback),
         "independent_evaluation_questions": len(evaluation),
         "training_evaluation_overlap": len(overlap),
         "training_steps": train_report.get("steps"),
