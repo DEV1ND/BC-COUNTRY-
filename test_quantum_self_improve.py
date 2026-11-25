@@ -5,9 +5,25 @@ import tempfile
 from pathlib import Path
 
 from quantum_self_improve import build_probes, build_reflection_prompt, build_revision_prompt, build_review_queue, normalize_question, repeated_phrase, verify_candidate_state
+from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 
 class QuantumSelfImproveTests(unittest.TestCase):
+    def test_only_explicitly_approved_source_rows_enter_training(self):
+        rows = [
+            {"question": "A", "answer": "Approved answer", "approved": True, "source": "licensed"},
+            {"question": "B", "answer": "Not approved", "approved": False, "source": "licensed"},
+            {"question": "C", "answer": "Missing source", "approved": True, "source": ""},
+        ]
+        self.assertEqual([row["question"] for row in select_approved_training_rows(rows)], ["A"])
+
+    def test_feedback_requires_human_review_provenance(self):
+        rows = [
+            {"question": "A", "answer": "Corrected", "approved": True, "reviewed_by": "reviewer", "correction_source": "manual", "source": "human-reviewed"},
+            {"question": "B", "answer": "Unreviewed", "approved": True, "reviewed_by": "", "correction_source": "manual", "source": "human-reviewed"},
+        ]
+        self.assertEqual([row["question"] for row in select_approved_feedback_rows(rows)], ["A"])
+
     def test_normalization_handles_korean_punctuation(self):
         self.assertEqual(normalize_question("형광펜이 뭐야?"), normalize_question("형광펜이 뭐야"))
 
