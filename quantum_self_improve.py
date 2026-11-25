@@ -97,18 +97,26 @@ def summarize_review_queue_counts(reference_samples, probe_samples, reflection_d
     return counts
 
 
-def assess_reference_generation(samples, max_flagged_ratio=0.25):
-    """Conservative generation gate based only on held-out reference questions."""
+def assess_reference_generation(samples, max_flagged_ratio=0.25, min_mean_bigram_proxy=0.20):
+    """Apply format checks plus a weak lexical-overlap floor; never claim semantic accuracy."""
     count = len(samples)
     queue = build_review_queue(samples)
     nonempty = sum(1 for sample in samples if str(sample.get("generated_answer", "")).strip())
     replacements = sum(1 for sample in samples if "�" in str(sample.get("generated_answer", "")))
+    scores = [
+        float(sample["reference_char_bigram_f1_proxy"])
+        for sample in samples
+        if isinstance(sample.get("reference_char_bigram_f1_proxy"), (int, float))
+    ]
+    mean_bigram_proxy = sum(scores) / len(scores) if scores else 0.0
     flag_limit = max(1, int(count * max_flagged_ratio + 0.999999))
+    lexical_gate_passed = len(scores) == count and mean_bigram_proxy >= min_mean_bigram_proxy
     passed = (
         count > 0
         and nonempty / count >= 0.95
         and replacements == 0
         and len(queue) <= flag_limit
+        and lexical_gate_passed
     )
     return {
         "passed": passed,
@@ -117,6 +125,10 @@ def assess_reference_generation(samples, max_flagged_ratio=0.25):
         "replacement_count": replacements,
         "flagged_count": len(queue),
         "flag_limit": flag_limit,
+        "mean_reference_char_bigram_f1_proxy": round(mean_bigram_proxy, 5),
+        "minimum_reference_char_bigram_f1_proxy": min_mean_bigram_proxy,
+        "lexical_overlap_gate_passed": lexical_gate_passed,
+        "metric_warning": "문자 bigram 기준은 질문-정답 관련성의 약한 어휘 신호일 뿐 의미적 정답률이나 사실 정확도를 증명하지 않습니다. 사람 검토를 대체하지 않습니다.",
     }
 
 
