@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - quantum-candidate-security-hardening
+      - quantum-candidate-tokenizer-coverage-audit
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
