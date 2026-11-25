@@ -3,6 +3,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
+MAX_VOCAB_SIZE = 8192
+
+
 class BPETokenizer:
     def __init__(self, merges=None, initial_symbols=None):
         if initial_symbols is not None and not isinstance(initial_symbols, (list, tuple)):
@@ -48,8 +51,9 @@ class BPETokenizer:
             raise ValueError("BPE 학습 텍스트는 모두 문자열이어야 합니다.")
         if not texts or not any(text.strip() for text in texts):
             raise ValueError("BPE 학습 텍스트에 비어 있지 않은 문장이 필요합니다.")
-        if isinstance(vocab_size, bool) or not isinstance(vocab_size, int) or vocab_size < 2:
-            raise ValueError("vocab_size는 2 이상의 정수여야 합니다.")
+        if (isinstance(vocab_size, bool) or not isinstance(vocab_size, int)
+                or vocab_size < 2 or vocab_size > MAX_VOCAB_SIZE):
+            raise ValueError(f"vocab_size는 2~{MAX_VOCAB_SIZE} 범위의 정수여야 합니다.")
         if (isinstance(min_pair_frequency, bool) or
                 not isinstance(min_pair_frequency, int) or min_pair_frequency < 1):
             raise ValueError("min_pair_frequency는 1 이상의 정수여야 합니다.")
@@ -82,6 +86,13 @@ class BPETokenizer:
         # This prevents unseen Korean syllables from breaking tokenizer round-trip checks.
         for text in (extra_alphabet_texts or ()):
             alphabet.update(list(text))
+        minimum_vocab_size = len(alphabet) + 1  # Reserve ID 0 for <unk>.
+        if minimum_vocab_size > MAX_VOCAB_SIZE:
+            raise ValueError(
+                f"초기 문자 어휘만으로 최대 크기를 초과합니다: "
+                f"필요={minimum_vocab_size}, 최대={MAX_VOCAB_SIZE}. "
+                "문자 범위 데이터를 검토하거나 별도 토크나이저 분할 전략을 사용하세요."
+            )
         merges = []
         target = max(len(alphabet) + 1, vocab_size)
         while len(alphabet) + len(merges) + 1 < target:
