@@ -11,6 +11,7 @@ on:
     branches:
       - quantum-data-repair
       - quantum-candidate-inference-readiness-guard
+      - quantum-candidate-inference-health-status-v2
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
