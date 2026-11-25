@@ -326,11 +326,14 @@ def main():
             if char not in known_chars
         })
         if unseen_chars:
-            preview = "".join(unseen_chars[:30])
-            raise RuntimeError(
-                "재개 체크포인트 토크나이저에 새 문자가 있습니다. "
-                f"안전한 토크나이저 확장 후 재개해야 합니다: {preview!r}"
-            )
+            # Extend only the Candidate tokenizer by appending new character IDs.
+            # Existing token IDs and their embedding/output rows remain unchanged.
+            tokenizer = tokenizer.with_added_symbols(unseen_chars)
+            if len(tokenizer.vocab) > args.vocab_size + 512:
+                raise RuntimeError(
+                    "토크나이저 확장 폭이 안전 한도를 초과했습니다: "
+                    f"{len(tokenizer.vocab)} > {args.vocab_size + 512}"
+                )
     else:
         tokenizer = BPETokenizer.train(
             [row["text"] for row in train_rows],
