@@ -258,6 +258,31 @@ def main():
             "warning": "자기평가와 수정 답변은 독립적인 사실 검증이 아니며 학습 데이터로 자동 채택되지 않습니다.",
         })
 
+    reflection_diagnostics = []
+    for item in reflections:
+        reflection_diagnostics.append({
+            "question": item["question"],
+            "generated_answer": item["self_reflection"],
+            "diagnostic_stage": "self_reflection",
+        })
+        reflection_diagnostics.append({
+            "question": item["question"],
+            "generated_answer": item["revised_candidate_answer"],
+            "diagnostic_stage": "self_revision",
+        })
+    reflection_review_queue = build_review_queue(reflection_diagnostics)
+    for item in reflection_review_queue:
+        item["diagnostic_stage"] = next(
+            (
+                sample["diagnostic_stage"]
+                for sample in reflection_diagnostics
+                if sample["question"] == item["question"]
+                and sample["generated_answer"] == item["candidate_answer"]
+            ),
+            "self_reflection_or_revision",
+        )
+    review_queue.extend(reflection_review_queue)
+
     report = {
         "created_at_unix": int(time.time()),
         "duration_seconds": round(time.time() - started, 2),
@@ -280,6 +305,7 @@ def main():
         "independent_reference_answer_count": len(samples),
         "follow_up_probe_answer_count": len(probe_samples),
         "flagged_answer_count": len(review_queue),
+        "flagged_reflection_or_revision_count": len(reflection_review_queue),
         "next_cycle_probe_count": len(probes),
         "self_reflection_count": len(reflections),
         "self_revision_count": len(reflections),
@@ -297,6 +323,9 @@ def main():
     )
     (ROOT / "quantum_review_queue.json").write_text(
         json.dumps(review_queue, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (ROOT / "quantum_reflection_review_queue.json").write_text(
+        json.dumps(reflection_review_queue, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (ROOT / "quantum_probe_answers.json").write_text(
         json.dumps(probe_samples, ensure_ascii=False, indent=2), encoding="utf-8"
