@@ -19,11 +19,23 @@ def _strict_int(value, name, minimum=1, maximum=None):
     return value
 
 
+def validate_tokenizer_payload(payload, max_vocab_size=8192):
+    if not isinstance(payload, dict):
+        raise ValueError("Candidate tokenizer payload must be an object.")
+    symbols = payload.get("initial_symbols")
+    merges = payload.get("merges")
+    if not isinstance(symbols, list) or not isinstance(merges, list):
+        raise ValueError("Candidate tokenizer symbols and merges must be arrays.")
+    if len(symbols) + len(merges) + 1 > max_vocab_size:
+        raise ValueError("Candidate tokenizer vocabulary exceeds the configured maximum.")
+    return True
+
+
 def validate_architecture(architecture, block_size=256):
     if not isinstance(architecture, dict):
         raise ValueError("Candidate checkpoint architecture metadata is missing.")
-    width = _strict_int(architecture.get("width"), "width", 8, 4096)
-    heads = _strict_int(architecture.get("heads"), "heads", 1, 64)
+    width = _strict_int(architecture.get("width"), "width", 8, 512)
+    heads = _strict_int(architecture.get("heads"), "heads", 1, 32)
     layers = _strict_int(architecture.get("layers"), "layers", 1, 8)
     declared_block = _strict_int(architecture.get("block"), "block", 1, 4096)
     if width % heads:
@@ -37,7 +49,8 @@ def validate_candidate_checkpoint(payload, model, tokenizer, block_size=256):
     """Reject checkpoints whose declared architecture or tokenizer disagrees with loaded tensors."""
     if not isinstance(payload, dict):
         raise ValueError("Candidate checkpoint payload must be an object.")
-    if payload.get("checkpoint_schema_version") != 1:
+    schema_version = payload.get("checkpoint_schema_version")
+    if isinstance(schema_version, bool) or schema_version != 1:
         raise ValueError("Candidate checkpoint schema version is missing or unsupported.")
     if model is None or tokenizer is None:
         raise ValueError("Candidate checkpoint requires a constructed model and tokenizer.")
