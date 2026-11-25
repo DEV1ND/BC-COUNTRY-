@@ -36,6 +36,10 @@ training metadata before inspecting benchmark text.
 
 ## Interpretation
 
+The report is a diagnostic snapshot tied to the exact checkpoint and benchmark hashes. Re-run it after any Candidate tokenizer/checkpoint rebuild; do not compare reports with different fingerprints as if they were the same model.
+
+
+
 - Unknown tokens indicate missing tokenizer character coverage, not a model answer error.
 - A high single-codepoint token ratio indicates limited compression/granularity,
   not automatically poor language understanding.
