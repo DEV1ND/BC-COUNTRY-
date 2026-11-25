@@ -15,6 +15,7 @@ on:
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
+      - 'test_quantum_self_improve.py'
       - '.github/workflows/quantum-10m-smoke.yml'
 
 permissions:
@@ -42,7 +43,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py
+        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py
 
       - name: Verify and smoke-train Quantum 10M
         run: |
