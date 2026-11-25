@@ -21,7 +21,7 @@ questions = [
     "오늘 날씨 어때?",
 ]
 for question in questions:
-    prompt_text = "질문:" + question + "\\n답변:"
+    prompt_text = "질문:" + question + "\n답변:"
     if tokenizer.decode(tokenizer.encode(prompt_text)) != prompt_text:
         raise SystemExit(f"TOKENIZER_PROMPT_ROUNDTRIP_FAILED: {question}")
     result = generate(
