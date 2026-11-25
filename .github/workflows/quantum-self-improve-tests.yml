@@ -12,6 +12,7 @@ on:
       - 'quantum_training_data.py'
       - 'bpe_independent_eval.json'
       - '.github/workflows/quantum-self-improve-tests.yml'
+      - '.github/workflows/quantum-10m-smoke.yml'
   pull_request:
     branches: [main]
     paths:
