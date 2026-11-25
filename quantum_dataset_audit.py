@@ -37,8 +37,9 @@ def audit_datasets(training_rows, evaluation_rows, feedback_rows):
                 errors.append(f"{prefix}: 객체가 아닙니다.")
                 continue
             for field in required:
-                if not str(row.get(field, "")).strip():
-                    errors.append(f"{prefix}: {field} 값이 비어 있습니다.")
+                value = row.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"{prefix}: {field} 값이 비어 있거나 문자열이 아닙니다.")
             normalized = normalize_question(row.get("question", ""))
             if normalized:
                 if normalized in seen:
@@ -61,8 +62,9 @@ def audit_datasets(training_rows, evaluation_rows, feedback_rows):
         if row.get("approved") is not True:
             errors.append(f"feedback[{i}]: 승인되지 않은 피드백이 포함되어 있습니다.")
         for field in ("reviewed_by", "correction_source", "source", "question", "answer"):
-            if not str(row.get(field, "")).strip():
-                errors.append(f"feedback[{i}]: {field} 값이 비어 있습니다.")
+            value = row.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"feedback[{i}]: {field} 값이 비어 있거나 문자열이 아닙니다.")
 
     overlap = sorted(set(train_q) & set(eval_q))
     if overlap:
