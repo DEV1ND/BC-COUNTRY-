@@ -29,7 +29,7 @@ test("knowledge source metadata is passed through and displayed", () => {
 });
 
 test("Quantum never substitutes a saved or synthetic answer when live inference fails", () => {
-  assert.doesNotMatch(worker, /saved-greedy-snapshot|match\\.a|match\\.gold|SAMPLES\\s*=/);
+  assert.doesNotMatch(worker, /saved-greedy-snapshot|match\.a|match\.gold|SAMPLES\s*=/);
   assert.match(worker, /mode:"unavailable"/);
   assert.match(worker, /Quantum 실시간 추론에 실패했습니다/);
 });
