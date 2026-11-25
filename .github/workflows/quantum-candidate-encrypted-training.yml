@@ -184,7 +184,7 @@ jobs:
               "created_at": datetime.now(timezone.utc).isoformat(),
           }
           target = Path("/tmp/quantum-candidate-manifest.json")
-          target.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\\n", encoding="utf-8")
+          target.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
           os.chmod(target, 0o600)
           print("Created Candidate-only manifest with encrypted asset size and SHA-256.")
           PY
