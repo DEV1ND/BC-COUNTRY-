@@ -32,6 +32,8 @@ on:
       - 'test_quantum_training_data.py'
       - 'quantum_eval_candidate_queue.json'
       - 'test_quantum_eval_candidate_queue.py'
+      - 'quantum_eval_review.py'
+      - 'test_quantum_eval_review.py'
       - 'quantum_feedback_approved.json'
       - 'bpe_candidate_train.py'
       - 'bpe_tokenizer.py'
