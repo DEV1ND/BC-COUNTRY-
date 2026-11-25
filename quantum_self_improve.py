@@ -184,6 +184,40 @@ def summarize_probe_variation(probe_samples):
     }
 
 
+def summarize_revision_effect(reflections):
+    """Measure text changes after self-revision; change is not correctness."""
+    total = len(reflections)
+    changed = empty = same = 0
+    length_deltas = []
+    by_category = {}
+    for item in reflections:
+        original = str(item.get("original_candidate_answer", ""))
+        revised = str(item.get("revised_candidate_answer", ""))
+        old_norm = re.sub(r"\s+", "", original).casefold()
+        new_norm = re.sub(r"\s+", "", revised).casefold()
+        is_empty = not revised.strip()
+        is_changed = bool(new_norm) and new_norm != old_norm
+        changed += int(is_changed)
+        empty += int(is_empty)
+        same += int(bool(new_norm) and new_norm == old_norm)
+        length_deltas.append(len(revised) - len(original))
+        category = str(item.get("category", "미분류")).strip() or "미분류"
+        bucket = by_category.setdefault(category, {"count": 0, "changed": 0, "empty_revision": 0})
+        bucket["count"] += 1
+        bucket["changed"] += int(is_changed)
+        bucket["empty_revision"] += int(is_empty)
+    return {
+        "count": total,
+        "changed_revision_count": changed,
+        "unchanged_revision_count": same,
+        "empty_revision_count": empty,
+        "revision_change_ratio": round(changed / total, 5) if total else 0.0,
+        "mean_character_length_delta": round(sum(length_deltas) / len(length_deltas), 2) if length_deltas else 0,
+        "by_category": dict(sorted(by_category.items())),
+        "metric_warning": "수정 전후 문구 차이만 측정하며 수정 답변의 정확성이나 개선 여부를 증명하지 않습니다.",
+    }
+
+
 def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
     answer = str(sample.get("generated_answer", "")).strip()[:500]
@@ -336,6 +370,7 @@ def main():
         revised = generate_answer(model, tokenizer, revision_prompt, max_new_tokens=96)
         reflections.append({
             "question": sample.get("question", ""),
+            "category": sample.get("category", "미분류"),
             "original_candidate_answer": sample.get("generated_answer", ""),
             "self_reflection": reflection,
             "revised_candidate_answer": revised,
@@ -407,11 +442,13 @@ def main():
     category_metrics = summarize_category_metrics(samples)
     generation_diagnostics = summarize_generation_diagnostics(diagnostic_samples)
     probe_variation = summarize_probe_variation(probe_samples)
+    revision_effect = summarize_revision_effect(reflections)
     report = {
         "created_at_unix": int(time.time()),
         "evaluation_category_metrics": category_metrics,
         "generation_diagnostics": generation_diagnostics,
         "probe_variation_diagnostics": probe_variation,
+        "self_revision_effect_diagnostics": revision_effect,
         "duration_seconds": round(time.time() - started, 2),
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
