@@ -114,6 +114,76 @@ def summarize_category_metrics(samples):
     }
 
 
+def summarize_generation_diagnostics(samples):
+    """Describe output health signals; these are not correctness scores."""
+    buckets = {}
+    normalized_answers = {}
+    for sample in samples:
+        category = str(sample.get("category", "미분류")).strip() or "미분류"
+        answer = str(sample.get("generated_answer", ""))
+        bucket = buckets.setdefault(category, {
+            "count": 0, "empty_count": 0, "replacement_count": 0,
+            "repeated_phrase_count": 0, "too_short_count": 0,
+            "overlong_count": 0, "mean_characters": 0,
+        })
+        bucket["count"] += 1
+        bucket["empty_count"] += int(not answer.strip())
+        bucket["replacement_count"] += int("�" in answer)
+        bucket["repeated_phrase_count"] += int(repeated_phrase(answer))
+        bucket["too_short_count"] += int(len(answer.strip()) < 12)
+        bucket["overlong_count"] += int(len(answer) > 800)
+        bucket["mean_characters"] += len(answer)
+        normalized = re.sub(r"\\s+", "", answer).casefold()
+        if normalized:
+            normalized_answers.setdefault(normalized, 0)
+            normalized_answers[normalized] += 1
+    for bucket in buckets.values():
+        bucket["mean_characters"] = round(bucket["mean_characters"] / bucket["count"], 2)
+    duplicate_groups = sum(1 for count in normalized_answers.values() if count > 1)
+    return {
+        "by_category": dict(sorted(buckets.items())),
+        "exact_duplicate_answer_groups": duplicate_groups,
+        "metric_warning": "출력 형태 진단이며 사실 정확도·의미적 정답률·지능 점수가 아닙니다.",
+    }
+
+
+def summarize_probe_variation(probe_samples):
+    """Measure lexical variation across three paraphrase prompts per source question."""
+    prefixes = (
+        "쉽게 설명해 주세요: ",
+        "구체적인 예시를 들어 설명해 주세요: ",
+        "핵심 원인과 결과를 설명해 주세요: ",
+    )
+    groups = {}
+    for sample in probe_samples:
+        question = str(sample.get("question", ""))
+        prefix = next((item for item in prefixes if question.startswith(item)), None)
+        if prefix is None:
+            continue
+        base = question[len(prefix):]
+        groups.setdefault(base, []).append(str(sample.get("generated_answer", "")))
+    results = []
+    for question, answers in sorted(groups.items()):
+        normalized = [re.sub(r"\\s+", "", answer).casefold() for answer in answers]
+        nonempty = [answer for answer in normalized if answer]
+        results.append({
+            "question": question,
+            "prompt_variants": len(answers),
+            "nonempty_answers": len(nonempty),
+            "unique_normalized_answers": len(set(nonempty)),
+            "all_answers_identical": bool(nonempty) and len(set(nonempty)) == 1,
+            "answer_length_range": (
+                max(map(len, answers)) - min(map(len, answers))
+                if answers else 0
+            ),
+        })
+    return {
+        "question_groups": len(results),
+        "groups": results,
+        "metric_warning": "문장 형태의 다양성만 측정하며 답변 간 의미적 일관성이나 사실 정확도를 판정하지 않습니다.",
+    }
+
+
 def build_reflection_prompt(sample):
     question = str(sample.get("question", "")).strip()
     answer = str(sample.get("generated_answer", "")).strip()[:500]
@@ -335,9 +405,13 @@ def main():
         persisted_checkpoint_updated = True
 
     category_metrics = summarize_category_metrics(samples)
+    generation_diagnostics = summarize_generation_diagnostics(diagnostic_samples)
+    probe_variation = summarize_probe_variation(probe_samples)
     report = {
         "created_at_unix": int(time.time()),
         "evaluation_category_metrics": category_metrics,
+        "generation_diagnostics": generation_diagnostics,
+        "probe_variation_diagnostics": probe_variation,
         "duration_seconds": round(time.time() - started, 2),
         "status": "candidate_diagnostic_completed",
         "candidate_parameters": train_report.get("candidate_parameters"),
