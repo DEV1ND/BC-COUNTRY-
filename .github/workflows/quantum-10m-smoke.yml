@@ -2,12 +2,16 @@ name: JUCKEX Quantum 10M extended training experiment
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * 0' # Every Monday 03:00 KST
   push:
     branches: [main]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
+      - 'quantum_self_improve.py'
+      - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
@@ -42,7 +46,7 @@ jobs:
 
       - name: Verify and smoke-train Quantum 10M
         run: |
-          python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
+          python quantum_self_improve.py --steps 500 --vocab-size 1024 --seed 20261125
           python - <<'PY'
           import json
           from pathlib import Path
@@ -68,6 +72,9 @@ jobs:
           path: |
             bpe_candidate_report.json
             bpe_candidate.json
-            bpe_generation_seed_20261123.json
+            bpe_generation_seed_*.json
+            quantum_self_improvement_report.json
+            quantum_review_queue.json
+            quantum_next_cycle_probes.json
           if-no-files-found: error
           retention-days: 14
