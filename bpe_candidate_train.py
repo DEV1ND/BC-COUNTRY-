@@ -425,6 +425,7 @@ def main():
             resume_tokenizer,
             tokenizer,
         )
+    independent_examples = encode_training_examples(independent_clean, tokenizer)
     parent_independent_answer_bpc = (
         answer_bits_per_char(candidate, independent_examples, tokenizer)
         if resume_payload is not None else None
@@ -504,7 +505,6 @@ def main():
     independent_live_bpc = live_bits_per_char(independent_char)
     validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
     validation_live_answer_bpc = live_answer_bits_per_char(valid_rows)
-    independent_examples = encode_training_examples(independent_clean, tokenizer)
     independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
     independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
     if not all(math.isfinite(v) for v in (
