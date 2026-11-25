@@ -152,6 +152,7 @@ def health():
             "knowledge_documents": knowledge_count, "knowledge_storage": "local-cache-rebuildable",
             "approved_qa_pairs_available_for_training": len(APPROVED_QA_ROWS),
             "qa_answer_shortcut_enabled": False,
+            "tokenizer_vocab_size": len(tokenizer.vocab) if tokenizer is not None else 0,
             "parameter_count": sum(p.numel() for p in model.parameters()) if model is not None else 0,
             "checkpoint_architecture": checkpoint_meta.get("architecture") if checkpoint_meta else None,
             "wikipedia_seed": wikipedia_seed_status,
@@ -231,6 +232,9 @@ def generate(req: GenerateRequest, authorization: Optional[str] = Header(default
             excerpt = item["text"][:420].replace("\n", " ")
             excerpts.append(f'[{item["title"]}] {excerpt}')
         knowledge_context = "참고 지식(출처 확인 필요):\n" + "\n".join(excerpts) + "\n"
+    question_ids = tokenizer.encode(req.prompt.strip())
+    if not question_ids or 0 in question_ids:
+        raise HTTPException(422, "질문에 현재 토크나이저가 처리하지 못하는 문자가 포함되어 있습니다.")
     prompt_ids = tokenizer.encode(knowledge_context + "질문:" + req.prompt.strip() + "\n답변:")
     generated = []
     for step in range(req.max_new_tokens):
