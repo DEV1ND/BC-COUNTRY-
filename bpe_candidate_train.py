@@ -27,6 +27,36 @@ BLOCK = 256
 DEVICE = torch.device("cpu")
 
 
+def load_candidate_state_preserving_vocab(candidate, saved_state, old_tokenizer, new_tokenizer):
+    """Load prior weights while preserving old token rows and initializing appended tokens."""
+    target_state = candidate.state_dict()
+    if set(saved_state) != set(target_state):
+        missing = sorted(set(target_state) - set(saved_state))
+        unexpected = sorted(set(saved_state) - set(target_state))
+        raise RuntimeError(f"체크포인트 파라미터 키 불일치: missing={missing}, unexpected={unexpected}")
+    vocab_parameters = {"token.weight", "output.weight", "output.bias"}
+    for key, old_tensor in saved_state.items():
+        target_tensor = target_state[key]
+        if tuple(old_tensor.shape) == tuple(target_tensor.shape):
+            target_state[key] = old_tensor
+            continue
+        if key not in vocab_parameters or old_tensor.ndim != target_tensor.ndim or old_tensor.shape[1:] != target_tensor.shape[1:]:
+            raise RuntimeError(
+                f"체크포인트 텐서 구조 불일치: {key} saved={tuple(old_tensor.shape)} "
+                f"target={tuple(target_tensor.shape)}"
+            )
+        if old_tensor.shape[0] != len(old_tokenizer.vocab) or target_tensor.shape[0] != len(new_tokenizer.vocab):
+            raise RuntimeError(f"토크나이저 크기와 체크포인트 텐서가 일치하지 않습니다: {key}")
+        expanded = target_tensor.clone()
+        for token, old_id in old_tokenizer.stoi.items():
+            new_id = new_tokenizer.stoi.get(token)
+            if new_id is None:
+                raise RuntimeError(f"확장 토크나이저에서 기존 토큰이 사라졌습니다: {token!r}")
+            expanded[new_id].copy_(old_tensor[old_id])
+        target_state[key] = expanded
+    candidate.load_state_dict(target_state, strict=True)
+
+
 class BPECandidate(nn.Module):
     def __init__(self, vocab_size, width=64, heads=4, layers=2):
         super().__init__()
@@ -309,6 +339,7 @@ def main():
         raise RuntimeError(f"학습/독립 평가 질문 중복: {leaked_questions[:5]}")
     resume_payload = None
     resume_sha256 = None
+    resume_tokenizer = None
     if args.resume_checkpoint:
         resume_path = Path(args.resume_checkpoint).expanduser().resolve()
         if not resume_path.is_file():
@@ -316,6 +347,7 @@ def main():
         resume_sha256 = hashlib.sha256(resume_path.read_bytes()).hexdigest()
         resume_payload = torch.load(resume_path, map_location="cpu", weights_only=False)
         tokenizer = BPETokenizer.from_dict(resume_payload["tokenizer"])
+        resume_tokenizer = tokenizer
         saved_arch = resume_payload.get("architecture", {})
         expected_arch = {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK}
         if saved_arch != expected_arch:
@@ -370,7 +402,12 @@ def main():
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
     if resume_payload is not None:
-        candidate.load_state_dict(resume_payload["state_dict"], strict=True)
+        load_candidate_state_preserving_vocab(
+            candidate,
+            resume_payload["state_dict"],
+            resume_tokenizer,
+            tokenizer,
+        )
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
