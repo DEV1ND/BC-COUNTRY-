@@ -14,6 +14,8 @@ on:
       - quantum-candidate-inference-health-status-v2
       - quantum-candidate-release-manifest-integrity
       - quantum-candidate-model-tokenizer-contract
+      - quantum-candidate-evaluation-provenance-v2
+      - quantum-candidate-evaluation-benchmark-v2
     paths:
       - "quantum-inference/**"
       - ".github/workflows/quantum-candidate-inference-contract.yml"
@@ -56,4 +58,7 @@ jobs:
             test_generation_sampling.py \
             test_review_generation_evaluation.py \
             test_export_generation_review_template.py \
-            test_enrich_generation_report.py
+            test_enrich_generation_report.py \
+            test_generation_benchmark_v2.py \
+            test_tokenizer_coverage.py \
+            test_audit_tokenizer_coverage.py
