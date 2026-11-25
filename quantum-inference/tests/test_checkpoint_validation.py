@@ -61,7 +61,7 @@ def valid_payload(tokenizer):
 
 class CheckpointValidationTests(unittest.TestCase):
     def setUp(self):
-        self.tokenizer = BPETokenizer(initial_symbols=list("Quantum"))
+        self.tokenizer = BPETokenizer(initial_symbols=list("Quantm"))
         self.model = FakeModel()
         # Keep fake embedding dimensions aligned with the test tokenizer.
         self.model.token.num_embeddings = len(self.tokenizer.vocab)
