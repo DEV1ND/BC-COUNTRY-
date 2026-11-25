@@ -22,7 +22,7 @@ def normalize_question(value):
 
 
 def repeated_phrase(answer):
-    compact = re.sub(r"\s+", " ", answer).strip()
+    compact = re.sub(r"\s+", "", answer)
     return bool(re.search(r"(.{3,24}?)\1{2,}", compact))
 
 
