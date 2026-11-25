@@ -1,6 +1,6 @@
 import unittest
 
-from quantum_self_improve import build_probes, build_review_queue, normalize_question, repeated_phrase
+from quantum_self_improve import build_probes, build_reflection_prompt, build_review_queue, normalize_question, repeated_phrase
 
 
 class QuantumSelfImproveTests(unittest.TestCase):
@@ -25,6 +25,14 @@ class QuantumSelfImproveTests(unittest.TestCase):
         self.assertEqual(len(probes), 3)
         self.assertTrue(all(item["reference_answer"] is None for item in probes))
         self.assertTrue(all(item["eligible_for_training"] is False for item in probes))
+
+    def test_self_reflection_is_explicitly_not_ground_truth(self):
+        prompt = build_reflection_prompt({
+            "question": "형광펜이 뭐야?",
+            "generated_answer": "형광펜은 중요한 문장을 표시하는 필기구입니다.",
+        })
+        self.assertIn("형광펜은 중요한 문장을 표시하는 필기구입니다.", prompt)
+        self.assertIn("이전 답변을 정답으로 가정하지 마라", prompt)
 
     def test_probe_deduplication(self):
         rows = [
