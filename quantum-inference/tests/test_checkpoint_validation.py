@@ -3,7 +3,7 @@ import unittest
 
 from bpe_tokenizer import BPETokenizer
 from checkpoint_validation import (
-    tokenizer_fingerprint, validate_architecture, validate_candidate_checkpoint,
+    tokenizer_fingerprint, validate_architecture, validate_candidate_checkpoint, validate_tokenizer_payload,
 )
 
 
@@ -73,6 +73,16 @@ class CheckpointValidationTests(unittest.TestCase):
         result = validate_candidate_checkpoint(payload, self.model, self.tokenizer)
         self.assertEqual(result["parameter_count"], 300)
         self.assertEqual(result["tokenizer_sha256"], tokenizer_fingerprint(self.tokenizer))
+
+    def test_rejects_boolean_schema_version(self):
+        payload = valid_payload(self.tokenizer)
+        payload["checkpoint_schema_version"] = True
+        with self.assertRaisesRegex(ValueError, "schema version"):
+            validate_candidate_checkpoint(payload, self.model, self.tokenizer)
+
+    def test_rejects_oversized_tokenizer_before_construction(self):
+        with self.assertRaisesRegex(ValueError, "vocabulary exceeds"):
+            validate_tokenizer_payload({"initial_symbols": ["a"] * 8192, "merges": []})
 
     def test_rejects_missing_or_unsupported_schema(self):
         payload = valid_payload(self.tokenizer)
