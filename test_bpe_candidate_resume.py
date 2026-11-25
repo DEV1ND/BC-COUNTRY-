@@ -2,11 +2,22 @@ import unittest
 
 import torch
 
-from bpe_candidate_train import BPECandidate, load_candidate_state_preserving_vocab
+from bpe_candidate_train import (
+    BPECandidate,
+    candidate_non_regression_vs_parent,
+    load_candidate_state_preserving_vocab,
+)
 from bpe_tokenizer import BPETokenizer
 
 
 class CandidateResumeVocabularyTests(unittest.TestCase):
+    def test_parent_comparison_rejects_regression(self):
+        self.assertTrue(candidate_non_regression_vs_parent(6.0, 5.9))
+        self.assertTrue(candidate_non_regression_vs_parent(6.0, 6.0))
+        self.assertFalse(candidate_non_regression_vs_parent(6.0, 6.01))
+        self.assertFalse(candidate_non_regression_vs_parent(6.0, float("nan")))
+        self.assertIsNone(candidate_non_regression_vs_parent(None, 5.0))
+
     def test_resume_copies_old_vocab_rows_and_keeps_new_rows_initialized(self):
         torch.manual_seed(7)
         old_tokenizer = BPETokenizer.train(

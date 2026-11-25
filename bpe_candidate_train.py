@@ -245,6 +245,20 @@ def character_bigram_f1(reference, generated):
     return 2 * precision * recall / max(1e-12, precision + recall)
 
 
+def candidate_non_regression_vs_parent(parent_bpc, candidate_bpc):
+    """Return None for a fresh candidate, otherwise whether loss did not regress."""
+    if parent_bpc is None:
+        return None
+    try:
+        parent_value = float(parent_bpc)
+        candidate_value = float(candidate_bpc)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(parent_value) or not math.isfinite(candidate_value):
+        return False
+    return candidate_value <= parent_value + 1e-6
+
+
 def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
     prompt = "질문:" + question + "\n답변:"
     ids = tokenizer.encode(prompt)
@@ -411,6 +425,10 @@ def main():
             resume_tokenizer,
             tokenizer,
         )
+    parent_independent_answer_bpc = (
+        answer_bits_per_char(candidate, independent_examples, tokenizer)
+        if resume_payload is not None else None
+    )
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
@@ -495,6 +513,9 @@ def main():
         independent_answer_bpc, independent_live_answer_bpc,
     )):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
+    non_regression_vs_parent = candidate_non_regression_vs_parent(
+        parent_independent_answer_bpc, independent_answer_bpc
+    )
     candidate_path = OUT
     torch.save({
         "format": "juckex-quantum-candidate-v1",
@@ -520,6 +541,11 @@ def main():
         "validation_answer_only_bpc": round(validation_answer_bpc, 5),
         "validation_live_answer_only_bpc": round(validation_live_answer_bpc, 5),
         "independent_answer_only_bpc": round(independent_answer_bpc, 5),
+        "parent_independent_answer_only_bpc": (
+            round(parent_independent_answer_bpc, 5)
+            if parent_independent_answer_bpc is not None else None
+        ),
+        "candidate_non_regression_vs_parent": non_regression_vs_parent,
         "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
         "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),

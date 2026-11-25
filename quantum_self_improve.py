@@ -440,6 +440,7 @@ def main():
     reference_flag_limit = reference_quality["flag_limit"]
     candidate_cache_eligible = (
         train_report.get("candidate_better_on_independent_set") is True
+        and train_report.get("candidate_non_regression_vs_parent") is not False
         and reference_generation_quality_passed
     )
     if state_dir is not None and candidate_cache_eligible:
@@ -496,6 +497,8 @@ def main():
         "training_steps": train_report.get("steps"),
         "best_step": train_report.get("best_step"),
         "independent_answer_only_bpc": train_report.get("independent_answer_only_bpc"),
+        "parent_independent_answer_only_bpc": train_report.get("parent_independent_answer_only_bpc"),
+        "candidate_non_regression_vs_parent": train_report.get("candidate_non_regression_vs_parent"),
         "candidate_better_on_independent_set": train_report.get("candidate_better_on_independent_set"),
         "generated_answer_count": len(diagnostic_samples),
         "independent_reference_answer_count": len(samples),
