@@ -2,7 +2,10 @@
 
 
 def _has_text_fields(row, fields):
-    return all(str(row.get(field, "")).strip() for field in fields)
+    return all(
+        isinstance(row.get(field), str) and bool(row[field].strip())
+        for field in fields
+    )
 
 
 def select_approved_training_rows(rows):
