@@ -798,5 +798,805 @@
     "approved": false,
     "eligible_for_evaluation": false,
     "eligible_for_training": false
+  },
+  {
+    "question": "상대방이 잘못 이해한 내용을 부드럽게 바로잡으려면?",
+    "category": "일상 대화",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "여러 사람이 참여하는 회의에서 발언 순서를 정하는 좋은 방법은?",
+    "category": "일상 대화",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "감사 인사를 구체적으로 표현하면 어떤 점이 좋은가?",
+    "category": "일상 대화",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "요청을 거절하면서도 대안을 제시하는 문장을 만들어라.",
+    "category": "일상 대화",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "대화 중 핵심 내용을 확인하기 위해 되묻는 방법은?",
+    "category": "일상 대화",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "문자 기록이 없는 시대의 역사를 연구할 때 어떤 자료를 활용할 수 있나?",
+    "category": "역사",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "교역로의 발달이 문화 교류에 미친 영향을 설명해라.",
+    "category": "역사",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "역사적 사건의 원인을 하나로 단정하면 안 되는 이유는?",
+    "category": "역사",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "민주주의 제도의 발전을 비교할 때 살펴볼 기준은?",
+    "category": "역사",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "산업화 과정에서 노동 환경이 변화한 이유는?",
+    "category": "역사",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "세포막이 물질의 출입을 조절하는 방식은?",
+    "category": "과학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "계절에 따라 낮의 길이가 달라지는 까닭은?",
+    "category": "과학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "밀도가 다른 물체가 물에 뜨거나 가라앉는 원리는?",
+    "category": "과학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "에너지 전환 과정에서 에너지 보존 법칙은 어떻게 적용되나?",
+    "category": "과학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "실험에서 대조군을 두는 이유는?",
+    "category": "과학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "음수에 음수를 곱하면 양수가 되는 이유를 수직선이나 규칙으로 설명해라.",
+    "category": "수학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "일차함수의 기울기는 그래프에서 무엇을 나타내나?",
+    "category": "수학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "원의 둘레와 지름의 비가 일정한 이유를 설명하는 방법은?",
+    "category": "수학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "자료에 극단적인 값이 포함되면 평균이 어떻게 달라질 수 있나?",
+    "category": "수학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "두 도형의 닮음 조건을 확인하는 방법은?",
+    "category": "수학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "금리가 오르면 가계의 소비와 저축에 어떤 변화가 생길 수 있나?",
+    "category": "경제",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "희소성이 경제적 선택을 필요하게 만드는 이유는?",
+    "category": "경제",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "공공재와 사적 재화의 차이를 예로 설명해라.",
+    "category": "경제",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "환율 변동이 수입품 가격에 미치는 영향은?",
+    "category": "경제",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "기업이 생산 비용을 줄이려 할 때 고려할 요소는?",
+    "category": "경제",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "다수결 결정에서 소수 의견을 보호해야 하는 이유는?",
+    "category": "사회",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "사회 규범과 법률은 어떤 점에서 다른가?",
+    "category": "사회",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "개인정보 자기결정권이 중요한 이유는?",
+    "category": "사회",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "지역 사회 문제를 해결할 때 주민 참여가 필요한 이유는?",
+    "category": "사회",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "공정한 선거를 위해 필요한 조건을 설명해라.",
+    "category": "사회",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "계절풍이 지역별 강수량에 영향을 주는 원리는?",
+    "category": "지리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "도시 열섬 현상이 나타나는 원인과 완화 방법은?",
+    "category": "지리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "인구 피라미드로 알 수 있는 인구 구조의 특징은?",
+    "category": "지리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "판 경계 주변에서 지진과 화산 활동이 잦은 이유는?",
+    "category": "지리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "하천 유역의 토지 이용이 홍수 위험에 미치는 영향은?",
+    "category": "지리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "캐시가 웹 서비스 응답 속도에 도움이 되는 이유는?",
+    "category": "기술",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "API와 라이브러리는 어떤 점에서 다른가?",
+    "category": "기술",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "데이터베이스 인덱스가 검색 속도에 미치는 영향은?",
+    "category": "기술",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "버전 관리에서 브랜치를 사용하는 이유는?",
+    "category": "기술",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "백업과 복제는 장애 대응에서 어떻게 다른가?",
+    "category": "기술",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "정적 타입 검사와 동적 타입 검사의 차이는?",
+    "category": "프로그래밍",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "테스트에서 경계값 분석을 사용하는 이유는?",
+    "category": "프로그래밍",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "해시 테이블의 평균 검색 시간이 빠른 이유는?",
+    "category": "프로그래밍",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "비동기 프로그래밍이 필요한 상황을 예로 들어라.",
+    "category": "프로그래밍",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "코드 중복을 줄이는 것이 유지보수에 도움이 되는 이유는?",
+    "category": "프로그래밍",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "문장의 주제와 중심 생각을 구분하는 방법은?",
+    "category": "언어",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "동음이의어와 다의어는 어떻게 구별할 수 있나?",
+    "category": "언어",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "글의 접속 표현이 문장 사이 관계를 드러내는 방식은?",
+    "category": "언어",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "인용과 요약을 사용할 때 출처를 표시해야 하는 이유는?",
+    "category": "언어",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "같은 사실을 설명문과 논설문에서 다르게 구성하는 방법은?",
+    "category": "언어",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "어떤 명제가 거짓임을 보이기 위해 반례를 찾는 절차는?",
+    "category": "논리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "연역 추론과 귀납 추론의 차이를 예로 설명해라.",
+    "category": "논리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "조건문에서 역과 대우는 어떤 관계인가?",
+    "category": "논리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "표본이 편향되면 통계적 결론이 왜 왜곡될 수 있나?",
+    "category": "논리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "논증에서 숨겨진 전제를 찾는 방법은?",
+    "category": "논리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "학교 급식 만족도를 개선하려면 정량 자료와 정성 자료를 어떻게 함께 수집할까?",
+    "category": "복합 추론",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "도시의 차량 통행량과 대기질 사이의 관계를 분석할 때 혼란 변수를 어떻게 고려할까?",
+    "category": "복합 추론",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "재난 대피 안내를 설계할 때 정보 접근성이 낮은 사람을 어떻게 고려해야 할까?",
+    "category": "복합 추론",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "지역 축제 예산의 효과를 평가할 지표를 단기·장기로 나눠 제시해라.",
+    "category": "복합 추론",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "온라인 학습과 대면 학습의 효과를 공정하게 비교하는 실험을 설계해라.",
+    "category": "복합 추론",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "긴 설명에서 서로 다른 시점의 사건을 시간순으로 재구성하는 방법은?",
+    "category": "긴 문맥",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "여러 조건이 포함된 요청에서 필수 조건과 선택 조건을 분류하는 방법은?",
+    "category": "긴 문맥",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "문서의 앞부분에서 정의된 용어가 뒤에서 다른 의미로 쓰이는지 확인하는 방법은?",
+    "category": "긴 문맥",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "긴 대화에서 취소된 결정과 현재 유효한 결정을 구분하는 방법은?",
+    "category": "긴 문맥",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "여러 출처의 정보가 서로 보완되는지 충돌하는지 표로 정리하는 방법은?",
+    "category": "긴 문맥",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "연구 결과를 인용할 때 연구 대상과 한계를 함께 확인해야 하는 이유는?",
+    "category": "사실 확인",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "공식 통계의 기준 연도와 단위를 확인해야 하는 이유는?",
+    "category": "사실 확인",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "사진이나 영상의 촬영 시점과 장소를 검증하는 방법은?",
+    "category": "사실 확인",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "전문가 의견과 실험 자료가 다를 때 판단을 보류하고 확인할 절차는?",
+    "category": "사실 확인",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "웹페이지의 수정 날짜만으로 정보가 최신이라고 판단할 수 없는 이유는?",
+    "category": "사실 확인",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "작용·반작용 힘이 서로 다른 물체에 작용한다는 뜻은?",
+    "category": "물리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "파동의 진폭과 파장은 각각 무엇을 나타내나?",
+    "category": "물리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "전압과 전류의 관계를 저항과 연결해 설명해라.",
+    "category": "물리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "열평형 상태에서 두 물체의 온도는 어떻게 되는가?",
+    "category": "물리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "관성은 일상생활의 어떤 현상에서 관찰할 수 있나?",
+    "category": "물리",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "원소와 화합물은 어떤 기준으로 구분하는가?",
+    "category": "화학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "화학 변화와 물리 변화의 차이를 예로 설명해라.",
+    "category": "화학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "반응 속도에 온도가 영향을 주는 이유는?",
+    "category": "화학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "용액의 농도를 나타내는 방법에는 무엇이 있나?",
+    "category": "화학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
+  },
+  {
+    "question": "기체 압력이 용기 부피와 관계를 맺는 원리는?",
+    "category": "화학",
+    "reference_answer": null,
+    "source": "human-review-required",
+    "review_status": "pending",
+    "approved": false,
+    "eligible_for_evaluation": false,
+    "eligible_for_training": false
   }
 ]
