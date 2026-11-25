@@ -129,6 +129,15 @@ class QuantumSelfImproveTests(unittest.TestCase):
         ]
         self.assertFalse(assess_reference_generation(samples)["passed"])
 
+    def test_independent_evaluation_has_broad_domain_coverage(self):
+        rows = json.loads((Path(__file__).resolve().parent / "bpe_independent_eval.json").read_text(encoding="utf-8"))
+        categories = {row.get("category") for row in rows if isinstance(row, dict)}
+        required = {"일상 대화", "역사", "과학", "수학", "경제", "사회", "지리", "프로그래밍", "언어", "논리", "복합 추론", "긴 문맥", "사실 확인"}
+        self.assertGreaterEqual(len(rows), 30)
+        self.assertTrue(required.issubset(categories), required - categories)
+        normalized = [normalize_question(row.get("question", "")) for row in rows]
+        self.assertEqual(len(normalized), len(set(normalized)))
+
     def test_probe_deduplication(self):
         rows = [
             {"question": "태양계란 무엇인가요?"},
