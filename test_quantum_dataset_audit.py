@@ -50,6 +50,27 @@ class QuantumDatasetAuditTests(unittest.TestCase):
         self.assertFalse(report["passed"])
         self.assertIn("역사", report["missing_evaluation_categories"])
 
+    def test_null_or_non_string_required_fields_are_rejected(self):
+        for bad_value in (None, 123, True, ""):
+            with self.subTest(value=bad_value):
+                report = audit_datasets(
+                    [train_row()],
+                    [eval_row()],
+                    [{**feedback_row(), "correction_source": bad_value}],
+                )
+                self.assertFalse(report["passed"])
+                self.assertTrue(any("correction_source" in error for error in report["errors"]))
+
+    def test_null_question_and_answer_are_rejected(self):
+        report = audit_datasets(
+            [train_row()],
+            [{**eval_row(), "question": None, "answer": 42}],
+            [feedback_row()],
+        )
+        self.assertFalse(report["passed"])
+        self.assertTrue(any("question" in error for error in report["errors"]))
+        self.assertTrue(any("answer" in error for error in report["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()
