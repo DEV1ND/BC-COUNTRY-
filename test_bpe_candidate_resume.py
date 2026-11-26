@@ -4,6 +4,8 @@ import torch
 
 from bpe_candidate_train import (
     BPECandidate,
+    augment_training_rows,
+    encode_training_examples,
     candidate_non_regression_vs_parent,
     candidate_learning_rate,
     load_candidate_state_preserving_vocab,
@@ -49,6 +51,21 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
                 self.assertTrue(torch.equal(old_state[key][old_id], new_state[key][new_id]))
         self.assertEqual(new_model.token.weight.shape[0], len(new_tokenizer.vocab))
         self.assertEqual(new_model.output.weight.shape[0], len(new_tokenizer.vocab))
+
+    def test_prompt_augmentation_tokens_are_in_training_vocabulary(self):
+        rows = [{
+            "question": "알고리즘이란 무엇인가요?",
+            "answer": "문제를 해결하는 단계별 절차입니다.",
+        }]
+        augmented = augment_training_rows(rows)
+        texts = [
+            "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+            for row in augmented
+        ]
+        tokenizer = BPETokenizer.train(texts, vocab_size=64, min_pair_frequency=2)
+        examples = encode_training_examples(augmented, tokenizer)
+        self.assertTrue(examples)
+        self.assertEqual(sum(token_id == 0 for sequence, _ in examples for token_id in sequence), 0)
 
     def test_tokenizer_does_not_add_evaluation_only_characters(self):
         tokenizer = BPETokenizer.train(
