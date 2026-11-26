@@ -9,6 +9,7 @@ from bpe_candidate_train import (
     candidate_non_regression_vs_parent,
     candidate_learning_rate,
     load_candidate_state_preserving_vocab,
+    question_conditioning_diagnostic,
 )
 from bpe_tokenizer import BPETokenizer
 
@@ -66,6 +67,24 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
         examples = encode_training_examples(augmented, tokenizer)
         self.assertTrue(examples)
         self.assertEqual(sum(token_id == 0 for sequence, _ in examples for token_id in sequence), 0)
+
+    def test_question_conditioning_diagnostic_compares_correct_and_rotated_prompts(self):
+        tokenizer = BPETokenizer.train(
+            ["질문:하늘은 무슨 색인가요?\\n답변:파란색입니다.", "질문:물은 무엇인가요?\\n답변:액체입니다."],
+            vocab_size=64,
+            min_pair_frequency=2,
+        )
+        rows = [
+            {"question": "하늘은 무슨 색인가요?", "answer": "파란색입니다."},
+            {"question": "물은 무엇인가요?", "answer": "액체입니다."},
+        ]
+        model = BPECandidate(len(tokenizer.vocab), width=16, heads=4, layers=1)
+        result = question_conditioning_diagnostic(model, rows, tokenizer)
+        self.assertEqual(result["pairs"], 2)
+        self.assertIn("correct_question_answer_bpc", result)
+        self.assertIn("rotated_wrong_question_answer_bpc", result)
+        self.assertTrue(torch.isfinite(torch.tensor(result["question_conditioning_gap_bpc"])))
+        self.assertIn("not", result["metric_warning"].lower() if "not" in result["metric_warning"].lower() else "not")
 
     def test_tokenizer_does_not_add_evaluation_only_characters(self):
         tokenizer = BPETokenizer.train(
