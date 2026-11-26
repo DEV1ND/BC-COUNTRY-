@@ -70,7 +70,7 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
 
     def test_question_conditioning_diagnostic_compares_correct_and_rotated_prompts(self):
         tokenizer = BPETokenizer.train(
-            ["질문:하늘은 무슨 색인가요?\\n답변:파란색입니다.", "질문:물은 무엇인가요?\\n답변:액체입니다."],
+            ["질문:하늘은 무슨 색인가요?\n답변:파란색입니다.", "질문:물은 무엇인가요?\n답변:액체입니다."],
             vocab_size=64,
             min_pair_frequency=2,
         )
@@ -84,7 +84,7 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
         self.assertIn("correct_question_answer_bpc", result)
         self.assertIn("rotated_wrong_question_answer_bpc", result)
         self.assertTrue(torch.isfinite(torch.tensor(result["question_conditioning_gap_bpc"])))
-        self.assertIn("not", result["metric_warning"].lower() if "not" in result["metric_warning"].lower() else "not")
+        self.assertIn("사실 정확도", result["metric_warning"])
 
     def test_tokenizer_does_not_add_evaluation_only_characters(self):
         tokenizer = BPETokenizer.train(
