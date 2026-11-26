@@ -59,7 +59,7 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
         }]
         augmented = augment_training_rows(rows)
         texts = [
-            "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+            "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
             for row in augmented
         ]
         tokenizer = BPETokenizer.train(texts, vocab_size=64, min_pair_frequency=2)
