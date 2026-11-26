@@ -28,7 +28,6 @@ on:
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
       - 'test_quantum_self_improve.py'
-      - '.github/workflows/quantum-10m-smoke.yml'
 
 permissions:
   contents: read
@@ -99,6 +98,7 @@ jobs:
             bpe_candidate_report.json
             bpe_candidate.json
             bpe_generation_seed_*.json
+            bpe_training_generation_seed_*.json
             quantum_self_improvement_report.json
             quantum_dataset_audit_report.json
             quantum_review_queue.json
