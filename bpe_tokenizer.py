@@ -4,16 +4,35 @@ from collections import Counter
 from pathlib import Path
 
 class BPETokenizer:
-    def __init__(self, merges=None, initial_symbols=None):
+    def __init__(self, merges=None, initial_symbols=None, vocab_order=None):
         self.initial_symbols = list(initial_symbols or [])
         self.merges = [tuple(x) for x in (merges or [])]
         self.ranks = {pair: i for i, pair in enumerate(self.merges)}
         symbols = {"<unk>"} | set(self.initial_symbols)
         for left, right in self.merges:
             symbols.add(left + right)
-        self.vocab = ["<unk>"] + sorted(symbols - {"<unk>"})
+        if vocab_order is None:
+            self.vocab = ["<unk>"] + sorted(symbols - {"<unk>"})
+        else:
+            ordered = list(vocab_order)
+            if not ordered or ordered[0] != "<unk>" or len(ordered) != len(set(ordered)) or set(ordered) != symbols:
+                raise ValueError("토크나이저 vocab_order가 기존 심볼 집합과 일치하지 않습니다.")
+            self.vocab = ordered
         self.stoi = {token: i for i, token in enumerate(self.vocab)}
         self.itos = {i: token for token, i in self.stoi.items()}
+
+    def with_added_symbols(self, symbols):
+        additions = sorted(set(str(symbol) for symbol in symbols) - set(self.initial_symbols))
+        if not additions:
+            return self
+        if any(len(symbol) != 1 for symbol in additions):
+            raise ValueError("토크나이저 확장은 단일 문자만 허용합니다.")
+        # Keep every existing token ID fixed; append new single-character tokens.
+        return BPETokenizer(
+            merges=self.merges,
+            initial_symbols=self.initial_symbols + additions,
+            vocab_order=self.vocab + additions,
+        )
 
     @classmethod
     def train(cls, texts, vocab_size=1024, min_pair_frequency=2, extra_alphabet_texts=None):
@@ -72,13 +91,14 @@ class BPETokenizer:
 
     def to_dict(self):
         return {"format": "juckex-bpe-v1", "initial_symbols": self.initial_symbols,
-                "merges": [list(pair) for pair in self.merges], "vocab_size": len(self.vocab)}
+                "merges": [list(pair) for pair in self.merges], "vocab_order": self.vocab,
+                "vocab_size": len(self.vocab)}
 
     @classmethod
     def from_dict(cls, payload):
         if payload.get("format") != "juckex-bpe-v1":
             raise ValueError("지원하지 않는 BPE 포맷입니다.")
-        return cls(payload.get("merges", []), payload.get("initial_symbols", []))
+        return cls(payload.get("merges", []), payload.get("initial_symbols", []), payload.get("vocab_order"))
 
 def load_approved_texts(path):
     rows = json.loads(Path(path).read_text(encoding="utf-8"))

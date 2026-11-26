@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import time
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +17,7 @@ import torch.nn.functional as F
 
 import app as live
 from bpe_tokenizer import BPETokenizer, encode_prompt_answer
+from quantum_training_data import select_approved_training_rows, select_approved_feedback_rows
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "bpe_candidate_checkpoint.pt"
@@ -23,6 +25,39 @@ REPORT = ROOT / "bpe_candidate_report.json"
 TOKENIZER_REPORT = ROOT / "bpe_candidate.json"
 BLOCK = 256
 DEVICE = torch.device("cpu")
+
+
+def load_candidate_state_preserving_vocab(candidate, saved_state, old_tokenizer, new_tokenizer):
+    """Load prior weights while preserving old token rows and initializing appended tokens."""
+    target_state = candidate.state_dict()
+    for token, old_id in old_tokenizer.stoi.items():
+        if new_tokenizer.stoi.get(token) != old_id:
+            raise RuntimeError(f"기존 토큰 ID가 변경되었거나 토큰이 사라졌습니다: {token!r}")
+    if set(saved_state) != set(target_state):
+        missing = sorted(set(target_state) - set(saved_state))
+        unexpected = sorted(set(saved_state) - set(target_state))
+        raise RuntimeError(f"체크포인트 파라미터 키 불일치: missing={missing}, unexpected={unexpected}")
+    vocab_parameters = {"token.weight", "output.weight", "output.bias"}
+    for key, old_tensor in saved_state.items():
+        target_tensor = target_state[key]
+        if tuple(old_tensor.shape) == tuple(target_tensor.shape):
+            target_state[key] = old_tensor
+            continue
+        if key not in vocab_parameters or old_tensor.ndim != target_tensor.ndim or old_tensor.shape[1:] != target_tensor.shape[1:]:
+            raise RuntimeError(
+                f"체크포인트 텐서 구조 불일치: {key} saved={tuple(old_tensor.shape)} "
+                f"target={tuple(target_tensor.shape)}"
+            )
+        if old_tensor.shape[0] != len(old_tokenizer.vocab) or target_tensor.shape[0] != len(new_tokenizer.vocab):
+            raise RuntimeError(f"토크나이저 크기와 체크포인트 텐서가 일치하지 않습니다: {key}")
+        expanded = target_tensor.clone()
+        for token, old_id in old_tokenizer.stoi.items():
+            new_id = new_tokenizer.stoi.get(token)
+            if new_id is None:
+                raise RuntimeError(f"확장 토크나이저에서 기존 토큰이 사라졌습니다: {token!r}")
+            expanded[new_id].copy_(old_tensor[old_id])
+        target_state[key] = expanded
+    candidate.load_state_dict(target_state, strict=True)
 
 
 class BPECandidate(nn.Module):
@@ -210,6 +245,84 @@ def character_bigram_f1(reference, generated):
     return 2 * precision * recall / max(1e-12, precision + recall)
 
 
+
+@torch.no_grad()
+def question_conditioning_diagnostic(candidate, rows, tokenizer):
+    """Compare answer-token loss with its true question versus a rotated wrong question.
+
+    A positive gap means the correct question context helps predict the same answer.
+    This is a conditioning diagnostic, not a factual-accuracy score.
+    """
+    if len(rows) < 2:
+        raise ValueError("질문 조건화 진단에는 서로 다른 평가 문항이 최소 2개 필요합니다.")
+    correct_examples = encode_training_examples(rows, tokenizer)
+    mismatched_rows = [
+        {
+            "question": rows[(index + 1) % len(rows)]["question"],
+            "answer": row["answer"],
+        }
+        for index, row in enumerate(rows)
+    ]
+    mismatched_examples = encode_training_examples(mismatched_rows, tokenizer)
+    correct_bpc = answer_bits_per_char(candidate, correct_examples, tokenizer)
+    mismatched_bpc = answer_bits_per_char(candidate, mismatched_examples, tokenizer)
+    gap = mismatched_bpc - correct_bpc
+    return {
+        "pairs": len(rows),
+        "correct_question_answer_bpc": round(correct_bpc, 5),
+        "rotated_wrong_question_answer_bpc": round(mismatched_bpc, 5),
+        "question_conditioning_gap_bpc": round(gap, 5),
+        "correct_context_helped": bool(gap > 0),
+        "metric_warning": (
+            "올바른 질문과 순환 치환한 질문의 정답 토큰 손실 비교입니다. "
+            "양수는 질문 문맥 활용의 신호일 뿐 사실 정확도나 의미적 정답률을 증명하지 않습니다."
+        ),
+    }
+
+
+def summarize_generalization_gap(training_bpc, validation_bpc, parent_validation_bpc=None):
+    """Summarize train/validation separation without treating it as semantic accuracy."""
+    values = (training_bpc, validation_bpc)
+    if not all(math.isfinite(float(value)) for value in values):
+        raise ValueError("일반화 진단 손실은 유한한 숫자여야 합니다.")
+    gap = float(validation_bpc) - float(training_bpc)
+    return {
+        "training_answer_only_bpc": round(float(training_bpc), 5),
+        "validation_answer_only_bpc": round(float(validation_bpc), 5),
+        "validation_minus_training_bpc": round(gap, 5),
+        "parent_validation_answer_only_bpc": (
+            round(float(parent_validation_bpc), 5)
+            if parent_validation_bpc is not None else None
+        ),
+        "validation_non_regression_vs_parent": (
+            candidate_non_regression_vs_parent(parent_validation_bpc, validation_bpc)
+            if parent_validation_bpc is not None else None
+        ),
+        "interpretation": (
+            "검증 손실이 학습 손실보다 높으면 과적합 가능성을 점검해야 합니다. "
+            "이 지표는 생성 답변의 사실 정확도나 의미적 정답률을 측정하지 않습니다."
+        ),
+    }
+
+
+def candidate_non_regression_vs_parent(parent_bpc, candidate_bpc):
+    """Return None for a fresh candidate, otherwise whether loss did not regress."""
+    if parent_bpc is None:
+        return None
+    try:
+        parent_value = float(parent_bpc)
+        candidate_value = float(candidate_bpc)
+    except (TypeError, ValueError):
+        return False
+    if not math.isfinite(parent_value) or not math.isfinite(candidate_value):
+        return False
+    return candidate_value <= parent_value + 1e-6
+
+def candidate_learning_rate(resumed):
+    """Use a smaller update when continuing an existing Candidate checkpoint."""
+    return 3e-5 if resumed else 3e-4
+
+
 def generate_answer(candidate, tokenizer, question, max_new_tokens=120):
     prompt = "질문:" + question + "\n답변:"
     ids = tokenizer.encode(prompt)
@@ -261,6 +374,7 @@ def main():
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--target-parameters", type=int, default=0)
     parser.add_argument("--parameter-tolerance", type=float, default=0.02)
+    parser.add_argument("--resume-checkpoint", type=str, default="")
     args = parser.parse_args()
     if args.width <= 0 or args.heads <= 0 or args.layers <= 0 or args.width % args.heads:
         parser.error("width와 heads는 양수여야 하며 width는 heads로 나누어져야 합니다.")
@@ -271,7 +385,11 @@ def main():
     # CI/offline candidate training uses only locally reviewed, approved Q&A.
     # It never calls the production Worker or modifies production storage.
     source_rows = json.loads((ROOT / "training_extra.json").read_text(encoding="utf-8"))
-    rows = clean_pairs(source_rows)
+    feedback_path = ROOT / "quantum_feedback_approved.json"
+    feedback_rows = json.loads(feedback_path.read_text(encoding="utf-8")) if feedback_path.exists() else []
+    approved_source_rows = select_approved_training_rows(source_rows)
+    reviewed_feedback = select_approved_feedback_rows(feedback_rows)
+    rows = clean_pairs(approved_source_rows + reviewed_feedback)
     if len(rows) < 10:
         raise RuntimeError(f"승인된 학습 데이터가 너무 적습니다: {len(rows)}개")
     train_rows, valid_rows = split_pairs(rows)
@@ -287,17 +405,62 @@ def main():
             continue
         q, a = str(row.get("question", "")).strip(), str(row.get("answer", "")).strip()
         if len(q) >= 2 and len(a) >= 8:
-            independent_clean.append({"question": q, "answer": a, "text": "질문:" + q + "\n답변:" + a + "\n\n"})
+            independent_clean.append({"question": q, "answer": a, "category": str(row.get("category", "미분류")), "text": "질문:" + q + "\n답변:" + a + "\n\n"})
     if len(independent_clean) < 10:
         raise RuntimeError("독립 평가 문항의 유효 데이터가 10개 미만입니다.")
-    tokenizer = BPETokenizer.train(
-        [row["text"] for row in train_rows],
-        vocab_size=args.vocab_size,
-        min_pair_frequency=2,
-        extra_alphabet_texts=[row["text"] for row in rows] + [row["text"] for row in independent_clean],
-    )
-    train_sequences = encode_rows(train_rows, tokenizer)
+    import re
+    import unicodedata
+    def normalized_question(value):
+        value = unicodedata.normalize("NFC", str(value)).casefold()
+        return re.sub(r"[^0-9a-z가-힣]", "", value)
+    training_question_set = {normalized_question(row["question"]) for row in rows}
+    evaluation_question_set = {normalized_question(row["question"]) for row in independent_clean}
+    leaked_questions = sorted(x for x in training_question_set & evaluation_question_set if x)
+    if leaked_questions:
+        raise RuntimeError(f"학습/독립 평가 질문 중복: {leaked_questions[:5]}")
     augmented_train_rows = augment_training_rows(train_rows)
+    resume_payload = None
+    resume_sha256 = None
+    resume_tokenizer = None
+    if args.resume_checkpoint:
+        resume_path = Path(args.resume_checkpoint).expanduser().resolve()
+        if not resume_path.is_file():
+            raise RuntimeError(f"재개 체크포인트를 찾을 수 없습니다: {resume_path}")
+        resume_sha256 = hashlib.sha256(resume_path.read_bytes()).hexdigest()
+        resume_payload = torch.load(resume_path, map_location="cpu", weights_only=False)
+        tokenizer = BPETokenizer.from_dict(resume_payload["tokenizer"])
+        resume_tokenizer = tokenizer
+        saved_arch = resume_payload.get("architecture", {})
+        expected_arch = {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK}
+        if saved_arch != expected_arch:
+            raise RuntimeError(f"체크포인트 구조 불일치: saved={saved_arch}, requested={expected_arch}")
+        known_chars = set(tokenizer.initial_symbols)
+        unseen_chars = sorted({
+            char
+            for row in augmented_train_rows
+            for text in ("질문:" + row["question"] + "\n답변:", row["answer"] + "\n\n")
+            for char in text
+            if char not in known_chars
+        })
+        if unseen_chars:
+            # Extend only the Candidate tokenizer by appending new character IDs.
+            # Existing token IDs and their embedding/output rows remain unchanged.
+            tokenizer = tokenizer.with_added_symbols(unseen_chars)
+            if len(tokenizer.vocab) > args.vocab_size + 512:
+                raise RuntimeError(
+                    "토크나이저 확장 폭이 안전 한도를 초과했습니다: "
+                    f"{len(tokenizer.vocab)} > {args.vocab_size + 512}"
+                )
+    else:
+        tokenizer = BPETokenizer.train(
+            [
+                "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
+                for row in augmented_train_rows
+            ],
+            vocab_size=args.vocab_size,
+            min_pair_frequency=2,
+        )
+    train_sequences = encode_rows(train_rows, tokenizer)
     train_examples = encode_training_examples(augmented_train_rows, tokenizer)
     valid_examples = encode_training_examples(valid_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
@@ -305,28 +468,58 @@ def main():
     independent_bpe = encode_rows(independent_clean, tokenizer)
     independent_char = [live.encode_text(row["text"])[0] for row in independent_clean]
 
-    roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in rows)
-    if roundtrip_passed != len(rows):
-        raise RuntimeError(f"BPE 왕복 변환 검증 실패: {roundtrip_passed}/{len(rows)}")
+    roundtrip_passed = sum(
+        tokenizer.decode(sequence) == "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
+        for row, (sequence, _) in zip(augmented_train_rows, train_examples)
+    )
+    if roundtrip_passed != len(augmented_train_rows):
+        raise RuntimeError(
+            "BPE 증강 학습 데이터 왕복 변환 검증 실패: "
+            f"{roundtrip_passed}/{len(augmented_train_rows)}"
+        )
+    unknown_training_tokens = sum(
+        token_id == 0 for sequence, _ in train_examples for token_id in sequence
+    )
+    if unknown_training_tokens:
+        raise RuntimeError(f"증강 학습 프롬프트에 미등록 토큰이 있습니다: {unknown_training_tokens}")
     tokenizer_payload = tokenizer.to_dict()
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
         "training_pairs": len(train_rows),
+        "approved_feedback_pairs": len(reviewed_feedback),
         "augmented_training_examples": len(augmented_train_rows),
         "augmentation_factor": len(augmented_train_rows) / max(1, len(train_rows)),
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
         "roundtrip_passed": roundtrip_passed,
-        "roundtrip_total": len(rows),
+        "roundtrip_total": len(augmented_train_rows),
+        "unknown_training_tokens": unknown_training_tokens,
         "live_model_changed": False,
     }
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     candidate = BPECandidate(len(tokenizer.vocab), width=args.width, heads=args.heads, layers=args.layers).to(DEVICE)
+    if resume_payload is not None:
+        load_candidate_state_preserving_vocab(
+            candidate,
+            resume_payload["state_dict"],
+            resume_tokenizer,
+            tokenizer,
+        )
+    independent_examples = encode_training_examples(independent_clean, tokenizer)
+    parent_independent_answer_bpc = (
+        answer_bits_per_char(candidate, independent_examples, tokenizer)
+        if resume_payload is not None else None
+    )
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
-    optimizer = torch.optim.AdamW(candidate.parameters(), lr=3e-4, weight_decay=0.01)
+    parent_validation_answer_bpc = (
+        answer_bits_per_char(candidate, valid_examples, tokenizer)
+        if resume_payload is not None else None
+    )
+    learning_rate = candidate_learning_rate(resume_payload is not None)
+    optimizer = torch.optim.AdamW(candidate.parameters(), lr=learning_rate, weight_decay=0.01)
     candidate.train()
     losses = []
     validation_curve = []
@@ -335,7 +528,7 @@ def main():
     best_state = None
     stale_evaluations = 0
     total_steps = max(1, min(args.steps, 5000))
-    eval_interval = 100
+    eval_interval = 50
     for step in range(1, total_steps + 1):
         x, y = make_batch(train_examples, batch_size=8)
         optimizer.zero_grad(set_to_none=True)
@@ -358,18 +551,57 @@ def main():
                 stale_evaluations = 0
             else:
                 stale_evaluations += 1
-            if stale_evaluations >= 5:
+            if stale_evaluations >= 4:
                 break
 
     if best_state is None:
         raise RuntimeError("유효한 BPE 검증 체크포인트를 만들지 못했습니다.")
     candidate.load_state_dict(best_state)
     candidate.to(DEVICE)
+
+    training_diagnostic_examples = encode_training_examples(train_rows, tokenizer)
+    training_answer_bpc = answer_bits_per_char(candidate, training_diagnostic_examples, tokenizer)
+    selected_validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
+    generalization_diagnostic = summarize_generalization_gap(
+        training_answer_bpc,
+        selected_validation_answer_bpc,
+        parent_validation_answer_bpc,
+    )
+
+    # A small, deterministic training subset distinguishes memorization failure
+    # from poor generalization. These generations are diagnostics only and are
+    # never appended to training data or evaluation references.
+    training_generation_samples = []
+    for row in train_rows[:min(12, len(train_rows))]:
+        generated = generate_answer(candidate, tokenizer, row["question"])
+        training_generation_samples.append({
+            "question": row["question"],
+            "reference_answer": row["answer"],
+            "generated_answer": generated,
+            "reference_char_bigram_f1_proxy": round(character_bigram_f1(row["answer"], generated), 5),
+        })
+    training_generation_report = {
+        "seed": args.seed,
+        "diagnostic_only": True,
+        "samples": training_generation_samples,
+        "count": len(training_generation_samples),
+        "mean_reference_char_bigram_f1_proxy": round(
+            sum(x["reference_char_bigram_f1_proxy"] for x in training_generation_samples)
+            / max(1, len(training_generation_samples)), 5
+        ),
+        "human_review_required": True,
+        "warning": "학습 문항 생성 결과는 암기 여부 점검용이며 새로운 질문의 일반화나 사실 정확도를 증명하지 않습니다.",
+    }
+    (ROOT / f"bpe_training_generation_seed_{args.seed}.json").write_text(
+        json.dumps(training_generation_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     generation_samples = []
     for row in independent_clean:
         generated = generate_answer(candidate, tokenizer, row["question"])
         generation_samples.append({
             "question": row["question"],
+            "category": row.get("category", "미분류"),
             "reference_answer": row["answer"],
             "generated_answer": generated,
             "nonempty": bool(generated),
@@ -395,42 +627,70 @@ def main():
     live_bpc = live_bits_per_char(valid_char)
     independent_bpe_bpc = candidate_bits_per_char(candidate, independent_bpe, tokenizer)
     independent_live_bpc = live_bits_per_char(independent_char)
-    validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
+    validation_answer_bpc = selected_validation_answer_bpc
     validation_live_answer_bpc = live_answer_bits_per_char(valid_rows)
-    independent_examples = encode_training_examples(independent_clean, tokenizer)
     independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
     independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
+    conditioning_diagnostic = question_conditioning_diagnostic(candidate, independent_clean, tokenizer)
     if not all(math.isfinite(v) for v in (
         bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc,
         validation_answer_bpc, validation_live_answer_bpc,
         independent_answer_bpc, independent_live_answer_bpc,
+        training_answer_bpc, selected_validation_answer_bpc,
+        conditioning_diagnostic["correct_question_answer_bpc"],
+        conditioning_diagnostic["rotated_wrong_question_answer_bpc"],
+        conditioning_diagnostic["question_conditioning_gap_bpc"],
     )):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
+    non_regression_vs_parent = candidate_non_regression_vs_parent(
+        parent_independent_answer_bpc, independent_answer_bpc
+    )
     candidate_path = OUT
-    torch.save({"state_dict": candidate.state_dict(), "tokenizer": tokenizer.to_dict(),
-                "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
-                "steps": len(losses)}, candidate_path)
+    torch.save({
+        "format": "juckex-quantum-candidate-v1",
+        "state_dict": candidate.state_dict(),
+        "tokenizer": tokenizer.to_dict(),
+        "architecture": {"width": args.width, "heads": args.heads, "layers": args.layers, "block": BLOCK},
+        "steps": len(losses),
+        "cumulative_steps": int((resume_payload or {}).get("cumulative_steps", 0)) + len(losses),
+        "parent_checkpoint_sha256": resume_sha256,
+        "resumed_from_checkpoint": bool(resume_payload is not None),
+        "created_at": int(time.time()),
+    }, candidate_path)
     report = {
         "created_at": int(time.time()),
         "status": "evaluated_not_promoted",
         "live_model_changed": False,
         "baseline_scope": "repository_base_char_checkpoint_not_current_remote_live_weights",
         "validation_scope": "deterministic_holdout_from_approved_training_extra",
-        "independent_evaluation_scope": "fixed_20_question_set_never_used_for_gradient_updates_or_bpe_merge_counts",
+        "independent_evaluation_scope": "bpe_independent_eval_never_used_for_gradient_updates_or_bpe_merge_counts",
         "independent_evaluation_pairs": len(independent_clean),
         "independent_bpe_bits_per_character": round(independent_bpe_bpc, 5),
         "independent_live_char_bits_per_character": round(independent_live_bpc, 5),
         "validation_answer_only_bpc": round(validation_answer_bpc, 5),
         "validation_live_answer_only_bpc": round(validation_live_answer_bpc, 5),
         "independent_answer_only_bpc": round(independent_answer_bpc, 5),
+        "parent_independent_answer_only_bpc": (
+            round(parent_independent_answer_bpc, 5)
+            if parent_independent_answer_bpc is not None else None
+        ),
+        "candidate_non_regression_vs_parent": non_regression_vs_parent,
+        "question_conditioning_diagnostic": conditioning_diagnostic,
+        "generalization_gap_diagnostic": generalization_diagnostic,
+        "training_generation_report": str(f"bpe_training_generation_seed_{args.seed}.json"),
+        "training_generation_mean_char_bigram_f1_proxy": training_generation_report["mean_reference_char_bigram_f1_proxy"],
         "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
         "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),
+        "approved_feedback_pairs": len(reviewed_feedback),
         "validation_pairs": len(valid_rows),
         "bpe_vocab_size": len(tokenizer.vocab),
         "bpe_merge_count": len(tokenizer.merges),
         "steps": len(losses),
         "best_step": best_step,
+        "learning_rate": learning_rate,
+        "evaluation_interval": eval_interval,
+        "early_stopping_patience": 4,
         "seed": args.seed,
         "validation_curve": validation_curve,
         "early_stopped": len(losses) < total_steps,
@@ -444,6 +704,9 @@ def main():
         "training_objective": "question_context_preserved_answer_tokens_only",
         "promotion": "보류: 실제 생성 품질의 사람 검토와 독립 평가가 완료되기 전 자동 승격하지 않음",
         "candidate_checkpoint": str(candidate_path.name),
+        "resumed_from_checkpoint": bool(resume_payload is not None),
+        "parent_checkpoint_sha256": resume_sha256,
+        "cumulative_training_steps": int((resume_payload or {}).get("cumulative_steps", 0)) + len(losses),
         "tokenizer_report": str(TOKENIZER_REPORT.name),
     }
     REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

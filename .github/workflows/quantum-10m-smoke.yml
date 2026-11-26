@@ -2,16 +2,32 @@ name: JUCKEX Quantum 10M extended training experiment
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *' # Runs only when this workflow exists on the default branch
   push:
-    branches: [main]
+    branches: [main, quantum-candidate-autonomous-diagnostics]
     paths:
       - 'quantum_10m_config.json'
       - 'training_extra.json'
       - 'bpe_candidate_train.py'
+      - 'bpe_tokenizer.py'
+      - 'test_bpe_tokenizer.py'
+      - 'test_bpe_candidate_resume.py'
+      - 'quantum_feedback_approved.json'
+      - 'quantum_self_improve.py'
+      - 'quantum_dataset_audit.py'
+      - 'test_quantum_dataset_audit.py'
+      - 'quantum_training_data.py'
+      - 'test_quantum_training_data.py'
+      - 'quantum_eval_candidate_queue.json'
+      - 'test_quantum_eval_candidate_queue.py'
+      - 'quantum_eval_review.py'
+      - 'test_quantum_eval_review.py'
+      - 'bpe_independent_eval.json'
       - 'test_quality_benchmark.py'
       - 'quantum_retrieval.py'
       - 'test_quantum_retrieval.py'
-      - '.github/workflows/quantum-10m-smoke.yml'
+      - 'test_quantum_self_improve.py'
 
 permissions:
   contents: read
@@ -23,26 +39,36 @@ concurrency:
 jobs:
   architecture-smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-
       - name: Install CPU training dependencies
         run: pip install -r requirements.txt
-
-      - name: Run regression tests
-        run: python -m unittest test_quality_benchmark.py test_quantum_retrieval.py
-
-      - name: Verify and smoke-train Quantum 10M
+      - name: Restore previous Candidate checkpoint from free cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/.quantum-candidate-state
+          key: quantum-candidate-state-${{ github.run_id }}
+          restore-keys: |
+            quantum-candidate-state-
+      - name: Prepare Candidate state directory
+        run: mkdir -p "${{ github.workspace }}/.quantum-candidate-state"
+      - name: Audit datasets and run regression tests
         run: |
-          python bpe_candidate_train.py --steps 500 --vocab-size 1024 --width 496 --heads 8 --layers 3 --target-parameters 10000000 --parameter-tolerance 0.02 --seed 20261123
+          python quantum_dataset_audit.py
+          python -m unittest test_quality_benchmark.py test_quantum_retrieval.py test_quantum_self_improve.py test_quantum_dataset_audit.py test_quantum_training_data.py test_quantum_eval_candidate_queue.py test_quantum_eval_review.py test_bpe_tokenizer.py test_bpe_candidate_resume.py
+      - name: Verify and smoke-train Quantum 10M
+        env:
+          QUANTUM_CANDIDATE_STATE_DIR: ${{ github.workspace }}/.quantum-candidate-state
+          QUANTUM_CANDIDATE_STATE_BACKEND: github-actions-cache-best-effort
+        run: |
+          python quantum_self_improve.py --steps 500 --vocab-size 1024 --seed ${{ github.run_number }}
           python - <<'PY'
           import json
           from pathlib import Path
@@ -58,9 +84,12 @@ jobs:
               "live_model_changed": False
           }, ensure_ascii=False, indent=2))
           PY
-
-      # This repository is public. Never attach model weights to its workflow artifacts.
-      # Keep only non-weight experiment metadata here until a private checkpoint store is verified.
+      - name: Save improved Candidate checkpoint to free cache
+        if: ${{ success() && hashFiles('.quantum-candidate-state/candidate_latest.pt') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.quantum-candidate-state
+          key: quantum-candidate-state-${{ github.run_id }}
       - name: Upload experiment reports only (no model checkpoint)
         uses: actions/upload-artifact@v4
         with:
@@ -68,6 +97,14 @@ jobs:
           path: |
             bpe_candidate_report.json
             bpe_candidate.json
-            bpe_generation_seed_20261123.json
+            bpe_generation_seed_*.json
+            bpe_training_generation_seed_*.json
+            quantum_self_improvement_report.json
+            quantum_dataset_audit_report.json
+            quantum_review_queue.json
+            quantum_reflection_review_queue.json
+            quantum_probe_answers.json
+            quantum_self_reflection.json
+            quantum_next_cycle_probes.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7

@@ -1,0 +1,125 @@
+import unittest
+
+import torch
+
+from bpe_candidate_train import (
+    BPECandidate,
+    augment_training_rows,
+    encode_training_examples,
+    candidate_non_regression_vs_parent,
+    candidate_learning_rate,
+    load_candidate_state_preserving_vocab,
+    question_conditioning_diagnostic,
+    summarize_generalization_gap,
+)
+from bpe_tokenizer import BPETokenizer
+
+
+class CandidateResumeVocabularyTests(unittest.TestCase):
+    def test_resumed_candidate_uses_conservative_learning_rate(self):
+        self.assertEqual(candidate_learning_rate(True), 3e-5)
+        self.assertEqual(candidate_learning_rate(False), 3e-4)
+
+    def test_parent_comparison_rejects_regression(self):
+        self.assertTrue(candidate_non_regression_vs_parent(6.0, 5.9))
+        self.assertTrue(candidate_non_regression_vs_parent(6.0, 6.0))
+        self.assertFalse(candidate_non_regression_vs_parent(6.0, 6.01))
+        self.assertFalse(candidate_non_regression_vs_parent(6.0, float("nan")))
+        self.assertIsNone(candidate_non_regression_vs_parent(None, 5.0))
+
+    def test_resume_copies_old_vocab_rows_and_keeps_new_rows_initialized(self):
+        torch.manual_seed(7)
+        old_tokenizer = BPETokenizer.train(
+            ["abc abc", "cab cab"],
+            vocab_size=32,
+            min_pair_frequency=2,
+        )
+        new_tokenizer = old_tokenizer.with_added_symbols(["한", "글"])
+        old_model = BPECandidate(len(old_tokenizer.vocab), width=16, heads=4, layers=1)
+        new_model = BPECandidate(len(new_tokenizer.vocab), width=16, heads=4, layers=1)
+
+        load_candidate_state_preserving_vocab(
+            new_model,
+            old_model.state_dict(),
+            old_tokenizer,
+            new_tokenizer,
+        )
+
+        old_state = old_model.state_dict()
+        new_state = new_model.state_dict()
+        for key in ("token.weight", "output.weight", "output.bias"):
+            for token, old_id in old_tokenizer.stoi.items():
+                new_id = new_tokenizer.stoi[token]
+                self.assertTrue(torch.equal(old_state[key][old_id], new_state[key][new_id]))
+        self.assertEqual(new_model.token.weight.shape[0], len(new_tokenizer.vocab))
+        self.assertEqual(new_model.output.weight.shape[0], len(new_tokenizer.vocab))
+
+    def test_prompt_augmentation_tokens_are_in_training_vocabulary(self):
+        rows = [{
+            "question": "알고리즘이란 무엇인가요?",
+            "answer": "문제를 해결하는 단계별 절차입니다.",
+        }]
+        augmented = augment_training_rows(rows)
+        texts = [
+            "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
+            for row in augmented
+        ]
+        tokenizer = BPETokenizer.train(texts, vocab_size=64, min_pair_frequency=2)
+        examples = encode_training_examples(augmented, tokenizer)
+        self.assertTrue(examples)
+        self.assertEqual(sum(token_id == 0 for sequence, _ in examples for token_id in sequence), 0)
+
+    def test_question_conditioning_diagnostic_compares_correct_and_rotated_prompts(self):
+        tokenizer = BPETokenizer.train(
+            ["질문:하늘은 무슨 색인가요?\n답변:파란색입니다.", "질문:물은 무엇인가요?\n답변:액체입니다."],
+            vocab_size=64,
+            min_pair_frequency=2,
+        )
+        rows = [
+            {"question": "하늘은 무슨 색인가요?", "answer": "파란색입니다."},
+            {"question": "물은 무엇인가요?", "answer": "액체입니다."},
+        ]
+        model = BPECandidate(len(tokenizer.vocab), width=16, heads=4, layers=1)
+        result = question_conditioning_diagnostic(model, rows, tokenizer)
+        self.assertEqual(result["pairs"], 2)
+        self.assertIn("correct_question_answer_bpc", result)
+        self.assertIn("rotated_wrong_question_answer_bpc", result)
+        self.assertTrue(torch.isfinite(torch.tensor(result["question_conditioning_gap_bpc"])))
+        self.assertIn("사실 정확도", result["metric_warning"])
+
+    def test_generalization_gap_reports_overfit_signal_and_parent_comparison(self):
+        result = summarize_generalization_gap(0.02, 4.7, 4.6)
+        self.assertAlmostEqual(result["validation_minus_training_bpc"], 4.68, places=4)
+        self.assertFalse(result["validation_non_regression_vs_parent"])
+        self.assertIn("과적합 가능성", result["interpretation"])
+
+    def test_generalization_gap_accepts_fresh_candidate_without_parent(self):
+        result = summarize_generalization_gap(1.2, 2.1, None)
+        self.assertIsNone(result["parent_validation_answer_only_bpc"])
+        self.assertIsNone(result["validation_non_regression_vs_parent"])
+
+    def test_tokenizer_does_not_add_evaluation_only_characters(self):
+        tokenizer = BPETokenizer.train(
+            ["훈련 질문과 답변"],
+            vocab_size=32,
+            min_pair_frequency=2,
+        )
+        self.assertNotIn("평", tokenizer.stoi)
+        self.assertEqual(tokenizer.encode("평"), [0])
+
+    def test_resume_rejects_removed_old_token(self):
+        old_tokenizer = BPETokenizer.train(["abc"], vocab_size=16)
+        old_model = BPECandidate(len(old_tokenizer.vocab), width=16, heads=4, layers=1)
+        bad_tokenizer = BPETokenizer.train(["xyz"], vocab_size=16)
+        new_model = BPECandidate(len(bad_tokenizer.vocab), width=16, heads=4, layers=1)
+        with self.assertRaises(RuntimeError):
+            load_candidate_state_preserving_vocab(
+                new_model,
+                old_model.state_dict(),
+                old_tokenizer,
+                bad_tokenizer,
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
