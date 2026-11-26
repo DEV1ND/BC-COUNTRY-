@@ -358,6 +358,7 @@ def main():
     leaked_questions = sorted(x for x in training_question_set & evaluation_question_set if x)
     if leaked_questions:
         raise RuntimeError(f"학습/독립 평가 질문 중복: {leaked_questions[:5]}")
+    augmented_train_rows = augment_training_rows(train_rows)
     resume_payload = None
     resume_sha256 = None
     resume_tokenizer = None
@@ -375,7 +376,10 @@ def main():
             raise RuntimeError(f"체크포인트 구조 불일치: saved={saved_arch}, requested={expected_arch}")
         known_chars = set(tokenizer.initial_symbols)
         unseen_chars = sorted({
-            char for row in train_rows for char in row["text"]
+            char
+            for row in augmented_train_rows
+            for text in ("질문:" + row["question"] + "\\n답변:", row["answer"] + "\\n\\n")
+            for char in text
             if char not in known_chars
         })
         if unseen_chars:
@@ -389,12 +393,14 @@ def main():
                 )
     else:
         tokenizer = BPETokenizer.train(
-            [row["text"] for row in train_rows],
+            [
+                "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+                for row in augmented_train_rows
+            ],
             vocab_size=args.vocab_size,
             min_pair_frequency=2,
         )
     train_sequences = encode_rows(train_rows, tokenizer)
-    augmented_train_rows = augment_training_rows(train_rows)
     train_examples = encode_training_examples(augmented_train_rows, tokenizer)
     valid_examples = encode_training_examples(valid_rows, tokenizer)
     valid_bpe = encode_rows(valid_rows, tokenizer)
@@ -402,9 +408,20 @@ def main():
     independent_bpe = encode_rows(independent_clean, tokenizer)
     independent_char = [live.encode_text(row["text"])[0] for row in independent_clean]
 
-    roundtrip_passed = sum(tokenizer.decode(tokenizer.encode(row["text"])) == row["text"] for row in train_rows)
-    if roundtrip_passed != len(train_rows):
-        raise RuntimeError(f"BPE 학습 데이터 왕복 변환 검증 실패: {roundtrip_passed}/{len(train_rows)}")
+    roundtrip_passed = sum(
+        tokenizer.decode(sequence) == "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+        for row, (sequence, _) in zip(augmented_train_rows, train_examples)
+    )
+    if roundtrip_passed != len(augmented_train_rows):
+        raise RuntimeError(
+            "BPE 증강 학습 데이터 왕복 변환 검증 실패: "
+            f"{roundtrip_passed}/{len(augmented_train_rows)}"
+        )
+    unknown_training_tokens = sum(
+        token_id == 0 for sequence, _ in train_examples for token_id in sequence
+    )
+    if unknown_training_tokens:
+        raise RuntimeError(f"증강 학습 프롬프트에 미등록 토큰이 있습니다: {unknown_training_tokens}")
     tokenizer_payload = tokenizer.to_dict()
     tokenizer_payload["assessment"] = {
         "source": "approved-training-extra",
@@ -415,7 +432,8 @@ def main():
         "validation_pairs": len(valid_rows),
         "vocab_size": len(tokenizer.vocab),
         "roundtrip_passed": roundtrip_passed,
-        "roundtrip_total": len(train_rows),
+        "roundtrip_total": len(augmented_train_rows),
+        "unknown_training_tokens": unknown_training_tokens,
         "live_model_changed": False,
     }
     TOKENIZER_REPORT.write_text(json.dumps(tokenizer_payload, ensure_ascii=False, indent=2), encoding="utf-8")
