@@ -10,6 +10,7 @@ from bpe_candidate_train import (
     candidate_learning_rate,
     load_candidate_state_preserving_vocab,
     question_conditioning_diagnostic,
+    summarize_generalization_gap,
 )
 from bpe_tokenizer import BPETokenizer
 
@@ -85,6 +86,17 @@ class CandidateResumeVocabularyTests(unittest.TestCase):
         self.assertIn("rotated_wrong_question_answer_bpc", result)
         self.assertTrue(torch.isfinite(torch.tensor(result["question_conditioning_gap_bpc"])))
         self.assertIn("사실 정확도", result["metric_warning"])
+
+    def test_generalization_gap_reports_overfit_signal_and_parent_comparison(self):
+        result = summarize_generalization_gap(0.02, 4.7, 4.6)
+        self.assertAlmostEqual(result["validation_minus_training_bpc"], 4.68, places=4)
+        self.assertFalse(result["validation_non_regression_vs_parent"])
+        self.assertIn("과적합 가능성", result["interpretation"])
+
+    def test_generalization_gap_accepts_fresh_candidate_without_parent(self):
+        result = summarize_generalization_gap(1.2, 2.1, None)
+        self.assertIsNone(result["parent_validation_answer_only_bpc"])
+        self.assertIsNone(result["validation_non_regression_vs_parent"])
 
     def test_tokenizer_does_not_add_evaluation_only_characters(self):
         tokenizer = BPETokenizer.train(
