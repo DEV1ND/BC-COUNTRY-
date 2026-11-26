@@ -378,7 +378,7 @@ def main():
         unseen_chars = sorted({
             char
             for row in augmented_train_rows
-            for text in ("질문:" + row["question"] + "\\n답변:", row["answer"] + "\\n\\n")
+            for text in ("질문:" + row["question"] + "\n답변:", row["answer"] + "\n\n")
             for char in text
             if char not in known_chars
         })
@@ -394,7 +394,7 @@ def main():
     else:
         tokenizer = BPETokenizer.train(
             [
-                "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+                "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
                 for row in augmented_train_rows
             ],
             vocab_size=args.vocab_size,
@@ -409,7 +409,7 @@ def main():
     independent_char = [live.encode_text(row["text"])[0] for row in independent_clean]
 
     roundtrip_passed = sum(
-        tokenizer.decode(sequence) == "질문:" + row["question"] + "\\n답변:" + row["answer"] + "\\n\\n"
+        tokenizer.decode(sequence) == "질문:" + row["question"] + "\n답변:" + row["answer"] + "\n\n"
         for row, (sequence, _) in zip(augmented_train_rows, train_examples)
     )
     if roundtrip_passed != len(augmented_train_rows):
