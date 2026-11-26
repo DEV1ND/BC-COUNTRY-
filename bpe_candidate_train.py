@@ -245,6 +245,41 @@ def character_bigram_f1(reference, generated):
     return 2 * precision * recall / max(1e-12, precision + recall)
 
 
+
+@torch.no_grad()
+def question_conditioning_diagnostic(candidate, rows, tokenizer):
+    """Compare answer-token loss with its true question versus a rotated wrong question.
+
+    A positive gap means the correct question context helps predict the same answer.
+    This is a conditioning diagnostic, not a factual-accuracy score.
+    """
+    if len(rows) < 2:
+        raise ValueError("질문 조건화 진단에는 서로 다른 평가 문항이 최소 2개 필요합니다.")
+    correct_examples = encode_training_examples(rows, tokenizer)
+    mismatched_rows = [
+        {
+            "question": rows[(index + 1) % len(rows)]["question"],
+            "answer": row["answer"],
+        }
+        for index, row in enumerate(rows)
+    ]
+    mismatched_examples = encode_training_examples(mismatched_rows, tokenizer)
+    correct_bpc = answer_bits_per_char(candidate, correct_examples, tokenizer)
+    mismatched_bpc = answer_bits_per_char(candidate, mismatched_examples, tokenizer)
+    gap = mismatched_bpc - correct_bpc
+    return {
+        "pairs": len(rows),
+        "correct_question_answer_bpc": round(correct_bpc, 5),
+        "rotated_wrong_question_answer_bpc": round(mismatched_bpc, 5),
+        "question_conditioning_gap_bpc": round(gap, 5),
+        "correct_context_helped": bool(gap > 0),
+        "metric_warning": (
+            "올바른 질문과 순환 치환한 질문의 정답 토큰 손실 비교입니다. "
+            "양수는 질문 문맥 활용의 신호일 뿐 사실 정확도나 의미적 정답률을 증명하지 않습니다."
+        ),
+    }
+
+
 def candidate_non_regression_vs_parent(parent_bpc, candidate_bpc):
     """Return None for a fresh candidate, otherwise whether loss did not regress."""
     if parent_bpc is None:
@@ -529,10 +564,14 @@ def main():
     validation_live_answer_bpc = live_answer_bits_per_char(valid_rows)
     independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
     independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
+    conditioning_diagnostic = question_conditioning_diagnostic(candidate, independent_clean, tokenizer)
     if not all(math.isfinite(v) for v in (
         bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc,
         validation_answer_bpc, validation_live_answer_bpc,
         independent_answer_bpc, independent_live_answer_bpc,
+        conditioning_diagnostic["correct_question_answer_bpc"],
+        conditioning_diagnostic["rotated_wrong_question_answer_bpc"],
+        conditioning_diagnostic["question_conditioning_gap_bpc"],
     )):
         raise RuntimeError("검증 지표가 유효한 숫자가 아닙니다.")
     non_regression_vs_parent = candidate_non_regression_vs_parent(
@@ -568,6 +607,7 @@ def main():
             if parent_independent_answer_bpc is not None else None
         ),
         "candidate_non_regression_vs_parent": non_regression_vs_parent,
+        "question_conditioning_diagnostic": conditioning_diagnostic,
         "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
         "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),
