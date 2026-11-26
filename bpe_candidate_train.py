@@ -280,6 +280,31 @@ def question_conditioning_diagnostic(candidate, rows, tokenizer):
     }
 
 
+def summarize_generalization_gap(training_bpc, validation_bpc, parent_validation_bpc=None):
+    """Summarize train/validation separation without treating it as semantic accuracy."""
+    values = (training_bpc, validation_bpc)
+    if not all(math.isfinite(float(value)) for value in values):
+        raise ValueError("일반화 진단 손실은 유한한 숫자여야 합니다.")
+    gap = float(validation_bpc) - float(training_bpc)
+    return {
+        "training_answer_only_bpc": round(float(training_bpc), 5),
+        "validation_answer_only_bpc": round(float(validation_bpc), 5),
+        "validation_minus_training_bpc": round(gap, 5),
+        "parent_validation_answer_only_bpc": (
+            round(float(parent_validation_bpc), 5)
+            if parent_validation_bpc is not None else None
+        ),
+        "validation_non_regression_vs_parent": (
+            candidate_non_regression_vs_parent(parent_validation_bpc, validation_bpc)
+            if parent_validation_bpc is not None else None
+        ),
+        "interpretation": (
+            "검증 손실이 학습 손실보다 높으면 과적합 가능성을 점검해야 합니다. "
+            "이 지표는 생성 답변의 사실 정확도나 의미적 정답률을 측정하지 않습니다."
+        ),
+    }
+
+
 def candidate_non_regression_vs_parent(parent_bpc, candidate_bpc):
     """Return None for a fresh candidate, otherwise whether loss did not regress."""
     if parent_bpc is None:
@@ -489,6 +514,10 @@ def main():
     parameter_count = sum(p.numel() for p in candidate.parameters())
     if args.target_parameters and abs(parameter_count - args.target_parameters) / args.target_parameters > args.parameter_tolerance:
         raise RuntimeError(f"모델 파라미터 수가 목표 허용 범위를 벗어났습니다: {parameter_count:,}")
+    parent_validation_answer_bpc = (
+        answer_bits_per_char(candidate, valid_examples, tokenizer)
+        if resume_payload is not None else None
+    )
     learning_rate = candidate_learning_rate(resume_payload is not None)
     optimizer = torch.optim.AdamW(candidate.parameters(), lr=learning_rate, weight_decay=0.01)
     candidate.train()
@@ -529,6 +558,44 @@ def main():
         raise RuntimeError("유효한 BPE 검증 체크포인트를 만들지 못했습니다.")
     candidate.load_state_dict(best_state)
     candidate.to(DEVICE)
+
+    training_diagnostic_examples = encode_training_examples(train_rows, tokenizer)
+    training_answer_bpc = answer_bits_per_char(candidate, training_diagnostic_examples, tokenizer)
+    selected_validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
+    generalization_diagnostic = summarize_generalization_gap(
+        training_answer_bpc,
+        selected_validation_answer_bpc,
+        parent_validation_answer_bpc,
+    )
+
+    # A small, deterministic training subset distinguishes memorization failure
+    # from poor generalization. These generations are diagnostics only and are
+    # never appended to training data or evaluation references.
+    training_generation_samples = []
+    for row in train_rows[:min(12, len(train_rows))]:
+        generated = generate_answer(candidate, tokenizer, row["question"])
+        training_generation_samples.append({
+            "question": row["question"],
+            "reference_answer": row["answer"],
+            "generated_answer": generated,
+            "reference_char_bigram_f1_proxy": round(character_bigram_f1(row["answer"], generated), 5),
+        })
+    training_generation_report = {
+        "seed": args.seed,
+        "diagnostic_only": True,
+        "samples": training_generation_samples,
+        "count": len(training_generation_samples),
+        "mean_reference_char_bigram_f1_proxy": round(
+            sum(x["reference_char_bigram_f1_proxy"] for x in training_generation_samples)
+            / max(1, len(training_generation_samples)), 5
+        ),
+        "human_review_required": True,
+        "warning": "학습 문항 생성 결과는 암기 여부 점검용이며 새로운 질문의 일반화나 사실 정확도를 증명하지 않습니다.",
+    }
+    (ROOT / f"bpe_training_generation_seed_{args.seed}.json").write_text(
+        json.dumps(training_generation_report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
     generation_samples = []
     for row in independent_clean:
         generated = generate_answer(candidate, tokenizer, row["question"])
@@ -560,7 +627,7 @@ def main():
     live_bpc = live_bits_per_char(valid_char)
     independent_bpe_bpc = candidate_bits_per_char(candidate, independent_bpe, tokenizer)
     independent_live_bpc = live_bits_per_char(independent_char)
-    validation_answer_bpc = answer_bits_per_char(candidate, valid_examples, tokenizer)
+    validation_answer_bpc = selected_validation_answer_bpc
     validation_live_answer_bpc = live_answer_bits_per_char(valid_rows)
     independent_answer_bpc = answer_bits_per_char(candidate, independent_examples, tokenizer)
     independent_live_answer_bpc = live_answer_bits_per_char(independent_clean)
@@ -569,6 +636,7 @@ def main():
         bpe_bpc, live_bpc, independent_bpe_bpc, independent_live_bpc,
         validation_answer_bpc, validation_live_answer_bpc,
         independent_answer_bpc, independent_live_answer_bpc,
+        training_answer_bpc, selected_validation_answer_bpc,
         conditioning_diagnostic["correct_question_answer_bpc"],
         conditioning_diagnostic["rotated_wrong_question_answer_bpc"],
         conditioning_diagnostic["question_conditioning_gap_bpc"],
@@ -608,6 +676,9 @@ def main():
         ),
         "candidate_non_regression_vs_parent": non_regression_vs_parent,
         "question_conditioning_diagnostic": conditioning_diagnostic,
+        "generalization_gap_diagnostic": generalization_diagnostic,
+        "training_generation_report": str(f"bpe_training_generation_seed_{args.seed}.json"),
+        "training_generation_mean_char_bigram_f1_proxy": training_generation_report["mean_reference_char_bigram_f1_proxy"],
         "independent_live_answer_only_bpc": round(independent_live_answer_bpc, 5),
         "candidate_better_on_independent_set": bool(independent_answer_bpc < independent_live_answer_bpc),
         "training_pairs": len(train_rows),
